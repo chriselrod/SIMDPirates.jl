@@ -107,7 +107,7 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,T}, Tuple{Ptr{T}, Vec{N,Bool}}, ptr, mask))
+            Vec{N,T}, Tuple{Ptr{T}, Vec{N,Bool}}, ptr, mask)
     end
 end
 
@@ -165,7 +165,7 @@ end
                         arr::Union{Array{T,D},SubArray{T,D}},
                         i::Integer,
                         ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
-    @boundscheck 1 Base.:<= i Base.:<= length(arr) Base.:- (N-1) || throw(BoundsError())
+    @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     vstore(v, pointer(arr, i), Val{Aligned})
 end
 @inline function vstorea(v::Vec{N,T}, arr::Union{Array{T,1},SubArray{T,1}},

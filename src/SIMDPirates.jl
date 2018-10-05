@@ -1,9 +1,10 @@
 module SIMDPirates
 
+using MacroTools: postwalk, @capture
 
-
-export  Vec,
-        broadcast,
+export  Vec, VE,
+        @pirate,
+        vbroadcast,
         valloc,
         vload,
         vloada,
@@ -11,7 +12,8 @@ export  Vec,
         vstorea,
         shufflevector,
         vifelse,
-        vfma
+        vfma,
+        vmuladd
 
 include("type_definitions.jl")
 include("llvm_utils.jl")

@@ -1,33 +1,49 @@
 
 # Floating point arithmetic functions
 
-for op in (
-        :+, :-,
-        :abs, :ceil, :cos, :exp, :exp2, :floor, :inv, :log, :log10, :log2,
-        :round, :sin, :sqrt, :trunc)
+for op ∈ (
+        :(+), :(-),
+        :abs, :floor, :ceil, :round,
+        :sin, :cos,
+        :exp, :exp2, :inv, :log, :log10, :log2,
+        :sqrt, :trunc
+    )
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
+        @inline $rename(s1::FloatingTypes) = $op(s1)
+        @inline $rename(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
             llvmwrap(Val{$(QuoteNode(op))}, v1)
     end
 end
-@inline exp10(v1::Vec{N,T}) where {N,T<:FloatingTypes} = broadcast(Vec{N,T}, 10)^v1
-@inline sign(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
-    vifelse(v1 == broadcast(Vec{N,T}, 0.0), broadcast(Vec{N,T}, 0.0), copysign(broadcast(Vec{N,T}, 1.0), v1))
+@inline vexp10(s1::FloatingTypes) = exp10(s1)
+@inline vexp10(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vbroadcast(Vec{N,T}, 10)^v1
+@inline vsign(s1::FloatingTypes) = sign(s1)
+@inline vsign(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
+    vifelse(v1 == vbroadcast(Vec{N,T}, 0.0), vbroadcast(Vec{N,T}, 0.0), copysign(vbroadcast(Vec{N,T}, 1.0), v1))
 
-for op in (:+, :-, :*, :/, :^, :copysign, :max, :min, :rem)
+for op ∈ (
+        :(+), :(-), :(*), :(/), :(%), :(^),
+        :copysign, :max, :min
+    )
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+        @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
+        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
             llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
     end
 end
-@inline  ^(v1::Vec{N,T}, x2::Integer) where {N,T<:FloatingTypes} =
+@inline vpow(s1::FloatingTypes, x2::Integer) = s1^x
+@inline vpow(v1::Vec{N,T}, x2::Integer) where {N,T<:FloatingTypes} =
     llvmwrap(Val{:powi}, v1, Int(x2))
-@inline flipsign(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-    vifelse(signbit(v2), -v1, v1)
+@inline vflipsign(s1::FloatingTypes, s2::FloatingTypes) = flipsign(s1, s2)
+@inline vflipsign(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+    vifelse(vsignbit(v2), -v1, v1)
 
-for op in (:fma, :muladd)
+for op ∈ (:fma, :muladd)
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline function $op(v1::Vec{N,T},
+        # scalar default already set in integer_arithmetic.jl
+        @inline function $rename(v1::Vec{N,T},
                 v2::Vec{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}, v1, v2, v3)
         end
@@ -39,45 +55,50 @@ end
 # Promote scalars of all IntegerTypes to vectors of IntegerTypes, leaving the
 # vector type unchanged
 
-for op in (
+for op ∈ (
         :(==), :(!=), :(<), :(<=), :(>), :(>=),
-        :&, :|, :⊻, :+, :-, :*, :copysign, :div, :flipsign, :max, :min, :rem)
+        :(&), :(|), :(⊻), :(+), :(-), :(*),
+        :copysign, :div, :flipsign, :max, :min, :rem
+    )
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(s1::Bool, v2::Vec{N,Bool}) where {N} =
+        @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1, s2)
+        @inline $rename(s1::Bool, v2::Vec{N,Bool}) where {N} =
             $op(Vec{N,Bool}(s1), v2)
-        @inline $op(s1::IntegerTypes, v2::Vec{N,T}) where {N,T<:IntegerTypes} =
-            $op(broadcast(Vec{N,T}, s1), v2)
-        @inline $op(v1::Vec{N,T}, s2::IntegerTypes) where {N,T<:IntegerTypes} =
-            $op(v1, broadcast(Vec{N,T}, s2))
+        @inline $rename(s1::IntegerTypes, v2::Vec{N,T}) where {N,T<:IntegerTypes} =
+            $op(vbroadcast(Vec{N,T}, s1), v2)
+        @inline $rename(v1::Vec{N,T}, s2::IntegerTypes) where {N,T<:IntegerTypes} =
+            $op(v1, vbroadcast(Vec{N,T}, s2))
     end
 end
 @inline vifelse(c::Vec{N,Bool}, s1::IntegerTypes,
         v2::Vec{N,T}) where {N,T<:IntegerTypes} =
-    vifelse(c, broadcast(Vec{N,T}, s1), v2)
+    vifelse(c, vbroadcast(Vec{N,T}, s1), v2)
 @inline vifelse(c::Vec{N,Bool}, v1::Vec{N,T},
         s2::IntegerTypes) where {N,T<:IntegerTypes} =
-vifelse(c, v1, broadcast(Vec{N,T}, s2))
+vifelse(c, v1, vbroadcast(Vec{N,T}, s2))
 
-for op in (:muladd,)
+for op ∈ (:muladd,)
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(s1::IntegerTypes, v2::Vec{N,T},
+        @inline $rename(s1::IntegerTypes, v2::Vec{N,T},
                 v3::Vec{N,T}) where {N,T<:IntegerTypes} =
-            $op(broadcast(Vec{N,T}, s1), v2, v3)
-        @inline $op(v1::Vec{N,T}, s2::IntegerTypes,
+            $rename(vbroadcast(Vec{N,T}, s1), v2, v3)
+        @inline $rename(v1::Vec{N,T}, s2::IntegerTypes,
                 v3::Vec{N,T}) where {N,T<:IntegerTypes} =
-            $op(v1, broadcast(Vec{N,T}, s2), v3)
-        @inline $op(s1::IntegerTypes, s2::IntegerTypes,
+            $rename(v1, vbroadcast(Vec{N,T}, s2), v3)
+        @inline $rename(s1::IntegerTypes, s2::IntegerTypes,
                 v3::Vec{N,T}) where {N,T<:IntegerTypes} =
-            $op(broadcast(Vec{N,T}, s1), broadcast(Vec{N,T}, s2), v3)
-        @inline $op(v1::Vec{N,T}, v2::Vec{N,T},
+            $rename(vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), v3)
+        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T},
                 s3::IntegerTypes) where {N,T<:IntegerTypes} =
-            $op(v1, v2, broadcast(Vec{N,T}, s3))
-        @inline $op(s1::IntegerTypes, v2::Vec{N,T},
+            $rename(v1, v2, vbroadcast(Vec{N,T}, s3))
+        @inline $rename(s1::IntegerTypes, v2::Vec{N,T},
                 s3::IntegerTypes) where {N,T<:IntegerTypes} =
-            $op(broadcast(Vec{N,T}, s1), v2, broadcast(Vec{N,T}, s3))
-        @inline $op(v1::Vec{N,T}, s2::IntegerTypes,
+            $rename(vbroadcast(Vec{N,T}, s1), v2, vbroadcast(Vec{N,T}, s3))
+        @inline $rename(v1::Vec{N,T}, s2::IntegerTypes,
                 s3::IntegerTypes) where {N,T<:IntegerTypes} =
-            $op(v1, broadcast(Vec{N,T}, s2), broadcast(Vec{N,T}, s3))
+            $rename(v1, vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
     end
 end
 
@@ -85,43 +106,47 @@ end
 # Promote scalars of all ScalarTypes to vectors of FloatingTypes, leaving the
 # vector type unchanged
 
-for op in (
+for op ∈ (
         :(==), :(!=), :(<), :(<=), :(>), :(>=),
-        :+, :-, :*, :/, :^, :copysign, :flipsign, :max, :min, :rem)
+        :+, :-, :*, :/, :^,
+        :copysign, :flipsign, :max, :min, :%
+    )
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(s1::ScalarTypes, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-            $op(broadcast(Vec{N,T}, s1), v2)
-        @inline $op(v1::Vec{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes} =
-            $op(v1, broadcast(Vec{N,T}, s2))
+        @inline $rename(s1::ScalarTypes, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+            $rename(vbroadcast(Vec{N,T}, s1), v2)
+        @inline $rename(v1::Vec{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes} =
+            $rename(v1, vbroadcast(Vec{N,T}, s2))
     end
 end
 @inline vifelse(c::Vec{N,Bool}, s1::ScalarTypes,
         v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-    vifelse(c, broadcast(Vec{N,T}, s1), v2)
+    vifelse(c, vbroadcast(Vec{N,T}, s1), v2)
 @inline vifelse(c::Vec{N,Bool}, v1::Vec{N,T},
         s2::ScalarTypes) where {N,T<:FloatingTypes} =
-vifelse(c, v1, broadcast(Vec{N,T}, s2))
+vifelse(c, v1, vbroadcast(Vec{N,T}, s2))
 
-for op in (:fma, :muladd)
+for op ∈ (:fma, :muladd)
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(s1::ScalarTypes, v2::Vec{N,T},
+        @inline $rename(s1::ScalarTypes, v2::Vec{N,T},
                 v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            $op(broadcast(Vec{N,T}, s1), v2, v3)
-        @inline $op(v1::Vec{N,T}, s2::ScalarTypes,
+            $rename(vbroadcast(Vec{N,T}, s1), v2, v3)
+        @inline $rename(v1::Vec{N,T}, s2::ScalarTypes,
                 v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            $op(v1, broadcast(Vec{N,T}, s2), v3)
-        @inline $op(s1::ScalarTypes, s2::ScalarTypes,
+            $rename(v1, vbroadcast(Vec{N,T}, s2), v3)
+        @inline $rename(s1::ScalarTypes, s2::ScalarTypes,
                 v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            $op(broadcast(Vec{N,T}, s1), broadcast(Vec{N,T}, s2), v3)
-        @inline $op(v1::Vec{N,T}, v2::Vec{N,T},
+            $rename(vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), v3)
+        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T},
                 s3::ScalarTypes) where {N,T<:FloatingTypes} =
-            $op(v1, v2, broadcast(Vec{N,T}, s3))
-        @inline $op(s1::ScalarTypes, v2::Vec{N,T},
+            $rename(v1, v2, vbroadcast(Vec{N,T}, s3))
+        @inline $rename(s1::ScalarTypes, v2::Vec{N,T},
                 s3::ScalarTypes) where {N,T<:FloatingTypes} =
-            $op(broadcast(Vec{N,T}, s1), v2, broadcast(Vec{N,T}, s3))
-        @inline $op(v1::Vec{N,T}, s2::ScalarTypes,
+            $rename(vbroadcast(Vec{N,T}, s1), v2, vbroadcast(Vec{N,T}, s3))
+        @inline $rename(v1::Vec{N,T}, s2::ScalarTypes,
                 s3::ScalarTypes) where {N,T<:FloatingTypes} =
-            $op(v1, broadcast(Vec{N,T}, s2), broadcast(Vec{N,T}, s3))
+            $rename(v1, vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
     end
 end
 
@@ -185,16 +210,16 @@ nextpow2(n) = nextpow(2, n)
     end
 end
 
-@inline all(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
-@inline any(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:|}, v)
-@inline maximum(v::Vec{N,T}) where {N,T<:FloatingTypes} =
+@inline vall(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
+@inline vany(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:|}, v)
+@inline vmaximum(v::Vec{N,T}) where {N,T<:FloatingTypes} =
     llvmwrapreduce(Val{:max}, v)
-@inline minimum(v::Vec{N,T}) where {N,T<:FloatingTypes} =
+@inline vminimum(v::Vec{N,T}) where {N,T<:FloatingTypes} =
     llvmwrapreduce(Val{:min}, v)
-@inline prod(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:*}, v)
-@inline sum(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:+}, v)
+@inline vprod(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:*}, v)
+@inline vsum(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:+}, v)
 
-@generated function reduce(::Type{Val{Op}}, v::Vec{N,T}) where {Op,N,T}
+@generated function vreduce(::Type{Val{Op}}, v::Vec{N,T}) where {Op,N,T}
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
     stmts = []
@@ -223,5 +248,5 @@ end
     Expr(:block, Expr(:meta, :inline), stmts...)
 end
 
-@inline maximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = reduce(Val{:max}, v)
-@inline minimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = reduce(Val{:min}, v)
+@inline vmaximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:max}, v)
+@inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)

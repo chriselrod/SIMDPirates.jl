@@ -213,3 +213,89 @@ end
             Vec{N,R}, Tuple{Vec{N1,T1}}, v1)
     end
 end
+
+const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
+    :(==) => :vequal,
+    :(!=) => :vnot_equal,
+    :(<) => :vless,
+    :(<=) => :vless_or_equal,
+    :(>) => :vgreater,
+    :(>=) => :vgreater_or_equal,
+    :(<<) => :vleft_bitshift,
+    :(>>) => :vright_bitshift,
+    :(>>>) => :vuright_bitshift,
+    :(&) => :vand,
+    :(|) => :vor,
+    :(⊻) => :vxor,
+    :(+) => :vadd,
+    :(-) => :vsub,
+    :(*) => :vmul,
+    :(/) => :vfdiv,
+    :(÷) => :vidiv,
+    :(%) => :vrem,
+    :div => :vdiv,
+    :rem => :vrem,
+    :(~) => :vbitwise_not,
+    :(!) => :vnot,
+    :(^) => :vpow,
+    :abs => :vabs,
+    :floor => :vfloor,
+    :ceil => :vceil,
+    :round => :vround,
+    :sin => :vsin,
+    :cos => :vcos,
+    :exp => :vexp,
+    :exp2 => :vexp2,
+    :exp10 => :vexp10,
+    :inv => :vinv,
+    :log => :vlog,
+    :log10 => :vlog10,
+    :log2 => :vlog2,
+    :sqrt => :vsqrt,
+    :trunc => :vtrunc,
+    :sign => :vsign,
+    :copysign => :vcopysign,
+    :flipsign => :vflipsign,
+    :max => :vmax,
+    :min => :vmin,
+    :fma => :vfma,
+    :muladd => :vmuladd,
+    :all => :vall,
+    :any => :vany,
+    :maximum => :vmaximum,
+    :minimum => :vminimum,
+    :prod => :vprod,
+    :sum => :vsum,
+    :reduce => :vreduce,
+    :isfinite => :visfinite,
+    :isinf => :visinf,
+    :isnan => :visnan,
+    :issubnormal => :vissubnormal,
+
+)
+
+macro pirate(ex)
+    postwalk(ex) do x
+        if @capture(x, vadd(vmul(a_, b_), c_)) || @capture(x, vadd(c_, vmul(a_, b_)))
+            ea = isa(a, Symbol) ? esc(a) : a
+            eb = isa(b, Symbol) ? esc(b) : b
+            ec = isa(c, Symbol) ? esc(c) : c
+            return :(vmuladd($ea, $eb, $ec))
+        elseif @capture(x, vadd(vmul(a_, b_), vmul(c_, d_), e_)) || @capture(x, vadd(vmul(a_, b_), e_, vmul(c_, d_))) || @capture(x, vadd(e_, vmul(a_, b_), vmul(c_, d_)))
+            ea = isa(a, Symbol) ? esc(a) : a
+            eb = isa(b, Symbol) ? esc(b) : b
+            ec = isa(c, Symbol) ? esc(c) : c
+            ed = isa(d, Symbol) ? esc(d) : d
+            ee = isa(e, Symbol) ? esc(e) : e
+            return :(vmuladd($ea, $eb, vmuladd($ec, $ed, $ee)))
+        elseif isa(x, Symbol)
+            if x ∈ keys(VECTOR_SYMBOLS)
+                return VECTOR_SYMBOLS[x]
+            else
+                return :($(esc(x)))
+            end
+        else
+            return x
+        end
+    end
+end

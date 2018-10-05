@@ -295,7 +295,7 @@ end
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{N,T}, Tuple{Vec{N,T}, Vec{N,T}},
-            v1, v2 % Vec{N,T})
+            v1, vrem(v2, Vec{N,T}))
     end
 end
 
@@ -316,7 +316,7 @@ end
     ValNegOp = Val{NegOp}
     quote
         $(Expr(:meta, :inline))
-        vifelse(v2 >= 0,
+        vifelse(vgreater_or_equal(v2, 0),
                 llvmwrapshift($ValOp, v1, v2 % Vec{N,unsigned(U)}),
                 llvmwrapshift($ValNegOp, v1, -v2 % Vec{N,unsigned(U)}))
     end

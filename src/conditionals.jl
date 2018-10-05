@@ -1,36 +1,44 @@
 
 # Conditionals
 
-for op in (:(==), :(!=), :(<), :(<=), :(>), :(>=))
+for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
+    rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $op(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} =
+        # scalar versions handled in floating_point_arithmetic.jl
+        # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
+        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} =
             llvmwrap(Val{$(QuoteNode(op))}, v1, v2, Bool)
     end
 end
-@inline function isfinite(v1::Vec{N,T}) where {N,T<:FloatingTypes}
+@inline visfinite(s::ScalarTypes) = isfinite(s)
+@inline function visfinite(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
     em = Vec{N,U}(exponent_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
-    iv & em != em
+    vnot_equal(vand(iv, em), em)
 end
-@inline isinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = abs(v1) == broadcast(Vec{N,T},Inf)
-@inline isnan(v1::Vec{N,T}) where {N,T<:FloatingTypes} = v1 != v1
-@inline function issubnormal(v1::Vec{N,T}) where {N,T<:FloatingTypes}
+@inline visinf(s1::ScalarTypes) = isinf(s1)
+@inline visinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vequal(vabs(v1), vbroadcast(Vec{N,T},Inf))
+@inline visnan(s1::ScalarTypes) = isnan(s1)
+@inline visnan(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vnot_equal(v1, v1)
+@inline vissubnormal(s1::ScalarTypes) = issubnormal(s1)
+@inline function vissubnormal(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
     em = Vec{N,U}(exponent_mask(T))
     sm = Vec{N,U}(significand_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
-    (iv & em == broadcast(Vec{N,U}, 0)) & (iv & sm != broadcast(Vec{N,U}, 0))
+    vand(vequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
 end
-@inline function signbit(v1::Vec{N,T}) where {N,T<:FloatingTypes}
+@inline signbit(s1::ScalarTypes) = signbit(s1)
+@inline function vsignbit(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
     sm = Vec{N,U}(sign_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
-    iv & sm != broadcast(Vec{N,U}, 0)
+    vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0))
 end
 
 
-vifelse(c::Bool, x, y) = ifelse(c, x, y)
+@inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
 @generated function vifelse(v1::Vec{N,Bool}, v2::Vec{N,T},
         v3::Vec{N,T}) where {N,T}
     btyp = llvmtype(Bool)

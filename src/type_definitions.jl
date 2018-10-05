@@ -57,7 +57,7 @@ end
 setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
 getvalindex(v::Vec{N,T}, ::Type{Val{I}}) where {N,T,I} = v[I].value
 
-@inline broadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes} = ntuple(i -> VE{T}(s), Val(N))
+@inline vbroadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes} = ntuple(i -> VE{T}(s), Val(N))
 @inline pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes} = ntuple(i -> VE(xs[i]), Val(N))
 
 
