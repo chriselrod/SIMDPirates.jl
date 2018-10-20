@@ -270,32 +270,5 @@ const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :isfinite => :visfinite,
     :isinf => :visinf,
     :isnan => :visnan,
-    :issubnormal => :vissubnormal,
-
+    :issubnormal => :vissubnormal
 )
-
-macro pirate(ex)
-    postwalk(ex) do x
-        if @capture(x, vadd(vmul(a_, b_), c_)) || @capture(x, vadd(c_, vmul(a_, b_)))
-            ea = isa(a, Symbol) ? esc(a) : a
-            eb = isa(b, Symbol) ? esc(b) : b
-            ec = isa(c, Symbol) ? esc(c) : c
-            return :(vmuladd($ea, $eb, $ec))
-        elseif @capture(x, vadd(vmul(a_, b_), vmul(c_, d_), e_)) || @capture(x, vadd(vmul(a_, b_), e_, vmul(c_, d_))) || @capture(x, vadd(e_, vmul(a_, b_), vmul(c_, d_)))
-            ea = isa(a, Symbol) ? esc(a) : a
-            eb = isa(b, Symbol) ? esc(b) : b
-            ec = isa(c, Symbol) ? esc(c) : c
-            ed = isa(d, Symbol) ? esc(d) : d
-            ee = isa(e, Symbol) ? esc(e) : e
-            return :(vmuladd($ea, $eb, vmuladd($ec, $ed, $ee)))
-        elseif isa(x, Symbol)
-            if x ∈ keys(VECTOR_SYMBOLS)
-                return VECTOR_SYMBOLS[x]
-            else
-                return :($(esc(x)))
-            end
-        else
-            return x
-        end
-    end
-end

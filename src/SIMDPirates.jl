@@ -23,7 +23,7 @@ include("integer_arithmetic.jl")
 include("floating_point_arithmetic.jl")
 include("memory.jl")
 include("shufflevector.jl")
-
-
+include("pirate.jl")
+# include("restrict_simd.jl")
 
 end # module

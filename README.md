@@ -41,7 +41,7 @@ julia> @macroexpand @pirate v1 * v2 + v3 * v4
 ```
 
 Why the trouble?
-LLVM has an easier time optimizing code without he wrapper. Using `SIMDPirates.jl`:
+LLVM has an easier time optimizing code without the wrapper. Using `SIMDPirates.jl`:
 ```julia
 julia> @code_native SIMDPirates.vmuladd(v1, v2, v3)
 	.text
