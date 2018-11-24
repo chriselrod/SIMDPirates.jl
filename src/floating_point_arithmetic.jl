@@ -32,7 +32,7 @@ for op ∈ (
             llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
     end
 end
-@inline vpow(s1::FloatingTypes, x2::Integer) = s1^x
+@inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
 @inline vpow(v1::Vec{N,T}, x2::Integer) where {N,T<:FloatingTypes} =
     llvmwrap(Val{:powi}, v1, Int(x2))
 @inline vflipsign(s1::FloatingTypes, s2::FloatingTypes) = flipsign(s1, s2)
@@ -250,3 +250,7 @@ end
 
 @inline vmaximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:max}, v)
 @inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)
+
+
+@inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
+@inline vadd(x,y,z...) = vadd(x,vadd(y,z...))

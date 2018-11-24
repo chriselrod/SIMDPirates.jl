@@ -16,7 +16,7 @@ end
 
 
 @generated function shufflevector(v1::Vec{N,T}, v2::Vec{N,T},
-                                  ::Type{Val{I}}) where {N,T,I}
+                                  ::Val{I}) where {N,T,I}
     M, decls, instrs = shufflevector_instrs(N, T, I, true)
     quote
         $(Expr(:meta, :inline))
@@ -27,7 +27,7 @@ end
     end
 end
 
-@generated function shufflevector(v1::Vec{N,T}, ::Type{Val{I}}) where {N,T,I}
+@generated function shufflevector(v1::Vec{N,T}, ::Val{I}) where {N,T,I}
     M, decls, instrs = shufflevector_instrs(N, T, I, false)
     quote
         $(Expr(:meta, :inline))

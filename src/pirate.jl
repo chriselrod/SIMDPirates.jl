@@ -13,6 +13,22 @@ function _pirate(ex)
             ed = isa(d, Symbol) ? esc(d) : d
             ee = isa(e, Symbol) ? esc(e) : e
             return :(vmuladd($ea, $eb, vmuladd($ec, $ed, $ee)))
+        elseif @capture(x, a_ += b_)
+            ea = isa(a, Symbol) ? esc(a) : a
+            eb = isa(b, Symbol) ? esc(b) : b
+            return :($ea = vadd($ea, $eb))
+        elseif @capture(x, a_ -= b_)
+            ea = isa(a, Symbol) ? esc(a) : a
+            eb = isa(b, Symbol) ? esc(b) : b
+            return :($ea = vsub($ea, $eb))
+        elseif @capture(x, a_ *= b_)
+            ea = isa(a, Symbol) ? esc(a) : a
+            eb = isa(b, Symbol) ? esc(b) : b
+            return :($ea = vmul($ea, $eb))
+        elseif @capture(x, a_ /= b_)
+            ea = isa(a, Symbol) ? esc(a) : a
+            eb = isa(b, Symbol) ? esc(b) : b
+            return :($ea = vdiv($ea, $eb))
         elseif isa(x, Symbol) && !occursin("@", string(x))
             return get(VECTOR_SYMBOLS, x, esc(x))
         else

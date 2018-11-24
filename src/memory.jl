@@ -61,15 +61,34 @@ end
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} =
     vload(Vec{N,T}, ptr, Val{true})
 
+@generated function sub2ind(dims::NTuple{N}, I::NTuple{N}) where N
+    ex = :(I[$N] - 1)
+    for i = (N - 1):-1:1
+        ex = :(I[$i] - 1 + dims[$i] * $ex)
+    end
+    quote
+        $(Expr(:meta, :inline))
+        $ex + 1
+    end
+end
+
 @inline function vload(::Type{Vec{N,T}},
-                       arr::Union{Array{T,D},SubArray{T,D}},
+                       arr::AbstractArray{T,D},
                        i::Integer,
                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     vload(Vec{N,T}, pointer(arr, i), Val{Aligned})
 end
+@inline function vload(::Type{Vec{N,T}},
+                       arr::AbstractArray{T,D},
+                       ind::NTuple{D,<:Integer},
+                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
+    i = sub2ind(size(arr), ind)
+    vload(Vec{N,T}, pointer(arr, i), Val{Aligned})
+end
 @inline function vloada(::Type{Vec{N,T}},
-                        arr::Union{Array{T,1},SubArray{T,1}},
+                        arr::AbstractArray{T,1},
                         i::Integer) where {N,T}
     vload(Vec{N,T}, arr, i, Val{true})
 end
@@ -115,14 +134,14 @@ end
     vload(Vec{N,T}, ptr, mask, Val{true})
 
 @inline function vload(::Type{Vec{N,T}},
-                       arr::Union{Array{T,1},SubArray{T,1}},
+                       arr::AbstractArray{T,1},
                        i::Integer, mask::Vec{N,Bool},
                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned})
 end
 @inline function vloada(::Type{Vec{N,T}},
-                        arr::Union{Array{T,1},SubArray{T,1}}, i::Integer,
+                        arr::AbstractArray{T,1}, i::Integer,
                         mask::Vec{N,Bool}) where {N,T}
     vload(Vec{N,T}, arr, i, mask, Val{true})
 end
@@ -161,14 +180,23 @@ end
 
 @inline vstorea(v::Vec{N,T}, ptr::Ptr{T}) where {N,T} = vstore(v, ptr, Val{true})
 
+
 @inline function vstore(v::Vec{N,T},
-                        arr::Union{Array{T,D},SubArray{T,D}},
+                        arr::AbstractArray{T,D},
                         i::Integer,
                         ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
     @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     vstore(v, pointer(arr, i), Val{Aligned})
 end
-@inline function vstorea(v::Vec{N,T}, arr::Union{Array{T,1},SubArray{T,1}},
+@inline function vstore(v::Vec{N,T},
+                        arr::AbstractArray{T,D},
+                        ind::NTuple,
+                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+    i = sub2ind(size(arr), ind)
+    # @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
+    vstore(v, pointer(arr, i), Val{Aligned})
+end
+@inline function vstorea(v::Vec{N,T}, arr::AbstractArray{T,1},
                          i::Integer) where {N,T}
     vstore(v, arr, i, Val{true})
 end
@@ -214,7 +242,7 @@ end
     vstore(v, ptr, mask, Val{true})
 
 @inline function vstore(v::Vec{N,T},
-                        arr::Union{Array{T,D},SubArray{T,D}},
+                        arr::AbstractArray{T,D},
                         i::Integer,
                         mask::Vec{N,Bool},
                         ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
@@ -222,7 +250,7 @@ end
     vstore(v, pointer(arr, i), mask, Val{Aligned})
 end
 @inline function vstorea(v::Vec{N,T},
-                         arr::Union{Array{T,1},SubArray{T,1}},
+                         arr::AbstractArray{T,1},
                          i::Integer, mask::Vec{N,Bool}) where {N,T}
     vstore(v, arr, i, mask, Val{true})
 end
