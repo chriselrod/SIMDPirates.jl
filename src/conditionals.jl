@@ -6,8 +6,18 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
     @eval begin
         # scalar versions handled in floating_point_arithmetic.jl
         # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
-        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} =
+        @vectordef $rename function Base.$op(v1, v2) where {N,T}
             llvmwrap(Val{$(QuoteNode(op))}, v1, v2, Bool)
+        end
+
+
+        # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
+        # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} =
+        #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2, Bool)
+        # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T} =
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool))
+        # @inline Base.$op(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T} =
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool))
     end
 end
 @inline visfinite(s::ScalarTypes) = isfinite(s)
@@ -17,10 +27,19 @@ end
     iv = pirate_reinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, em), em)
 end
+@inline visfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
+@inline Base.isfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
+
 @inline visinf(s1::ScalarTypes) = isinf(s1)
 @inline visinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vequal(vabs(v1), vbroadcast(Vec{N,T},Inf))
+@inline visinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
+@inline Base.isinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
+
 @inline visnan(s1::ScalarTypes) = isnan(s1)
 @inline visnan(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vnot_equal(v1, v1)
+@inline visnan(v1::AbstractStructVec) = SVec(visnan(extract_data(v1)))
+@inline Base.isnan(v1::AbstractStructVec) = SVec(visnan(extract_data(v1)))
+
 @inline vissubnormal(s1::ScalarTypes) = issubnormal(s1)
 @inline function vissubnormal(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
@@ -29,6 +48,10 @@ end
     iv = pirate_reinterpret(Vec{N,U}, v1)
     vand(vequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
 end
+@inline vissubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
+@inline Base.issubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
+
+
 @inline signbit(s1::ScalarTypes) = signbit(s1)
 @inline function vsignbit(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
@@ -36,7 +59,12 @@ end
     iv = pirate_reinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0))
 end
-
+@inline function vsignbit(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+    SVec(vsignbit(extract_data(v1)))
+end
+@inline function Base.signbit(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+    SVec(vsignbit(extract_data(v1)))
+end
 
 @inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
 @generated function vifelse(v1::Vec{N,Bool}, v2::Vec{N,T},
@@ -70,3 +98,11 @@ end
             v1, v2, v3)
     end
 end
+@inline function vifelse(v1::AbstractSIMDVector{N,Bool},
+        v2::AbstractSIMDVector{N,T}, v3::AbstractSIMDVector{N,T}) where {N,T}
+    SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
+end
+# @inline function Base.ifelse(v1::AbstractStructVec{N,Bool},
+#         v2::AbstractStructVec{N,T}, v3::AbstractStructVec{N,T}) where {N,T}
+#     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
+# end

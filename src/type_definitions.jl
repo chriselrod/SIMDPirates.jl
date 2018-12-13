@@ -1,8 +1,4 @@
 
-const VE{T} = Core.VecElement{T}
-const Vec{N,T} = NTuple{N,VE{T}}
-
-
 const BoolTypes = Union{Bool}
 const IntTypes = Union{Int8, Int16, Int32, Int64, Int128}
 const UIntTypes = Union{UInt8, UInt16, UInt32, UInt64, UInt128}
@@ -10,7 +6,6 @@ const IntegerTypes = Union{BoolTypes, IntTypes, UIntTypes, Ptr}
 const FloatingTypes = Union{Float16, Float32, Float64}
 const ScalarTypes = Union{IntegerTypes, FloatingTypes}
 
-const VE = Base.VecElement
 
 type_length(::Type{Vec{N,T}}) where {N,T} = N
 type_size(::Type{Vec{N,T}}) where {N,T} = (N,)
@@ -20,7 +15,7 @@ type_size(::Type{Vec{N,T}}, n::Integer) where {N,T} = (N,)[n]
 # Element-wise access
 
 export setindex
-@generated function setindex(v::Vec{N,T}, x::Number, ::Type{Val{I}}) where {N,T,I}
+@generated function setindex(v::AbstractSIMDVector{N,T}, x::Number, ::Type{Val{I}}) where {N,T,I}
     @assert isa(I, Integer)
     1 <= I <= N || throw(BoundsError())
     typ = llvmtype(T)
@@ -33,11 +28,11 @@ export setindex
     quote
         $(Expr(:meta, :inline))
         Vec{N,T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, T}, v.elts, T(x)))
+            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, T}, extract_data(v), T(x)))
     end
 end
 
-@generated function setindex(v::Vec{N,T}, x::Number, i::Int) where {N,T}
+@generated function setindex(v::AbstractSIMDVector{N,T}, x::Number, i::Int) where {N,T}
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"
@@ -50,16 +45,33 @@ end
         @boundscheck 1 <= i <= N || throw(BoundsError())
         Vec{N,T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, Int, T},
-            v.elts, i-1, T(x)))
+            extract_data(v), i-1, T(x)))
     end
 end
 
-setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
-getvalindex(v::Vec{N,T}, ::Type{Val{I}}) where {N,T,I} = v[I].value
+@inline setindex(v::AbstractSIMDVector{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
+@inline getvalindex(v::AbstractSIMDVector{N,T}, ::Type{Val{I}}) where {N,T,I} = extract_data(v)[I].value
 
-@inline vbroadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes} = ntuple(i -> VE{T}(s), Val(N))
+@inline function vbroadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
+    @inbounds ntuple(i -> VE{T}(s), Val(N))
+end
 @inline vbroadcast(::Type{Vec{N,T}}, s::Vec{N,T}) where {N,T} = s
-@inline pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes} = ntuple(i -> VE(xs[i]), Val(N))
+@inline function svbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
+    @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
+end
+@inline svbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
+@inline function vbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
+    @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
+end
+@inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
+@inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
+
+@inline function pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes}
+    @inbounds ntuple(i -> VE(xs[i]), Val(N))
+end
+@inline function Base.convert(::Type{SVec{N,T}}, xs::NTuple{N,T}) where {N,T}
+    @inbounds SVec(ntuple(n -> VE(xs[n]), Val(N)))
+end
 
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))

@@ -26,6 +26,9 @@ end
             v1, v2))
     end
 end
+@inline function shufflevector(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}, ::Val{I}) where {N,T,I}
+    SVec(shufflevector(extract_data(v1), extract_data(v2), Val(I)))
+end
 
 @generated function shufflevector(v1::Vec{N,T}, ::Val{I}) where {N,T,I}
     M, decls, instrs = shufflevector_instrs(N, T, I, false)
@@ -36,4 +39,7 @@ end
             Tuple{Vec{$N,T}},
             v1)
     end
+end
+@inline function shufflevector(v1::AbstractStructVec{N,T}, ::Val{I}) where {N,T,I}
+    SVec(shufflevector(extract_data(v1), Val(I)))
 end
