@@ -69,7 +69,7 @@ struct VecProduct{N,T} <: AbstractStructVec{N,T}
     v1::Vec{N,T}
     v2::Vec{N,T}
 end
-@inline extract_data(v::VecProduct) = llvmwrap(Val{:(*)}, v.v1, v.v2)
+@inline VectorizationBase.extract_data(v::VecProduct) = llvmwrap(Val{:(*)}, v.v1, v.v2)
 
 let op = :(*)
     rename = VECTOR_SYMBOLS[op]

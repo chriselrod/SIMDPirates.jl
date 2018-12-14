@@ -2,7 +2,7 @@ module SIMDPirates
 
 
 using MacroTools: postwalk, @capture
-import VectorizationBase: Vec, VE, SVec, AbstractSIMDVector, AbstractStructVec, extract_data
+using VectorizationBase
 
 export  Vec, SVec, VE,
         @pirate,
