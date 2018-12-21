@@ -203,14 +203,32 @@ end
     vtyp1 = "<$N1 x $typ1>"
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%res = bitcast $vtyp1 %0 to $vtypr")
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,R}, Tuple{Vec{N1,T1}}, v1)
+            Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
+    end
+end
+@generated function pirate_reinterpret(::Type{Vec{N,R}},
+        v1::Vec{N1,UInt128}) where {N,R,N1}
+    T1 = UInt128
+    @assert N*sizeof(R) == N1*sizeof(T1)
+    typ1 = llvmtype(T1)
+    vtyp1 = "[$N1 x $typ1]"
+    typr = llvmtype(R)
+    vtypr = "<$N x $typr>"
+    decls = String[]
+    instrs = String[]
+    push!(instrs, "%res = bitcast $vtyp1 %0 to $vtypr")
+    push!(instrs, "ret $vtypr %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
     end
 end
 

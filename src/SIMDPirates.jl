@@ -17,8 +17,9 @@ export  Vec, SVec, VE,
         vfma,
         vmuladd
 
+
 function vector_args(args)
-    vecargs =       [isa(arg, Symbol) ? :($arg::Vec{N,T})                   : arg for arg ∈ args]
+    vecargs =       [isa(arg, Symbol) ? :($arg::VecOrProd{N,T})             : arg for arg ∈ args]
     abstractargs =  [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{N,T})    : arg for arg ∈ args]
     structargs =    [isa(arg, Symbol) ? :($arg::AbstractStructVec{N,T})     : arg for arg ∈ args]
     vecargs, abstractargs, structargs
@@ -40,6 +41,7 @@ macro vectordef(rename, expr)
 end
 
 include("type_definitions.jl")
+include("vector_products.jl")
 include("llvm_utils.jl")
 include("llvmwrap.jl")
 include("conditionals.jl")

@@ -66,6 +66,8 @@ end
 @inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
 @inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
 
+@inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
+
 @inline function pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes}
     @inbounds ntuple(i -> VE(xs[i]), Val(N))
 end

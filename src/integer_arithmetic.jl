@@ -66,6 +66,18 @@ for op ∈ (:(&), :(|), :(⊻), :(+), :(-), :(*), :(÷), :(%) )
     end
 end
 
+let op = :(%)
+    rename = VECTOR_SYMBOLS[op]
+
+    @eval @vectordef $rename function Base.$op(v1, ::Type{I}) where {N, T <: IntegerTypes, I <: IntegerTypes}
+        ntuple(Val(N)) do n
+            VE(v1[n].value % I)
+        end
+    end
+
+end
+
+
 @inline vcopysign(s1::IntegerTypes, s2::IntegerTypes) = copysign(s1, s2)
 @inline vcopysign(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:IntTypes} =
     vifelse(vsignbit(v2), -abs(v1), abs(v1))

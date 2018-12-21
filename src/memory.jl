@@ -77,7 +77,7 @@ end
                        i::Integer,
                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, ptr + i - 1, Val{Aligned})
+    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned})
 end
 @inline function vload(::Type{Vec{N,T}},
                        arr::AbstractArray{T,D},
@@ -114,7 +114,7 @@ end
                        i::Integer,
                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, ptr + i - 1, Val{Aligned}))
+    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned}))
 end
 @inline function vload(::Type{SVec{N,T}},
                        arr::AbstractArray{T,D},
@@ -183,7 +183,7 @@ end
                        i::Integer, mask::Vec{N,Bool},
                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, ptr + i - 1, mask, Val{Aligned})
+    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned})
 end
 @inline function vload(::Type{Vec{N,T}},
                        arr::AbstractArray{T},
@@ -217,7 +217,7 @@ end
                        i::Integer, mask::Vec{N,Bool},
                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, ptr + i - 1, mask, Val{Aligned}))
+    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned}))
 end
 @inline function vload(::Type{SVec{N,T}},
                        arr::AbstractArray{T},
@@ -283,7 +283,7 @@ end
                         ptr::Ptr{T},
                         i::Integer,
                         ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(extract_data(v), ptr + i - 1, Val{Aligned})
+    vstore(extract_data(v), ptr + (i - 1)*sizeof(T), Val{Aligned})
 end
 @inline function vstore(v::AbstractSIMDVector{N,T},
                         arr::AbstractArray{T,D},
@@ -354,7 +354,7 @@ end
                         mask::Vec{N,Bool},
                         ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore(extract_data(v), ptr + i - 1, mask, Val{Aligned})
+    vstore(extract_data(v), ptr + (i - 1)*sizeof(T), mask, Val{Aligned})
 end
 @inline function vstore(v::AbstractSIMDVector{N,T},
                         arr::AbstractArray{T,D},

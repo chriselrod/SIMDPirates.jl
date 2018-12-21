@@ -65,11 +65,6 @@ for op ∈ (
     end
 end
 
-struct VecProduct{N,T} <: AbstractStructVec{N,T}
-    v1::Vec{N,T}
-    v2::Vec{N,T}
-end
-@inline VectorizationBase.extract_data(v::VecProduct) = llvmwrap(Val{:(*)}, v.v1, v.v2)
 
 let op = :(*)
     rename = VECTOR_SYMBOLS[op]
@@ -205,11 +200,11 @@ end
 # @vectordef vifelse function Base.ifelse(c::AbstractSIMDVector{N,Bool}, v1, s2::ScalarTypes) where {N,T<:FloatingTypes}
 #     vifelse(extract_data(c), extract_data(v1), vbroadcast(Vec{N,T}, s2))
 # end
-@inline function vifelse(c::Vec{N,Bool}, s1::ScalarTypes, v2::Vec{N,T}) where {N,T<:FloatingTypes}
-    vifelse(c, vbroadcast(Vec{N,T}, s1), v2)
+@inline function vifelse(c::VecOrProd{N,Bool}, s1::ScalarTypes, v2::VecOrProd{N,T}) where {N,T<:FloatingTypes}
+    vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2))
 end
-@inline function vifelse(c::Vec{N,Bool}, v1::Vec{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
-    vifelse(c, v1, vbroadcast(Vec{N,T}, s2))
+@inline function vifelse(c::VecOrProd{N,Bool}, v1::VecOrProd{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
+    vifelse(extract_data(c), v1, vbroadcast(Vec{N,T}, extract_data(s2)))
 end
 @inline function vifelse(c::AbstractSIMDVector{N,Bool}, s1::ScalarTypes, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
     SVec(vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2)))
