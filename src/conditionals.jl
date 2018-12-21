@@ -7,7 +7,7 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
         # scalar versions handled in floating_point_arithmetic.jl
         # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
         @vectordef $rename function Base.$op(v1, v2) where {N,T}
-            llvmwrap(Val{$(QuoteNode(op))}, v1, v2, Bool)
+            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool)
         end
 
 
