@@ -74,8 +74,14 @@ let op = :(%)
             VE(v1[n].value % I)
         end
     end
+    @eval @vectordef $rename function Base.$op(v1, ::Type{Vec{N,I}}) where {N, T <: IntegerTypes, I <: IntegerTypes}
+        ntuple(Val(N)) do n
+            VE(v1[n].value % I)
+        end
+    end
 
 end
+@inline vrem(v1::V, ::Type{V}) where {V <: AbstractSIMDVector} = v1
 
 
 @inline vcopysign(s1::IntegerTypes, s2::IntegerTypes) = copysign(s1, s2)
@@ -155,7 +161,7 @@ for op ∈ (:(<<), :(>>), :(>>>))
         @vectordef $rename function Base.$op(v1, x2::Integer) where {N,T<:IntegerTypes}
             llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), x2)
         end
-        @vectordef $rename function Base.$op(v1, x2::Vec{N,U}) where {N,T<:IntegerTypes,U<:UIntTypes}
+        @vectordef $rename function Base.$op(v1, v2::Vec{N,U}) where {N,T<:IntegerTypes,U<:UIntTypes}
             llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
         end
         @vectordef $rename function Base.$op(x1::T, v2) where {N,T<:IntegerTypes}

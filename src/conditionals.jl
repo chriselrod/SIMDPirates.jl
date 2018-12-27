@@ -9,6 +9,12 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
         @vectordef $rename function Base.$op(v1, v2) where {N,T}
             llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool)
         end
+        @vectordef $rename function Base.$op(v1, v2::T) where {N,T}
+            $rename(extract_data(v1), v2)
+        end
+        @vectordef $rename function Base.$op(v1::T, v2) where {N,T}
+            $rename(extract_data(v1), v2)
+        end
 
 
         # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
@@ -77,19 +83,9 @@ end
     atyp = "[$N x $typ]"
     decls = []
     instrs = []
-    if false && N == 1
-        append!(instrs, array2vector("%arg1", N, btyp, "%0", "%arg1arr"))
-        append!(instrs, array2vector("%arg2", N, typ, "%1", "%arg2arr"))
-        append!(instrs, array2vector("%arg3", N, typ, "%2", "%arg3arr"))
-        push!(instrs, "%cond = trunc $vbtyp %arg1 to <$N x i1>")
-        push!(instrs, "%res = select <$N x i1> %cond, $vtyp %arg2, $vtyp %arg3")
-        append!(instrs, vector2array("%resarr", N, typ, "%res"))
-        push!(instrs, "ret $atyp %resarr")
-    else
-        push!(instrs, "%cond = trunc $vbtyp %0 to <$N x i1>")
-        push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
-        push!(instrs, "ret $vtyp %res")
-    end
+    push!(instrs, "%cond = trunc $vbtyp %0 to <$N x i1>")
+    push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
+    push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),

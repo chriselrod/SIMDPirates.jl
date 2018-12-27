@@ -46,7 +46,7 @@ end
 
 for op ∈ (
         :(-), :(/), :(%), :(^),
-        :copysign, :max, :min
+        :copysign#, :max, :min
     )
     rename = VECTOR_SYMBOLS[op]
     @eval begin
@@ -63,6 +63,14 @@ for op ∈ (
         # @inline Base.$op(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
     end
+end
+@inline vmax(x, y) = max(x,y)
+@vectordef vmax function Base.max(v1, v2) where {N,T<:FloatingTypes}
+    vifelse(vgreater(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
+end
+@inline vmin(x, y) = min(x,y)
+@vectordef vmin function Base.min(v1, v2) where {N,T<:FloatingTypes}
+    vifelse(vless(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
 end
 
 
