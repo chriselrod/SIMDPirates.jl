@@ -193,7 +193,80 @@ function vector2array(arr, siz, typ, vec, tmp="$(vec)_va")
     instrs
 end
 
+# TODO: change argument order
+function subvector(vec, siz, typ, rvec, rsiz, roff, tmp="$(rvec)_sv")
+    instrs = []
+    accum(nam, i) = i<0 ? "undef" : i==rsiz-1 ? nam : "$(nam)_iter$i"
+    @assert 0 <= roff
+    @assert roff + rsiz <= siz
+    for i in 0:rsiz-1
+        push!(instrs,
+            "$(tmp)_elem$i = extractelement <$siz x $typ> $vec, i32 $(roff+i)")
+        push!(instrs,
+            "$(accum(rvec,i)) = " *
+                "insertelement <$rsiz x $typ> $(accum(rvec,i-1)), " *
+                "$typ $(tmp)_elem$i, i32 $i")
+    end
+    instrs
+end
 
+function extendvector(vec, siz, typ, voff, vsiz, val, rvec, tmp="$(rvec)_ev")
+    instrs = []
+    accum(nam, i) = i<0 ? "undef" : i==siz+vsiz-1 ? nam : "$(nam)_iter$i"
+    rsiz = siz + vsiz
+    for i in 0:siz-1
+        push!(instrs,
+            "$(tmp)_elem$i = extractelement <$siz x $typ> $vec, i32 $i")
+        push!(instrs,
+            "$(accum(rvec,i)) = " *
+                "insertelement <$rsiz x $typ> $(accum(rvec,i-1)), " *
+                "$typ $(tmp)_elem$i, i32 $i")
+    end
+    for i in siz:siz+vsiz-1
+        push!(instrs,
+            "$(accum(rvec,i)) = " *
+                "insertelement <$rsiz x $typ> $(accum(rvec,i-1)), $val, i32 $i")
+    end
+    instrs
+end
+
+# Element-wise access
+
+# export setindex
+@generated function setindex(v::Vec{N,T}, x::Number, ::Type{Val{I}}) where {N,T,I}
+    @assert isa(I, Integer)
+    1 <= I <= N || throw(BoundsError())
+    typ = llvmtype(T)
+    ityp = llvmtype(Int)
+    vtyp = "<$N x $typ>"
+    decls = []
+    instrs = []
+    push!(instrs, "%res = insertelement $vtyp %0, $typ %1, $ityp $(I-1)")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, T}, v.elts, T(x))
+    end
+end
+
+@generated function setindex(v::Vec{N,T}, x::Number, i::Int) where {N,T}
+    typ = llvmtype(T)
+    ityp = llvmtype(Int)
+    vtyp = "<$N x $typ>"
+    decls = []
+    instrs = []
+    push!(instrs, "%res = insertelement $vtyp %0, $typ %2, $ityp %1")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        @boundscheck 1 <= i <= N || throw(BoundsError())
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, Int, T},
+            v.elts, i-1, T(x))
+    end
+end
+setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
 # Type conversion
 
 @generated function pirate_reinterpret(::Type{Vec{N,R}},

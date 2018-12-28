@@ -341,10 +341,10 @@ end
     llvmwrapreduce(Val{:min}, extract_data(v))
 end
 @vectordef vsum function Base.sum(v) where {N,T}
-    llvmwrapreduce(Val{:max}, extract_data(v))
+    llvmwrapreduce(Val{:+}, extract_data(v))
 end
 @vectordef vprod function Base.prod(v) where {N,T}
-    llvmwrapreduce(Val{:min}, extract_data(v))
+    llvmwrapreduce(Val{:*}, extract_data(v))
 end
 
 # @inline vall(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
