@@ -80,10 +80,12 @@ let op = :(*)
         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     VecProduct(v1, v2)
+        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+            VecProduct(extract_data(v1), extract_data(v2))
         @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-            VecProduct(extract_data(v1), extract_data(v2))
+            SVecProduct(extract_data(v1), extract_data(v2))
         @inline Base.$op(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            VecProduct(extract_data(v1), extract_data(v2))
+            SVecProduct(extract_data(v1), extract_data(v2))
     end
 end
 
@@ -102,24 +104,36 @@ let op = :(+)
             llvmwrap(Val{:fma}, v.v1, v.v2, v3)
         @inline $rename(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
             llvmwrap(Val{:fma}, v.v1, v.v2, v3)
-        @inline $rename(v::VecProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+        @inline $rename(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
+            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+        @inline $rename(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
+            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+        @inline $rename(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
             SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
-        @inline $rename(v3::AbstractStructVec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
+        @inline $rename(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
             SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
 
         @inline Base.$op(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
             llvmwrap(Val{:fma}, v.v1, v.v2, v3)
         @inline Base.$op(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
             llvmwrap(Val{:fma}, v.v1, v.v2, v3)
-        @inline Base.$op(v::VecProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+        @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
+            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+        @inline Base.$op(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
+            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+        @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
             SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
-        @inline Base.$op(v3::AbstractStructVec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
+        @inline Base.$op(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
             SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
 
 
         @inline $rename(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2)))
+            llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2))
         @inline Base.$op(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
+            llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2))
+        @inline $rename(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
+            SVec(llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2)))
+        @inline Base.$op(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
             SVec(llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2)))
     end
 end
