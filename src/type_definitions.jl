@@ -71,9 +71,19 @@ end
 @inline function pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes}
     @inbounds ntuple(i -> VE(xs[i]), Val(N))
 end
-@inline function Base.convert(::Type{SVec{N,T}}, xs::NTuple{N,T}) where {N,T}
-    @inbounds SVec(ntuple(n -> VE(xs[n]), Val(N)))
+@generated function Base.convert(::Type{SVec{N,T}}, xs::NTuple{N,T}) where {N,T}
+    quote
+        $(Expr(:meta,:inline))
+        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE(xs[n])))
+    end
 end
+@generated function Base.convert(::Type{SVec{N,T1}}, xs::SVec{N,T2}) where {N,T1,T2}
+    quote
+        $(Expr(:meta,:inline))
+        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE{T1}(xs[n])))
+    end
+end
+@inline Base.convert(::Type{SVec{N,T}}, x::SVec{N,T}) where {N,T} = x
 
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))

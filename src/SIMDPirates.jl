@@ -15,7 +15,8 @@ export  Vec, SVec, VE,
         shufflevector,
         vifelse,
         vfma,
-        vmuladd
+        vmuladd,
+        rsqrt
 
 
 function vector_args(args)
@@ -41,7 +42,7 @@ macro vectordef(rename, expr)
 end
 
 include("type_definitions.jl")
-include("vector_products.jl")
+include("lazy_vectors.jl")
 include("llvm_utils.jl")
 include("llvmwrap.jl")
 include("conditionals.jl")

@@ -37,6 +37,23 @@ end
         copysign(vbroadcast(Vec{N,T}, one(T)), extract_data(v1))
     )
 end
+@inline function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
+    Base.llvmcall(
+    """ %rs = call <16 x float> asm "vrsqrt14ps \$1, \$0", "=x,x"(<16 x float> %0)
+        ret <16 x float> %rs""",
+    NTuple{16,Core.VecElement{Float32}}, Tuple{NTuple{16,Core.VecElement{Float32}}}, x)
+end
+@inline function rsqrt(x::NTuple{16,Core.VecElement{Float32}})
+    r = rsqrt_fast(x)
+    # Performs a Newton step to increase accuracy.
+    ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
+    vmul(r, ns)
+end
+rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
+rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
+rsqrt_fast(x) = inv(sqrt(x))
+rsqrt(x) = inv(sqrt(x))
+
 # @inline function vsign(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
 # end
@@ -412,3 +429,11 @@ end
 
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
+
+@inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
+@generated function Base.:*(a::T, b::SVec{N,<:IntegerTypes}) where {N,T<:FloatingTypes}
+    quote
+        $(Expr(:meta,:inline))
+        SVec{$N,$T}(a) * SVec{$N,$T}((Base.Cartesian.@ntuple $N n -> Core.VecElement{$T}(b[n])))
+    end
+end

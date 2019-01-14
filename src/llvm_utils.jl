@@ -271,7 +271,10 @@ setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
 
 @generated function pirate_reinterpret(::Type{Vec{N,R}},
         v1::Vec{N1,T1}) where {N,R,N1,T1}
-    @assert N*sizeof(R) == N1*sizeof(T1)
+    if N*sizeof(R) != N1*sizeof(T1)
+        throw("N*sizeof(R) == N1*sizeof(T1) is not true; $N * $(sizeof(R)) != $N1 * $(sizeof(T1))")
+    end
+    # @assert N*sizeof(R) == N1*sizeof(T1)
     typ1 = llvmtype(T1)
     vtyp1 = "<$N1 x $typ1>"
     typr = llvmtype(R)
@@ -303,6 +306,12 @@ end
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
     end
+end
+@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::AbstractStructVec{N1,T1}) where {N,R,N1,T1}
+    SVec(pirate_reinterpret(Vec{N,R}, extract_data(v1)))
+end
+@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::AbstractStructVec{N1,UInt128}) where {N,R,N1}
+    SVec(pirate_reinterpret(Vec{N,R}, extract_data(v1)))
 end
 
 const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
