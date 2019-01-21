@@ -106,27 +106,27 @@ let op = :(*)
     end
 end
 
-@inline vmult(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, v1, v2)
-@inline function vmult(v1::VecOrProd{N,T}, v2::VecOrProd{N,T}) where {N,T}
+@inline evmul(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, v1, v2)
+@inline function evmul(v1::VecOrProd{N,T}, v2::VecOrProd{N,T}) where {N,T}
     llvmwrap(Val{:(*)}, extract_data(v1), extract_data(v2))
 end
-@inline function vmult(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T}
+@inline function evmul(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T}
     SVec(llvmwrap(Val{:(*)}, extract_data(v1), extract_data(v2)))
 end
 
-@inline vmult(v1::Vec{N,T}, s2::T) where {N,T} = llvmwrap(Val{:(*)}, v1, vbroadcast(Vec{N,T}, s2))
-@inline function vmult(v1::VecOrProd{N,T}, s2::T) where {N,T}
+@inline evmul(v1::Vec{N,T}, s2::T) where {N,T} = llvmwrap(Val{:(*)}, v1, vbroadcast(Vec{N,T}, s2))
+@inline function evmul(v1::VecOrProd{N,T}, s2::T) where {N,T}
     llvmwrap(Val{:(*)}, extract_data(v1), vbroadcast(Vec{N,T}, s2))
 end
-@inline function vmult(v1::AbstractStructVec{N,T}, s2::T) where {N,T}
+@inline function evmul(v1::AbstractStructVec{N,T}, s2::T) where {N,T}
     SVec(llvmwrap(Val{:(*)}, extract_data(v1), vbroadcast(Vec{N,T}, s2)))
 end
 
-@inline vmult(s1::T, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), v2)
-@inline function vmult(s1::T, v2::VecOrProd{N,T}) where {N,T}
+@inline evmul(s1::T, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), v2)
+@inline function evmul(s1::T, v2::VecOrProd{N,T}) where {N,T}
     llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), extract_data(v2))
 end
-@inline function vmult(s1::T, v2::AbstractStructVec{N,T}) where {N,T}
+@inline function evmul(s1::T, v2::AbstractStructVec{N,T}) where {N,T}
     SVec(llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), extract_data(v2)))
 end
 
