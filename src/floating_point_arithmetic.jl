@@ -49,10 +49,10 @@ end
     ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
     vmul(r, ns)
 end
-rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
-rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
-rsqrt_fast(x) = inv(sqrt(x))
-rsqrt(x) = inv(sqrt(x))
+@inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
+@inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
+@inline rsqrt_fast(x) = @fastmath inv(sqrt(x))
+@inline rsqrt(x) = @fastmath inv(sqrt(x))
 
 # @inline function vsign(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
