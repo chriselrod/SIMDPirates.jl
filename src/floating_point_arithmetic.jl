@@ -46,8 +46,10 @@ end
 @inline function rsqrt(x::NTuple{16,Core.VecElement{Float32}})
     r = rsqrt_fast(x)
     # Performs a Newton step to increase accuracy.
-    ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
-    vmul(r, ns)
+    # ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
+    # vmul(r, ns)
+    ns = vfma(vmul(r,r), x, -3.0f0)
+    vmul(vmul(-0.5f0, r), ns)
 end
 @inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
 @inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
