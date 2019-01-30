@@ -53,8 +53,8 @@ end
 end
 @inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
 @inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
-@inline rsqrt_fast(x) = @fastmath inv(sqrt(x))
-@inline rsqrt(x) = @fastmath inv(sqrt(x))
+@inline rsqrt_fast(x) = vinv(vsqrt(x))
+@inline rsqrt(x) = vinv(vsqrt(x))
 
 # @inline function vsign(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
@@ -145,59 +145,59 @@ let op = :(+)
             SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
 
         @inline $rename(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:fma}, v.v1, v.v2, v3)
+            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
         @inline $rename(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:fma}, v.v1, v.v2, v3)
+            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
         @inline $rename(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
         @inline $rename(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
         @inline $rename(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
         @inline $rename(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
 
         @inline Base.$op(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:fma}, v.v1, v.v2, v3)
+            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
         @inline Base.$op(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:fma}, v.v1, v.v2, v3)
+            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
         @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
         @inline Base.$op(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, v3))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
         @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
         @inline Base.$op(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, v.v1, v.v2, extract_data(v3)))
+            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
 
 
         @inline $rename(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2))
+            llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2))
         @inline Base.$op(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2))
+            llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2))
         @inline $rename(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2)))
+            SVec(llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2)))
         @inline Base.$op(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:fma}, vp1.v1, vp1.v2, extract_data(vp2)))
+            SVec(llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2)))
     end
 end
 
 @generated function vfmsub(v1::Vec{N,T},v2::Vec{N,T},v3::Vec{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))
-        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(fma(v1[n].value,v2[n].value,-v3[n].value))))
+        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(muladd(v1[n].value,v2[n].value,-v3[n].value))))
     end
 end
 @generated function vfnmsub(v1::Vec{N,T},v2::Vec{N,T},v3::Vec{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))
-        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(fma(-v1[n].value,v2[n].value,-v3[n].value))))
+        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(muladd(-v1[n].value,v2[n].value,-v3[n].value))))
     end
 end
 @generated function vfnmadd(v1::Vec{N,T},v2::Vec{N,T},v3::Vec{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))
-        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(fma(-v1[n].value,v2[n].value,v3[n].value))))
+        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(muladd(-v1[n].value,v2[n].value,v3[n].value))))
     end
 end
 

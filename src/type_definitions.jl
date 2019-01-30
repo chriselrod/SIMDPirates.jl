@@ -66,6 +66,11 @@ end
 @inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
 @inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
 
+@inline vone(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(one(T)), Val(N))
+@inline vzero(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(zero(T)), Val(N))
+@inline vone(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(one(T)), Val(N)))
+@inline vzero(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(zero(T)), Val(N)))
+
 @inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
 
 @inline function pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes}
