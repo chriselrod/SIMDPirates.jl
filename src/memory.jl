@@ -300,7 +300,7 @@ end
                       Cvoid, Tuple{Vec{N,T}, Ptr{T}}, v, ptr)
     end
 end
-@inline function vstore(v::AbstractStructVec{N,T}, ptr::Ptr{T}, ::Type{Val{Aligned}} = false) where {N,T,Aligned}
+@inline function vstore(v::AbstractStructVec{N,T}, ptr::Ptr{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     vstore(extract_data(v), ptr, Val{Aligned})
 end
 
@@ -406,7 +406,7 @@ end
             v, ptr, mask)
     end
 end
-@inline function vstore(v::AbstractStructVec{N,T}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},Unsigned}, ::Type{Val{Aligned}} = false) where {N,T,Aligned}
+@inline function vstore(v::AbstractStructVec{N,T}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
     vstore(extract_data(v), ptr, mask, Val{Aligned})
 end
 
