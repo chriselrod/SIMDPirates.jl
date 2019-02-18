@@ -63,6 +63,12 @@ end
             Vec{N,T}, Tuple{Ptr{T}}, ptr)
     end
 end
+@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vload(Vec{N,T}, ptr.ptr, Val{Aligned})
+end
+@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    SVec(vload(Vec{N,T}, ptr.ptr, Val{Aligned}))
+end
 
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} =
     vload(Vec{N,T}, ptr, Val{true})
@@ -206,6 +212,14 @@ end
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$N,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
     end
+end
+@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned})
+end
+@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    SVec(vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}))
 end
 
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}) where {N,T} =
@@ -433,4 +447,27 @@ end
                          arr::AbstractArray{T},
                          i::Integer, mask::Union{Vec{N,Bool},Unsigned}) where {N,T}
     vstore(extract_data(v), arr, i, mask, Val{true})
+end
+
+
+@inline function vstore(v::Vec{N,T}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vstore(v, ptr.ptr, Val{Aligned})
+end
+@inline function vstore(v::SVec{N,T}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vstore(v, ptr.ptr, Val{Aligned})
+end
+@inline function vstore(v::AbstractStructVec{N,T}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vstore(extract_data(v), ptr.ptr, Val{Aligned})
+end
+@inline function vstore(v::Vec{N,T}, ptr::VectorizationBase.vpointer{T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vstore(v, ptr.ptr, mask, Val{Aligned})
+end
+@inline function vstore(v::SVec{N,T}, ptr::VectorizationBase.vpointer{T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vstore(v, ptr.ptr, mask, Val{Aligned})
+end
+@inline function vstore(v::AbstractStructVec{N,T}, ptr::VectorizationBase.vpointer{T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+    vstore(extract_data(v), ptr.ptr, mask, Val{Aligned})
 end

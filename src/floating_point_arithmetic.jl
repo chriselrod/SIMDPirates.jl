@@ -459,19 +459,13 @@ nextpow2(n) = nextpow(2, n)
     end
 end
 
-@vectordef vall Base.all(v) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, extract_data(v))
-@vectordef vany Base.any(v) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:|}, extract_data(v))
-@vectordef vmaximum function Base.maximum(v) where {N,T<:FloatingTypes}
-    llvmwrapreduce(Val{:max}, extract_data(v))
-end
-@vectordef vminimum function Base.minimum(v) where {N,T<:FloatingTypes}
-    llvmwrapreduce(Val{:min}, extract_data(v))
-end
-@vectordef vsum function Base.sum(v) where {N,T}
-    llvmwrapreduce(Val{:+}, extract_data(v))
-end
-@vectordef vprod function Base.prod(v) where {N,T}
-    llvmwrapreduce(Val{:*}, extract_data(v))
+for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
+                                    (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
+                                    (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
+    @eval begin
+        @inline $rename(v::AbstractSIMDVector{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}, extract_data(v))
+        @inline $name(v::AbstractStructVec{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}, extract_data(v))
+    end
 end
 
 # @inline vall(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
@@ -522,7 +516,8 @@ end
 # @inline vmaximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:max}, v)
 # @inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)
 
-
+@inline vmul(x, y) = x * y
+@inline vadd(x, y) = x + y
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
 

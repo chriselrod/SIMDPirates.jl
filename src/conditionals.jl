@@ -106,3 +106,38 @@ end
 #         v2::AbstractStructVec{N,T}, v3::AbstractStructVec{N,T}) where {N,T}
 #     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
 # end
+
+@generated function vifelse(mask::U, v2::Vec{N,T}, v3::Vec{N,T}) where {N,T,U<:Unsigned}
+    @assert 8sizeof(U) >= N
+    btyp = llvmtype(Bool)
+    vbtyp = "<$N x $btyp>"
+    abtyp = "[$N x $btyp]"
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    atyp = "[$N x $typ]"
+    decls = []
+    instrs = []
+
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$N"
+
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%cond = bitcast $mtyp_input %0 to <$N x i1>")
+    else
+        push!(instrs, "%condtrunc = trunc $mtyp_input %0 to $mtyp_trunc")
+        push!(instrs, "%cond = bitcast $mtyp_trunc %condtrunc to <$N x i1>")
+    end
+
+
+    # push!(instrs, "%cond = trunc $vbtyp %0 to <$N x i1>")
+    push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T},
+            Tuple{$U, Vec{$N,$T}, Vec{$N,$T}},
+            mask, v2, v3)
+    end
+end
+@inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = vifelse(U, extract_data(v2), extract_data(v3))

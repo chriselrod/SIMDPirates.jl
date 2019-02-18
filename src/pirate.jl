@@ -43,3 +43,68 @@ end
 
 
 macro pirate(ex) _pirate(ex) end
+
+
+struct vBitArray
+    ptr::Ptr{UInt64}
+end
+@inline VectorizationBase.vectorizable(b::BitArray) = vBitArray(pointer(b.chunks))
+@inline function Base.:+(i, b::vBitArray)
+    vBitArray((i >> 3) + b.ptr)
+end
+@inline function Base.:+(b::vBitArray, i)
+    vBitArray((i >> 3) + b.ptr)
+end
+@inline function Base.:-(b::vBitArray, i)
+    vBitArray(b.ptr - (i >> 3))
+end
+function unsigned_type(N)
+    if N <= 8
+        return :UInt8
+    elseif N <= 16
+        return :UInt16
+    elseif N <= 32
+        return :UInt32
+    elseif N <= 64
+        return :UInt64
+    elseif N <= 128
+        return :UInt128
+    else
+        throw("Vectors of length $N > 128 not yet supported.")
+    end
+end
+"""
+The method on BitArrays is a hack, ignoring the type passed to Vec, to better support the LoopVectorization.jl implementation.
+"""
+@generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer) where {N,T}
+    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+    utype = unsigned_type(N)
+    quote
+        $(Expr(:meta, :inline))
+        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
+    end
+end
+@generated function vload(::Type{Vec{N,T}}, b::vBitArray) where {N,T}
+    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+    utype = unsigned_type(N)
+    quote
+        $(Expr(:meta, :inline))
+        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
+    end
+end
+@generated function vload(::Type{SVec{N,T}}, b::vBitArray) where {N,T}
+    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+    utype = unsigned_type(N)
+    quote
+        $(Expr(:meta, :inline))
+        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
+    end
+end
+@generated function vload(::Type{SVec{N,T}}, b::vBitArray, i) where {N,T}
+    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+    utype = unsigned_type(N)
+    quote
+        $(Expr(:meta, :inline))
+        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
+    end
+end
