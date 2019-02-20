@@ -72,7 +72,8 @@ end
     SVec(vsignbit(extract_data(v1)))
 end
 
-@inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
+@inline vifelse(c::Bool, x, y) = c ? x : y
+# @inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
 @generated function vifelse(v1::Vec{N,Bool}, v2::Vec{N,T},
         v3::Vec{N,T}) where {N,T}
     btyp = llvmtype(Bool)
