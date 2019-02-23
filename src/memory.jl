@@ -38,7 +38,7 @@ end
 end
 
 @generated function vload(::Type{Vec{N,T}}, ptr::Ptr{T},
-                          ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                          ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -63,86 +63,86 @@ end
             Vec{N,T}, Tuple{Ptr{T}}, ptr)
     end
 end
-@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vload(Vec{N,T}, ptr.ptr, Val{Aligned})
+@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vload(Vec{N,T}, ptr.ptr, Val{Aligned}())
 end
-@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    SVec(vload(Vec{N,T}, ptr.ptr, Val{Aligned}))
+@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    SVec(vload(Vec{N,T}, ptr.ptr, Val{Aligned}()))
 end
 
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} =
-    vload(Vec{N,T}, ptr, Val{true})
+    vload(Vec{N,T}, ptr, Val{true}())
 
 
 @inline function vload(::Type{Vec{N,T}},
                        ptr::Ptr{T},
                        i::Integer,
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned})
+    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned}())
 end
 @inline function vload(::Type{Vec{N,T}},
                        arr::AbstractArray{T,D},
                        i::Integer,
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, pointer(arr, i), Val{Aligned})
+    vload(Vec{N,T}, pointer(arr, i), Val{Aligned}())
 end
 @inline function vload(::Type{Vec{N,T}},
                        arr::AbstractArray{T,D},
                        ind::NTuple{D,<:Integer},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     i = sub2ind(size(arr), ind)
-    vload(Vec{N,T}, pointer(arr, i), Val{Aligned})
+    vload(Vec{N,T}, pointer(arr, i), Val{Aligned}())
 end
 @inline function vloada(::Type{Vec{N,T}},
                         arr::AbstractArray{T,1},
                         i::Integer) where {N,T}
-    vload(Vec{N,T}, arr, i, Val{true})
+    vload(Vec{N,T}, arr, i, Val{true}())
 end
 
 
 
-@inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned} =
-    SVec(vload(Vec{N,T}, ptr, Val{Aligned}))
+@inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned} =
+    SVec(vload(Vec{N,T}, ptr, Val{Aligned}()))
 
 @inline vloada(::Type{SVec{N,T}}, ptr::Ptr{T}) where {N,T} =
-    SVec(vload(Vec{N,T}, ptr, Val{true}))
+    SVec(vload(Vec{N,T}, ptr, Val{true}()))
 
 
 @inline function vload(::Type{SVec{N,T}},
                        ptr::Ptr{T},
                        i::Integer,
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned}))
+    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned}()))
 end
 @inline function vload(::Type{SVec{N,T}},
                        arr::AbstractArray{T,D},
                        i::Integer,
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, pointer(arr, i), Val{Aligned}))
+    SVec(vload(Vec{N,T}, pointer(arr, i), Val{Aligned}()))
 end
 @inline function vload(::Type{SVec{N,T}},
                        arr::AbstractArray{T,D},
                        ind::NTuple{D,<:Integer},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     i = sub2ind(size(arr), ind)
-    SVec(vload(Vec{N,T}, pointer(arr, i), Val{Aligned}))
+    SVec(vload(Vec{N,T}, pointer(arr, i), Val{Aligned}()))
 end
 @inline function vloada(::Type{SVec{N,T}},
                         arr::AbstractArray{T,1},
                         i::Integer) where {N,T}
-    SVec(vload(Vec{N,T}, arr, i, Val{true}))
+    SVec(vload(Vec{N,T}, arr, i, Val{true}()))
 end
 
 
 @generated function vload(::Type{Vec{N,T}}, ptr::Ptr{T},
                           mask::Vec{N,Bool},
-                          ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                          ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -174,7 +174,7 @@ end
 end
 @generated function vload(::Type{Vec{N,T}}, ptr::Ptr{T},
                           mask::U,
-                          ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,U<:Unsigned}
+                          ::Val{Aligned} = Val{false}()) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
     ptyp = llvmtype(Int)
@@ -214,82 +214,82 @@ end
     end
 end
 @inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned})
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}())
 end
 @inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    SVec(vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}))
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    SVec(vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}()))
 end
 
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}) where {N,T} =
-    vload(Vec{N,T}, ptr, mask, Val{true})
+    vload(Vec{N,T}, ptr, mask, Val{true}())
 
 @inline function vload(::Type{Vec{N,T}},
                        ptr::Ptr{T},
                        i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned})
+    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned}())
 end
 @inline function vload(::Type{Vec{N,T}},
                        arr::AbstractArray{T},
                        i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned})
+    vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}())
 end
 @inline function vload(::Type{Vec{N,T}},
                        arr::AbstractArray{T,D},
                        ind::NTuple{D,<:Integer}, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,D,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,D,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     i = sub2ind(size(arr), ind)
-    vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned})
+    vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}())
 end
 @inline function vloada(::Type{Vec{N,T}},
                         arr::AbstractArray{T}, i::Integer,
                         mask::Union{Vec{N,Bool},<:Unsigned}) where {N,T}
-    vload(Vec{N,T}, arr, i, mask, Val{true})
+    vload(Vec{N,T}, arr, i, mask, Val{true}())
 end
 
-@inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned} =
-    SVec(vload(Vec{N,T}, ptr, mask, Val{Aligned}))
+@inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned} =
+    SVec(vload(Vec{N,T}, ptr, mask, Val{Aligned}()))
 
 @inline vloada(::Type{SVec{N,T}}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},<:Unsigned}) where {N,T} =
-    SVec(vload(Vec{N,T}, ptr, mask, Val{true}))
+    SVec(vload(Vec{N,T}, ptr, mask, Val{true}()))
 
 @inline function vload(::Type{SVec{N,T}},
                        ptr::Ptr{T},
                        i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned}))
+    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned}()))
 end
 @inline function vload(::Type{SVec{N,T}},
                        arr::AbstractArray{T},
                        i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}))
+    SVec(vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}()))
 end
 @inline function vload(::Type{SVec{N,T}},
                        arr::AbstractArray{T,D},
                        ind::NTuple{D,<:Integer}, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Type{Val{Aligned}} = Val{false}) where {N,T,D,Aligned}
+                       ::Val{Aligned} = Val{false}()) where {N,T,D,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
     i = sub2ind(size(arr), ind)
-    SVec(vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}))
+    SVec(vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}()))
 end
 @inline function vloada(::Type{SVec{N,T}},
                         arr::AbstractArray{T}, i::Integer,
                         mask::Union{Vec{N,Bool},<:Unsigned}) where {N,T}
-    SVec(vload(Vec{N,T}, arr, i, mask, Val{true}))
+    SVec(vload(Vec{N,T}, arr, i, mask, Val{true}()))
 end
 
 
-@generated function vstore(v::Vec{N,T}, ptr::Ptr{T},
-                           ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+@generated function vstore!(ptr::Ptr{T}, v::Vec{N,T},
+                           ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -305,52 +305,49 @@ end
     if align > 0
         push!(flags, "align $align")
     end
-    push!(instrs, "%ptr = inttoptr $ptyp %1 to $vtyp*")
-    push!(instrs, "store $vtyp %0, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
+    push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-                      Cvoid, Tuple{Vec{N,T}, Ptr{T}}, v, ptr)
+                      Cvoid, Tuple{Ptr{T}, Vec{N,T}}, ptr, v)
     end
 end
-@inline function vstore(v::AbstractStructVec{N,T}, ptr::Ptr{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(extract_data(v), ptr, Val{Aligned})
+@inline function vstore!(ptr::Ptr{T}, v::AbstractStructVec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr, extract_data(v), Val{Aligned}())
 end
 
-@inline vstorea(v::AbstractSIMDVector{N,T}, ptr::Ptr{T}) where {N,T} =
-            vstore(extract_data(v), ptr, Val{true})
+@inline vstorea!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}) where {N,T} =
+            vstore!(ptr, extract_data(v), Val{true}())
 
 
-@inline function vstore(v::AbstractSIMDVector{N,T},
-                        ptr::Ptr{T},
+@inline function vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T},
                         i::Integer,
-                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(extract_data(v), ptr + (i - 1)*sizeof(T), Val{Aligned})
+                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr + (i - 1)*sizeof(T), extract_data(v), Val{Aligned}())
 end
-@inline function vstore(v::AbstractSIMDVector{N,T},
-                        arr::AbstractArray{T,D},
+@inline function vstore!(arr::AbstractArray{T,D},
+                        v::AbstractSIMDVector{N,T},
                         i::Integer,
-                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore(extract_data(v), pointer(arr, i), Val{Aligned})
+    vstore!(pointer(arr, i), extract_data(v), Val{Aligned}())
 end
-@inline function vstore(v::AbstractSIMDVector{N,T},
-                        arr::AbstractArray{T,D},
+@inline function vstore!(arr::AbstractArray{T,D},
+                        v::AbstractSIMDVector{N,T},
                         ind::NTuple,
-                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     i = sub2ind(size(arr), ind)
     # @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore(extract_data(v), pointer(arr, i), Val{Aligned})
+    vstore!(pointer(arr, i), extract_data(v), Val{Aligned}())
 end
-@inline function vstorea(v::AbstractSIMDVector{N,T}, arr::AbstractArray{T,1},
-                         i::Integer) where {N,T}
-    vstore(extract_data(v), arr, i, Val{true})
+@inline function vstorea!(arr::AbstractArray{T,D}, v::AbstractSIMDVector{N,T}, i::Integer) where {N,T,D}
+    vstore!(arr, extract_data(v), i, Val{true}())
 end
 
-@generated function vstore(v::Vec{N,T}, ptr::Ptr{T},
-                           mask::Vec{N,Bool},
-                           ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+@generated function vstore!(ptr::Ptr{T}, v::Vec{N,T}, mask::Vec{N,Bool},
+                           ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -364,25 +361,24 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
-    push!(instrs, "%ptr = inttoptr $ptyp %1 to $vtyp*")
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "%mask = trunc $vbtyp %2 to <$N x i1>")
     push!(decls,
         "declare void @llvm.masked.store.$(suffix(N,T))($vtyp, $vtyp*, i32, " *
             "<$N x i1>)")
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(N,T))($vtyp %0, $vtyp* %ptr, " *
+        "call void @llvm.masked.store.$(suffix(N,T))($vtyp %1, $vtyp* %ptr, " *
             "i32 $align, <$N x i1> %mask)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Vec{N,T}, Ptr{T}, Vec{N,Bool}},
-            v, ptr, mask)
+            Cvoid, Tuple{Ptr{T}, Vec{N,T}, Vec{N,Bool}},
+            ptr, v, mask)
     end
 end
-@generated function vstore(v::Vec{N,T}, ptr::Ptr{T},
-                           mask::U,
-                           ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,U<:Unsigned}
+@generated function vstore!(ptr::Ptr{T}, v::Vec{N,T}, mask::U,
+                           ::Val{Aligned} = Val{false}()) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -398,7 +394,7 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
-    push!(instrs, "%ptr = inttoptr $ptyp %1 to $vtyp*")
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     # push!(instrs, "%mask = trunc $vbtyp %2 to <$N x i1>")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
@@ -410,64 +406,57 @@ end
         "declare void @llvm.masked.store.$(suffix(N,T))($vtyp, $vtyp*, i32, " *
             "<$N x i1>)")
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(N,T))($vtyp %0, $vtyp* %ptr, " *
+        "call void @llvm.masked.store.$(suffix(N,T))($vtyp %1, $vtyp* %ptr, " *
             "i32 $align, <$N x i1> %mask)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Vec{$N,$T}, Ptr{$T}, $U},
-            v, ptr, mask)
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, $U},
+            ptr, v, mask)
     end
 end
-@inline function vstore(v::AbstractStructVec{N,T}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(extract_data(v), ptr, mask, Val{Aligned})
+@inline function vstore!(ptr::Ptr{T}, v::AbstractStructVec{N,T}, mask::Union{Vec{N,Bool},Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr, extract_data(v), mask, Val{Aligned}())
 end
 
-@inline vstorea(v::AbstractSIMDVector{N,T}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},Unsigned}) where {N,T} =
-    vstore(extract_data(v), ptr, mask, Val{true})
+@inline vstorea!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}, mask::Union{Vec{N,Bool},Unsigned}) where {N,T} =
+    vstore!(ptr, extract_data(v), mask, Val{true}())
 
-@inline function vstore(v::AbstractSIMDVector{N,T},
-                        ptr::Ptr{T},
+@inline function vstore!(ptr::Ptr{T},
+                        v::AbstractSIMDVector{N,T},
                         i::Integer,
                         mask::Union{Vec{N,Bool},Unsigned},
-                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
+                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore(extract_data(v), ptr + (i - 1)*sizeof(T), mask, Val{Aligned})
+    vstore!(ptr + (i - 1)*sizeof(T), extract_data(v), mask, Val{Aligned}())
 end
-@inline function vstore(v::AbstractSIMDVector{N,T},
-                        arr::AbstractArray{T,D},
+@inline function vstore!(arr::AbstractArray{T,D},
+                        v::AbstractSIMDVector{N,T},
                         i::Integer,
                         mask::Union{Vec{N,Bool},Unsigned},
-                        ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned,D}
+                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
     #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore(extract_data(v), pointer(arr, i), mask, Val{Aligned})
+    vstore!(pointer(arr, i), extract_data(v), mask, Val{Aligned}())
 end
-@inline function vstorea(v::AbstractSIMDVector{N,T},
-                         arr::AbstractArray{T},
+@inline function vstorea!(arr::AbstractArray{T},
+                         v::AbstractSIMDVector{N,T},
                          i::Integer, mask::Union{Vec{N,Bool},Unsigned}) where {N,T}
-    vstore(extract_data(v), arr, i, mask, Val{true})
+    vstore!(arr, extract_data(v), i, mask, Val{true}())
 end
 
 
-@inline function vstore(v::Vec{N,T}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(v, ptr.ptr, Val{Aligned})
+@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::Vec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr.ptr, v, Val{Aligned}())
 end
-@inline function vstore(v::SVec{N,T}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(v, ptr.ptr, Val{Aligned})
+@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::AbstractSIMDVector{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr.ptr, extract_data(v), Val{Aligned}())
 end
-@inline function vstore(v::AbstractStructVec{N,T}, ptr::VectorizationBase.vpointer{T}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(extract_data(v), ptr.ptr, Val{Aligned})
+@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::Vec{N,T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr.ptr, v, mask, Val{Aligned}())
 end
-@inline function vstore(v::Vec{N,T}, ptr::VectorizationBase.vpointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(v, ptr.ptr, mask, Val{Aligned})
-end
-@inline function vstore(v::SVec{N,T}, ptr::VectorizationBase.vpointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(v, ptr.ptr, mask, Val{Aligned})
-end
-@inline function vstore(v::AbstractStructVec{N,T}, ptr::VectorizationBase.vpointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Type{Val{Aligned}} = Val{false}) where {N,T,Aligned}
-    vstore(extract_data(v), ptr.ptr, mask, Val{Aligned})
+@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::AbstractSIMDVector{N,T},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+    vstore!(ptr.ptr, extract_data(v), mask, Val{Aligned}())
 end

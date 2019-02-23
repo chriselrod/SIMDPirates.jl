@@ -10,13 +10,14 @@ export  Vec, SVec, VE,
         valloc,
         vload,
         vloada,
-        vstore,
-        vstorea,
+        vstore!,
+        vstorea!,
         shufflevector,
         vifelse,
         vfma,
         vmuladd,
-        rsqrt
+        rsqrt,
+        vadd, vmul, vsum
 
 
 function vector_args(args)
