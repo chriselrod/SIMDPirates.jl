@@ -10,7 +10,7 @@ for op ∈ (
     )
     rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $rename(s1::FloatingTypes) = $op(s1)
+        @inline $rename(s1::FloatingTypes) = @fastmath $op(s1)
 
         @vectordef $rename function Base.$op(v1) where {N,T<:FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1))

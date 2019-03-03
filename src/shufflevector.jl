@@ -43,3 +43,5 @@ end
 @inline function shufflevector(v1::AbstractStructVec{N,T}, ::Val{I}) where {N,T,I}
     SVec(shufflevector(extract_data(v1), Val(I)))
 end
+
+@inline rotate_vector_left(v::AbstractSIMDVector{N}) where {N} = shufflevector(v, Val(ntuple(i -> i, Val(N))))
