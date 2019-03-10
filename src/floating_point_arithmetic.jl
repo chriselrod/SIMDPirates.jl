@@ -108,6 +108,7 @@ let op = :(*)
     end
 end
 
+@inline evmul(a, b) = a * b
 @inline evmul(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, v1, v2)
 @inline function evmul(v1::VecOrProd{N,T}, v2::VecOrProd{N,T}) where {N,T}
     llvmwrap(Val{:(*)}, extract_data(v1), extract_data(v2))

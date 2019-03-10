@@ -49,8 +49,8 @@ end
 @inline vissubnormal(s1::ScalarTypes) = issubnormal(s1)
 @inline function vissubnormal(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
-    em = Vec{N,U}(exponent_mask(T))
-    sm = Vec{N,U}(significand_mask(T))
+    em = vbroadcast(Vec{N,U}, exponent_mask(T))
+    sm = vbroadcast(Vec{N,U}, significand_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
     vand(vequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
 end
@@ -61,7 +61,7 @@ end
 @inline signbit(s1::ScalarTypes) = signbit(s1)
 @inline function vsignbit(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
-    sm = Vec{N,U}(sign_mask(T))
+    sm = vbroadcast(Vec{N,U}, sign_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0))
 end
