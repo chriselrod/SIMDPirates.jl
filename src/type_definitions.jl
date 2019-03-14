@@ -55,6 +55,9 @@ end
 @inline function vbroadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
     @inbounds ntuple(i -> VE{T}(s), Val(N))
 end
+@inline function vbroadcast(::Type{Vec{N,T}}, s::Core.VecElement{T}) where {N,T}
+    @inbounds ntuple(i -> s, Val(N))
+end
 @inline vbroadcast(::Type{Vec{N,T}}, s::Vec{N,T}) where {N,T} = s
 @inline function svbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
     @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
@@ -62,6 +65,9 @@ end
 @inline svbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
 @inline function vbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
     @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
+end
+@inline function vbroadcast(::Type{SVec{N,T}}, s::Core.VecElement{T}) where {N,T}
+    @inbounds SVec(ntuple(i -> s, Val(N)))
 end
 @inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
 @inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
