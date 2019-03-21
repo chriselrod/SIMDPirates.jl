@@ -3,6 +3,7 @@ module SIMDPirates
 
 using MacroTools: postwalk, @capture
 using VectorizationBase
+using VectorizationBase: llvmtype
 
 export  Vec, SVec, VE,
         @pirate,

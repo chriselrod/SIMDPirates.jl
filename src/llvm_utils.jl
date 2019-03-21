@@ -1,30 +1,4 @@
 
-# Convert Julia types to LLVM types
-
-llvmtype(::Type{Bool}) = "i8"   # Julia represents Tuple{Bool} as [1 x i8]
-
-# llvmtype(::Type{Bool8}) = "i8"
-# llvmtype(::Type{Bool16}) = "i16"
-# llvmtype(::Type{Bool32}) = "i32"
-# llvmtype(::Type{Bool64}) = "i64"
-# llvmtype(::Type{Bool128}) = "i128"
-
-llvmtype(::Type{Int8}) = "i8"
-llvmtype(::Type{Int16}) = "i16"
-llvmtype(::Type{Int32}) = "i32"
-llvmtype(::Type{Int64}) = "i64"
-llvmtype(::Type{Int128}) = "i128"
-
-llvmtype(::Type{UInt8}) = "i8"
-llvmtype(::Type{UInt16}) = "i16"
-llvmtype(::Type{UInt32}) = "i32"
-llvmtype(::Type{UInt64}) = "i64"
-llvmtype(::Type{UInt128}) = "i128"
-
-llvmtype(::Type{Float16}) = "half"
-llvmtype(::Type{Float32}) = "float"
-llvmtype(::Type{Float64}) = "double"
-
 # Type-dependent optimization flags
 # fastflags{T<:IntTypes}(::Type{T}) = "nsw"
 # fastflags{T<:UIntTypes}(::Type{T}) = "nuw"
@@ -266,7 +240,7 @@ end
             v.elts, i-1, T(x))
     end
 end
-setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
+setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, x, Int(i))
 # Type conversion
 
 @generated function pirate_reinterpret(::Type{Vec{N,R}},
