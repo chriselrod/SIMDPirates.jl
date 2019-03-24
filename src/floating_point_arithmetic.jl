@@ -37,25 +37,6 @@ end
         copysign(vbroadcast(Vec{N,T}, one(T)), extract_data(v1))
     )
 end
-@inline function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
-    Base.llvmcall(
-    """ %rs = call <16 x float> asm "vrsqrt14ps \$1, \$0", "=x,x"(<16 x float> %0)
-        ret <16 x float> %rs""",
-    NTuple{16,Core.VecElement{Float32}}, Tuple{NTuple{16,Core.VecElement{Float32}}}, x)
-end
-@inline function rsqrt(x::NTuple{16,Core.VecElement{Float32}})
-    r = rsqrt_fast(x)
-    # Performs a Newton step to increase accuracy.
-    # ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
-    # vmul(r, ns)
-    ns = vfma(vmul(r,r), x, -3.0f0)
-    vmul(vmul(-0.5f0, r), ns)
-end
-@inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
-@inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
-@inline rsqrt_fast(x) = vinv(vsqrt(x))
-@inline rsqrt(x) = vinv(vsqrt(x))
-
 # @inline function vsign(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
 # end
@@ -64,10 +45,12 @@ end
 # end
 
 for op ∈ (
-        :(/), :(%), :(^),
+        :(+), :(-), :(*), :(/), :(%), :(^),
         :copysign#, :max, :min
     )
     rename = VECTOR_SYMBOLS[op]
+    # exact / explicit version
+    erename = Symbol(:e, rename)
     @eval begin
         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
 
@@ -75,6 +58,13 @@ for op ∈ (
             llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
         end
 
+
+        @inline $erename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
+
+        @evectordef $erename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
+            llvmwrap_notfast(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
+        end
+        
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
         # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
@@ -93,164 +83,42 @@ end
 end
 
 
-let op = :(*)
-    rename = VECTOR_SYMBOLS[op]
-    @eval begin
-        @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
-        # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     VecProduct(v1, v2)
-        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-            VecProduct(extract_data(v1), extract_data(v2))
-        @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-            SVecProduct(extract_data(v1), extract_data(v2))
-        @inline Base.$op(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVecProduct(extract_data(v1), extract_data(v2))
-    end
-end
-
-@inline evmul(a, b) = a * b
-@inline evmul(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, v1, v2)
-@inline function evmul(v1::VecOrProd{N,T}, v2::VecOrProd{N,T}) where {N,T}
-    llvmwrap(Val{:(*)}, extract_data(v1), extract_data(v2))
-end
-@inline function evmul(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T}
-    SVec(llvmwrap(Val{:(*)}, extract_data(v1), extract_data(v2)))
-end
-
-@inline evmul(v1::Vec{N,T}, s2::T) where {N,T} = llvmwrap(Val{:(*)}, v1, vbroadcast(Vec{N,T}, s2))
-@inline function evmul(v1::VecOrProd{N,T}, s2::T) where {N,T}
-    llvmwrap(Val{:(*)}, extract_data(v1), vbroadcast(Vec{N,T}, s2))
-end
-@inline function evmul(v1::AbstractStructVec{N,T}, s2::T) where {N,T}
-    SVec(llvmwrap(Val{:(*)}, extract_data(v1), vbroadcast(Vec{N,T}, s2)))
-end
-
-@inline evmul(s1::T, v2::Vec{N,T}) where {N,T} = llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), v2)
-@inline function evmul(s1::T, v2::VecOrProd{N,T}) where {N,T}
-    llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), extract_data(v2))
-end
-@inline function evmul(s1::T, v2::AbstractStructVec{N,T}) where {N,T}
-    SVec(llvmwrap(Val{:(*)}, vbroadcast(Vec{N,T}, s1), extract_data(v2)))
-end
+# let op = :(*)
+#     rename = VECTOR_SYMBOLS[op]
+#     @eval begin
+#         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
+#         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+#         #     VecProduct(v1, v2)
+#         @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+#             VecProduct(extract_data(v1), extract_data(v2))
+#         @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
+#             SVecProduct(extract_data(v1), extract_data(v2))
+#         @inline Base.$op(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+#             SVecProduct(extract_data(v1), extract_data(v2))
+#     end
+# end
 
 
-let op = :(+)
-    rename = VECTOR_SYMBOLS[op]
-    @eval begin
-        @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
-        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
-        @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
-        @inline Base.$op(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
-
-        @inline $rename(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
-        @inline $rename(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
-        @inline $rename(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
-        @inline $rename(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
-        @inline $rename(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
-        @inline $rename(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
-
-        @inline Base.$op(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
-        @inline Base.$op(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:muladd}, v.v1, v.v2, v3)
-        @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
-        @inline Base.$op(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, v3))
-        @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
-        @inline Base.$op(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, v.v1, v.v2, extract_data(v3)))
-
-
-        @inline $rename(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2))
-        @inline Base.$op(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2))
-        @inline $rename(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2)))
-        @inline Base.$op(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{:muladd}, vp1.v1, vp1.v2, extract_data(vp2)))
-    end
-end
-
-@generated function vfmsub(v1::Vec{N,T},v2::Vec{N,T},v3::Vec{N,T}) where {N,T}
+@generated function vfmsub(v1::AbstractSIMDVector{N,T},v2::AbstractSIMDVector{N,T},v3::AbstractSIMDVector{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))
-        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(muladd(v1[n].value,v2[n].value,-v3[n].value))))
+        vsub(vmul(v1,v2),v3)
     end
 end
-@generated function vfnmsub(v1::Vec{N,T},v2::Vec{N,T},v3::Vec{N,T}) where {N,T}
+@generated function vfnmsub(v1::AbstractSIMDVector{N,T},v2::AbstractSIMDVector{N,T},v3::AbstractSIMDVector{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))
-        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(muladd(-v1[n].value,v2[n].value,-v3[n].value))))
+        vsub(vsub(v3), vmul(v1,v2))
     end
 end
-@generated function vfnmadd(v1::Vec{N,T},v2::Vec{N,T},v3::Vec{N,T}) where {N,T}
+@generated function vfnmadd(v1::AbstractSIMDVector{N,T},v2::AbstractSIMDVector{N,T},v3::AbstractSIMDVector{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))
-        Vec{$N,$T}((Base.Cartesian.@ntuple $N n -> @inbounds Core.VecElement(muladd(-v1[n].value,v2[n].value,v3[n].value))))
+        vsub(v3, vmul(v1,v2))
     end
 end
 
 
-let op = :(-)
-    rename = VECTOR_SYMBOLS[op]
-    @eval begin
-        @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
-        @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-            llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
-        @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
-        @inline Base.$op(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-            SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
-
-        @inline $rename(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            vfmsub(v.v1, v.v2, v3)
-        @inline $rename(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            vfnmadd(v.v1, v.v2, v3)
-        @inline $rename(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfmsub(v.v1, v.v2, v3))
-        @inline $rename(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfnmadd(v.v1, v.v2, v3))
-        @inline $rename(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfmsub(v.v1, v.v2, extract_data(v3)))
-        @inline $rename(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfnmadd(v.v1, v.v2, extract_data(v3)))
-
-        @inline Base.$op(v::VecProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            vfmsub(v.v1, v.v2, v3)
-        @inline Base.$op(v3::Vec{N,T}, v::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            vfnmadd(v.v1, v.v2, v3)
-        @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfmsub(v.v1, v.v2, v3))
-        @inline Base.$op(v3::Vec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfnmadd(v.v1, v.v2, v3))
-        @inline Base.$op(v::AbstractVectorProduct{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfmsub(v.v1, v.v2, extract_data(v3)))
-        @inline Base.$op(v3::AbstractStructVec{N,T}, v::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfnmadd(v.v1, v.v2, extract_data(v3)))
-
-
-        @inline $rename(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            vfmsub(vp1.v1, vp1.v2, extract_data(vp2))
-        @inline Base.$op(vp1::VecProduct{N,T}, vp2::VecProduct{N,T}) where {N,T<:FloatingTypes} =
-            vfmsub(vp1.v1, vp1.v2, extract_data(vp2))
-        @inline $rename(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfmsub(vp1.v1, vp1.v2, extract_data(vp2)))
-        @inline Base.$op(vp1::AbstractVectorProduct{N,T}, vp2::AbstractVectorProduct{N,T}) where {N,T<:FloatingTypes} =
-            SVec(vfmsub(vp1.v1, vp1.v2, extract_data(vp2)))
-    end
-end
 
 @inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
 @vectordef vpow function Base.:^(v1, x2::Integer) where {N,T<:FloatingTypes}
@@ -336,12 +204,12 @@ end
 # @vectordef vifelse function Base.ifelse(c::AbstractSIMDVector{N,Bool}, v1, s2::ScalarTypes) where {N,T<:FloatingTypes}
 #     vifelse(extract_data(c), extract_data(v1), vbroadcast(Vec{N,T}, s2))
 # end
-@inline function vifelse(c::VecOrProd{N,Bool}, s1::ScalarTypes, v2::VecOrProd{N,T}) where {N,T<:FloatingTypes}
-    vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2))
-end
-@inline function vifelse(c::VecOrProd{N,Bool}, v1::VecOrProd{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
-    vifelse(extract_data(c), v1, vbroadcast(Vec{N,T}, extract_data(s2)))
-end
+# @inline function vifelse(c::VecOrProd{N,Bool}, s1::ScalarTypes, v2::VecOrProd{N,T}) where {N,T<:FloatingTypes}
+#     vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2))
+# end
+# @inline function vifelse(c::VecOrProd{N,Bool}, v1::VecOrProd{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
+#     vifelse(extract_data(c), v1, vbroadcast(Vec{N,T}, extract_data(s2)))
+# end
 @inline function vifelse(c::AbstractSIMDVector{N,Bool}, s1::ScalarTypes, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
     SVec(vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2)))
 end
@@ -378,25 +246,32 @@ for op ∈ (:fma, :muladd)
         @vectordef $rename function Base.$op(v1, s2::ScalarTypes, s3::ScalarTypes) where {N,T}
             $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
         end
+    end
+end
 
-        # @inline $rename(s1::ScalarTypes, v2::Vec{N,T},
-        #         v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     $rename(vbroadcast(Vec{N,T}, s1), v2, v3)
-        # @inline $rename(v1::Vec{N,T}, s2::ScalarTypes,
-        #         v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     $rename(v1, vbroadcast(Vec{N,T}, s2), v3)
-        # @inline $rename(s1::ScalarTypes, s2::ScalarTypes,
-        #         v3::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     $rename(vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), v3)
-        # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T},
-        #         s3::ScalarTypes) where {N,T<:FloatingTypes} =
-        #     $rename(v1, v2, vbroadcast(Vec{N,T}, s3))
-        # @inline $rename(s1::ScalarTypes, v2::Vec{N,T},
-        #         s3::ScalarTypes) where {N,T<:FloatingTypes} =
-        #     $rename(vbroadcast(Vec{N,T}, s1), v2, vbroadcast(Vec{N,T}, s3))
-        # @inline $rename(v1::Vec{N,T}, s2::ScalarTypes,
-        #         s3::ScalarTypes) where {N,T<:FloatingTypes} =
-        #     $rename(v1, vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
+for op ∈ (:fmsub, :fnmadd, :fnmsub)
+    rename = VECTOR_SYMBOLS[op]
+    @eval begin
+        @vectordef $rename function $op(s1::ScalarTypes, v2, v3) where {N,T}
+            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
+        end
+        @vectordef $rename function $op(v1, s2::ScalarTypes, v3) where {N,T}
+            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
+        end
+        @vectordef $rename function $op(v1, v2, s3::ScalarTypes) where {N,T}
+            $rename(extract_data(v1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
+        end
+
+
+        @vectordef $rename function $op(s1::ScalarTypes, s2::ScalarTypes, v3) where {N,T}
+            $rename(vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
+        end
+        @vectordef $rename function $op(s1::ScalarTypes, v2, s3::ScalarTypes) where {N,T}
+            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
+        end
+        @vectordef $rename function $op(v1, s2::ScalarTypes, s3::ScalarTypes) where {N,T}
+            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
+        end
     end
 end
 
@@ -529,3 +404,35 @@ end
         SVec{$N,$T}(a) * SVec{$N,$T}((Base.Cartesian.@ntuple $N n -> Core.VecElement{$T}(b[n])))
     end
 end
+
+
+
+@generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
+    if VectorizationBase.REGISTER_SIZE == 64
+        return quote
+            $(Expr(:meta,:inline))
+            Base.llvmcall(
+            """ %rs = call <16 x float> asm "vrsqrt14ps \$1, \$0", "=x,x"(<16 x float> %0)
+                ret <16 x float> %rs""",
+            NTuple{16,Core.VecElement{Float32}}, Tuple{NTuple{16,Core.VecElement{Float32}}}, x)
+        end
+    else
+        return quote
+            vinv(vsqrt(x))
+        end
+    end
+end
+@inline function rsqrt(x::NTuple{16,Core.VecElement{Float32}})
+    r = rsqrt_fast(x)
+    # Performs a Newton step to increase accuracy.
+    # ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
+    # vmul(r, ns)
+    ns = vfma(vmul(r,r), x, -3.0f0)
+    vmul(vmul(-0.5f0, r), ns)
+end
+@inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
+@inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
+@inline rsqrt_fast(x) = vinv(vsqrt(x))
+@inline rsqrt(x) = vinv(vsqrt(x))
+
+

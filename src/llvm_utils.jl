@@ -1,8 +1,9 @@
 
 # Type-dependent optimization flags
-# fastflags{T<:IntTypes}(::Type{T}) = "nsw"
-# fastflags{T<:UIntTypes}(::Type{T}) = "nuw"
-# fastflags{T<:FloatingTypes}(::Type{T}) = "fast"
+fastflags(::Type{T}) where {T<:IntTypes}= "nsw"
+fastflags(::Type{T}) where {T<:UIntTypes} = "nuw"
+fastflags(::Type{T}) where {T<:FloatingTypes} = "fast"
+
 
 suffix(N::Integer, ::Type{T}) where {T<:IntegerTypes} = "v$(N)i$(8*sizeof(T))"
 suffix(N::Integer, ::Type{T}) where {T<:FloatingTypes} = "v$(N)f$(8*sizeof(T))"
@@ -288,6 +289,8 @@ end
     SVec(pirate_reinterpret(Vec{N,R}, extract_data(v1)))
 end
 
+const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :muladd, :fma))
+
 const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :(==) => :vequal,
     :(!=) => :vnot_equal,
@@ -344,5 +347,8 @@ const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :isfinite => :visfinite,
     :isinf => :visinf,
     :isnan => :visnan,
-    :issubnormal => :vissubnormal
+    :issubnormal => :vissubnormal,
+    :fmsub => :vfmsub,
+    :fnmadd => :vfnmadd,
+    :fnmsub => :vfnmsub
 )

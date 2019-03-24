@@ -99,10 +99,10 @@ end
         v2::AbstractSIMDVector{N,T}, v3::AbstractSIMDVector{N,T}) where {N,T}
     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
 end
-@inline function vifelse(v1::VecOrProd{N,Bool},
-        v2::VecOrProd{N,T}, v3::VecOrProd{N,T}) where {N,T}
-    vifelse(extract_data(v1), extract_data(v2), extract_data(v3))
-end
+# @inline function vifelse(v1::VecOrProd{N,Bool},
+#         v2::VecOrProd{N,T}, v3::VecOrProd{N,T}) where {N,T}
+#     vifelse(extract_data(v1), extract_data(v2), extract_data(v3))
+# end
 # @inline function Base.ifelse(v1::AbstractStructVec{N,Bool},
 #         v2::AbstractStructVec{N,T}, v3::AbstractStructVec{N,T}) where {N,T}
 #     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
