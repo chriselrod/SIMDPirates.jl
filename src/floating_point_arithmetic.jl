@@ -64,7 +64,7 @@ for op ∈ (
         @evectordef $erename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
             llvmwrap_notfast(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
         end
-        
+
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
         # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
@@ -198,6 +198,23 @@ for op ∈ (
         #     $rename(v1, vbroadcast(Vec{N,T}, s2))
     end
 end
+for op ∈ (
+        :(+), :(-), :(*), :(/), :(%), :(^),
+        :copysign#, :max, :min
+    )
+    # exact / explicit version
+    erename = Symbol(:e, VECTOR_SYMBOLS[op])
+    @eval begin
+
+        @evectordef $erename function Base.$op(v1, s2::ScalarTypes) where {N,T <: FloatingTypes}
+            $erename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
+        end
+        @evectordef $erename function Base.$op(s1::ScalarTypes, v2) where {N,T <: FloatingTypes}
+            $erename(vbroadcast(Vec{N,T}, s1), extract_data(v2))
+        end
+    end
+end
+
 # @vectordef vifelse function Base.ifelse(c::AbstractSIMDVector{N,Bool}, s1::ScalarTypes, v2) where {N,T<:FloatingTypes}
 #     vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2))
 # end
@@ -396,6 +413,10 @@ end
 @inline vadd(x, y) = x + y
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
+@inline vmuladd(a, b, c) = @fastmath a * b + c
+@inline vfnmadd(a, b, c) = @fastmath c - a * b
+@inline vfmsub(a, b, c) = @fastmath a * b - c
+@inline vfnmsub(a, b, c) = @fastmath - a * b - c
 
 @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
 @generated function Base.:*(a::T, b::SVec{N,<:IntegerTypes}) where {N,T<:FloatingTypes}
@@ -434,5 +455,3 @@ end
 @inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt_fast(x) = vinv(vsqrt(x))
 @inline rsqrt(x) = vinv(vsqrt(x))
-
-
