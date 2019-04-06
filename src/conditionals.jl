@@ -141,4 +141,4 @@ end
             mask, v2, v3)
     end
 end
-@inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = vifelse(U, extract_data(v2), extract_data(v3))
+@inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = SVec(vifelse(U, extract_data(v2), extract_data(v3)))
