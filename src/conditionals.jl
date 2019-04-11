@@ -29,7 +29,7 @@ end
 @inline visfinite(s::ScalarTypes) = isfinite(s)
 @inline function visfinite(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
-    em = Vec{N,U}(exponent_mask(T))
+    em = vbroadcast(Vec{N,U}, exponent_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, em), em)
 end
