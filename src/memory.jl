@@ -69,6 +69,9 @@ end
 @inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     SVec(vload(Vec{N,T}, ptr.ptr, Val{Aligned}()))
 end
+@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.vpointer{T2}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
+    convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, Val{Aligned}())))
+end
 
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} =
     vload(Vec{N,T}, ptr, Val{true}())
@@ -220,6 +223,10 @@ end
 @inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T},
                 mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     SVec(vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}()))
+end
+@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.vpointer{T2},
+                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
+    convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, mask, Val{Aligned}())))
 end
 
 @inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}) where {N,T} =
