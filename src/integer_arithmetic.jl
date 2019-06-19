@@ -34,10 +34,10 @@ end
 
 @inline vsign(s1::IntTypes) = sign(s1)
 @inline vsign(v1::Vec{N,T}) where {N,T<:IntTypes} =
-    vifelse(vequal(v1, vbroadcast(Vec{N,T},0)), vbroadcast(Vec{N,T},0),
+    vifelse(visequal(v1, vbroadcast(Vec{N,T},0)), vbroadcast(Vec{N,T},0),
         vifelse(vless(v1, vbroadcast(Vec{N,T},0)), vbroadcast(Vec{N,T},-1), vbroadcast(Vec{N,T},1)))
 @inline vsign(v1::Vec{N,T}) where {N,T<:UIntTypes} =
-    vifelse(vequal(v1, vbroadcast(Vec{N,T},0)), vbroadcast(Vec{N,T},0), vbroadcast(Vec{N,T},1))
+    vifelse(visequal(v1, vbroadcast(Vec{N,T},0)), vbroadcast(Vec{N,T},0), vbroadcast(Vec{N,T},1))
     @inline vsign(v1::AbstractStructVec) = SVec(vsign(extract_data(v1)))
     @inline Base.sign(v1::AbstractStructVec) = SVec(vsign(extract_data(v1)))
 

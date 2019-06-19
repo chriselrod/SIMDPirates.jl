@@ -292,7 +292,7 @@ end
 const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :muladd, :fma))
 
 const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
-    :(==) => :vequal,
+    :(==) => :visequal,
     :(!=) => :vnot_equal,
     :(<) => :vless,
     :(<=) => :vless_or_equal,

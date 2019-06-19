@@ -37,7 +37,7 @@ end
 @inline Base.isfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
 
 @inline visinf(s1::ScalarTypes) = isinf(s1)
-@inline visinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vequal(vabs(v1), vbroadcast(Vec{N,T},Inf))
+@inline visinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = visequal(vabs(v1), vbroadcast(Vec{N,T},Inf))
 @inline visinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
 @inline Base.isinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
 
@@ -52,7 +52,7 @@ end
     em = vbroadcast(Vec{N,U}, exponent_mask(T))
     sm = vbroadcast(Vec{N,U}, significand_mask(T))
     iv = pirate_reinterpret(Vec{N,U}, v1)
-    vand(vequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
+    vand(visequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
 end
 @inline vissubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
 @inline Base.issubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
@@ -142,3 +142,7 @@ end
     end
 end
 @inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = SVec(vifelse(U, extract_data(v2), extract_data(v3)))
+
+@vectordef visodd function Base.isodd(v) where {N,T<:Integer}
+    visequal(vand(v, one(T)), one(T))
+end
