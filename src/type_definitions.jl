@@ -76,6 +76,8 @@ end
 @inline vzero(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(zero(T)), Val(N))
 @inline vone(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(one(T)), Val(N)))
 @inline vzero(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(zero(T)), Val(N)))
+@inline vone(::Type{T}) where {T} = one(T)
+@inline vzero(::Type{T}) where {T} = zero(T)
 
 @inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
 

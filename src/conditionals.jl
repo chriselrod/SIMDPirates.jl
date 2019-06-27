@@ -142,6 +142,10 @@ end
     end
 end
 @inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = SVec(vifelse(U, extract_data(v2), extract_data(v3)))
+@inline vifelse(U::Unsigned, v2::Vec{W,T}, s::Union{T,Int}) where {W,T} = vifelse(U, v2, vbroadcast(Vec{W,T}, s))
+@inline vifelse(U::Unsigned, v2::AbstractSIMDVector{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
+@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
+@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractSIMDVector{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s)), extract_data(v2))
 
 @vectordef visodd function Base.isodd(v) where {N,T<:Integer}
     visequal(vand(v, one(T)), one(T))

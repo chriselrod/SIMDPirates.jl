@@ -154,6 +154,24 @@ for op ∈ (:fma, :muladd)
         @vectordef $rename function Base.$op(v1, v2, v3) where {N,T<:FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), extract_data(v3))
         end
+        @vectordef $rename function Base.$op(s1::T, v2, v3) where {N,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}, SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
+        end
+        @vectordef $rename function Base.$op(v1, s2::T, v3) where {N,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
+        end
+        @vectordef $rename function Base.$op(v1, v2, s3::T) where {N,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+        end
+        @vectordef $rename function Base.$op(s1::T, s2::T, v3) where {N,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}, SIMDPirates.vbroadcast(Vec{N,T}, s1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
+        end
+        @vectordef $rename function Base.$op(s1::T, v2, s3::T) where {N,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}, SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+        end
+        @vectordef $rename function Base.$op(v1, s2::T, s3::T) where {N,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+        end
 
         # scalar default already set in integer_arithmetic.jl
         # @inline function $rename(v1::Vec{N,T},
@@ -413,10 +431,10 @@ end
 @inline vadd(x, y) = x + y
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
-@inline vmuladd(a, b, c) = @fastmath a * b + c
-@inline vfnmadd(a, b, c) = @fastmath c - a * b
-@inline vfmsub(a, b, c) = @fastmath a * b - c
-@inline vfnmsub(a, b, c) = @fastmath - a * b - c
+@inline vmuladd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
+@inline vfnmadd(a, b, c) = SIMDPirates.vsub(c, SIMDPirates.vmul( a, b ))
+@inline vfmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vmul( a, b), c )
+@inline vfnmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vsub(c), SIMDPirates.vmul( a, b ) )
 
 @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
 @generated function Base.:*(a::T, b::SVec{N,<:IntegerTypes}) where {N,T<:FloatingTypes}
@@ -455,3 +473,31 @@ end
 @inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt_fast(x) = vinv(vsqrt(x))
 @inline rsqrt(x) = vinv(vsqrt(x))
+
+for f ∈ (:vadd, :vsub, :vmul)
+    @eval @generated function $f(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
+        if W1 > W2
+            largerv = :v1
+            littlev = :v2
+            Ws, Wl = W2, W1
+        else
+            largerv = :v2
+            littlev = :v1
+            Ws, Wl = W1, W2
+        end
+        ret = Expr(:call, QuoteNode($f), :vse, :vb)
+        quote
+            $(Expr(:meta,:inline))
+            vs = $littlev
+            vb = $largerv
+            vse = $(Expr(:tuple,[:(vs[$w]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
+#            $f(vse, vb)
+            $ret
+        end
+    end
+    @eval @inline function $f(v1::AbstractSIMDVector{W1,T}, v2::AbstractSIMDVector{W2,T}) where {W1,W2,T}
+        SVec(
+            $f(extract_data(v1), extract_data(v2))
+        )
+    end
+end
