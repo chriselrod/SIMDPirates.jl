@@ -501,3 +501,5 @@ for f ∈ (:vadd, :vsub, :vmul)
         )
     end
 end
+
+Base.abs2(v::SVec) = vmul(v,v)
