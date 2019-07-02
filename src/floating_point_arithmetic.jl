@@ -502,4 +502,5 @@ for f ∈ (:vadd, :vsub, :vmul)
     end
 end
 
-Base.abs2(v::SVec) = vmul(v,v)
+@inline Base.abs2(v::SVec) = vmul(v,v)
+@inline vsum(s::FloatingTypes) = s
