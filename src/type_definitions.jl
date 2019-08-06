@@ -84,6 +84,9 @@ end
 @inline function pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes}
     @inbounds ntuple(i -> VE(xs[i]), Val(N))
 end
+@inline function pirate_convert(::Type{Vec{N,T1}}, xs::Vec{N,T2}) where {N,T1<:ScalarTypes,T2<:ScalarTypes}
+    @inbounds ntuple(i -> VE(T1(xs[i].value)), Val(N))
+end
 @generated function Base.convert(::Type{SVec{N,T}}, xs::NTuple{N,T}) where {N,T}
     quote
         $(Expr(:meta,:inline))

@@ -52,7 +52,7 @@ for op ∈ (
     # exact / explicit version
     erename = Symbol(:e, rename)
     @eval begin
-        @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
+        @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = @fastmath $op(s1, s2)
 
         @vectordef $rename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
@@ -427,8 +427,8 @@ end
 # @inline vmaximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:max}, v)
 # @inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)
 
-@inline vmul(x, y) = x * y
-@inline vadd(x, y) = x + y
+@inline vmul(x, y) = Base.FastMath.mul_fast(x, y)
+@inline vadd(x, y) = Base.FastMath.add_fast(x, y)
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
 @inline vmuladd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
