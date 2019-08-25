@@ -59,6 +59,14 @@ end
     @inbounds ntuple(i -> s, Val(N))
 end
 @inline vbroadcast(::Type{Vec{N,T}}, s::Vec{N,T}) where {N,T} = s
+@inline function vbroadcast(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T}
+    s = Core.VecElement(VectorizationBase.load(ptr))
+    @inbounds ntuple(_ -> s, Val(N))
+end
+@inline function vbroadcast(::Type{Vec{N,T}}, ptr::Ptr) where {N,T}
+    s = Core.VecElement(VectorizationBase.load(Base.unsafe_convert(Ptr{T},ptr)))
+    @inbounds ntuple(_ -> s, Val(N))
+end
 @inline function svbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
     @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
 end
@@ -71,7 +79,7 @@ end
 end
 @inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
 @inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
-
+    
 @inline vone(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(one(T)), Val(N))
 @inline vzero(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(zero(T)), Val(N))
 @inline vone(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(one(T)), Val(N)))
