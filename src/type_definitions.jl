@@ -60,11 +60,11 @@ end
 end
 @inline vbroadcast(::Type{Vec{N,T}}, s::Vec{N,T}) where {N,T} = s
 @inline function vbroadcast(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T}
-    s = Core.VecElement(VectorizationBase.load(ptr))
+    s = Core.VecElement{T}(VectorizationBase.load(ptr))
     @inbounds ntuple(_ -> s, Val(N))
 end
 @inline function vbroadcast(::Type{Vec{N,T}}, ptr::Ptr) where {N,T}
-    s = Core.VecElement(VectorizationBase.load(Base.unsafe_convert(Ptr{T},ptr)))
+    s = Core.VecElement{T}(VectorizationBase.load(Base.unsafe_convert(Ptr{T},ptr)))
     @inbounds ntuple(_ -> s, Val(N))
 end
 @inline function svbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
