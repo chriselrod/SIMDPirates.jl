@@ -348,6 +348,7 @@ const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :isinf => :visinf,
     :isnan => :visnan,
     :issubnormal => :vissubnormal,
+    :fmadd => :vfmadd,
     :fmsub => :vfmsub,
     :fnmadd => :vfnmadd,
     :fnmsub => :vfnmsub
