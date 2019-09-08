@@ -147,9 +147,12 @@ end
 # @inline Base.flipsign(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
 #     SVec(vifelse(vsignbit(v2), -v1, v1))
 
-# for op ∈ (:fma, :muladd)
-let op = :fma
+for op ∈ (:fma, :muladd)
+# let op = :fma
     rename = VECTOR_SYMBOLS[op]
+    # if op == :muladd
+        # rename = Symbol(:e,rename)
+    # end
     @eval begin
 
         @vectordef $rename function Base.$op(v1, v2, v3) where {N,T<:FloatingTypes}
@@ -259,8 +262,8 @@ end
 #         s2::ScalarTypes) where {N,T<:FloatingTypes} =
 # vifelse(c, v1, vbroadcast(Vec{N,T}, s2))
 
-# for op ∈ (:fma, :muladd)
-let op = :fma
+for op ∈ (:fma, :muladd)
+# let op = :fma
     rename = VECTOR_SYMBOLS[op]
     @eval begin
         @vectordef $rename function Base.$op(s1::ScalarTypes, v2, v3) where {N,T}
@@ -286,7 +289,7 @@ let op = :fma
     end
 end
 
-for op ∈ (:muladd, :fmsub, :fnmadd, :fnmsub)
+for op ∈ (:fmadd, :fmsub, :fnmadd, :fnmsub)
     rename = VECTOR_SYMBOLS[op]
     @eval begin
         @vectordef $rename function $op(s1::ScalarTypes, v2, v3) where {N,T}
@@ -435,6 +438,7 @@ end
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
 @inline vmuladd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
+@inline vfmadd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
 @inline vfnmadd(a, b, c) = SIMDPirates.vsub(c, SIMDPirates.vmul( a, b ))
 @inline vfmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vmul( a, b), c )
 @inline vfnmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vsub(c), SIMDPirates.vmul( a, b ) )
