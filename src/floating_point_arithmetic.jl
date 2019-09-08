@@ -147,7 +147,8 @@ end
 # @inline Base.flipsign(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
 #     SVec(vifelse(vsignbit(v2), -v1, v1))
 
-for op ∈ (:fma, :muladd)
+# for op ∈ (:fma, :muladd)
+let op = :fma
     rename = VECTOR_SYMBOLS[op]
     @eval begin
 
@@ -258,7 +259,8 @@ end
 #         s2::ScalarTypes) where {N,T<:FloatingTypes} =
 # vifelse(c, v1, vbroadcast(Vec{N,T}, s2))
 
-for op ∈ (:fma, :muladd)
+# for op ∈ (:fma, :muladd)
+let op = :fma
     rename = VECTOR_SYMBOLS[op]
     @eval begin
         @vectordef $rename function Base.$op(s1::ScalarTypes, v2, v3) where {N,T}
@@ -284,7 +286,7 @@ for op ∈ (:fma, :muladd)
     end
 end
 
-for op ∈ (:fmsub, :fnmadd, :fnmsub)
+for op ∈ (:muladd, :fmsub, :fnmadd, :fnmsub)
     rename = VECTOR_SYMBOLS[op]
     @eval begin
         @vectordef $rename function $op(s1::ScalarTypes, v2, v3) where {N,T}
@@ -427,6 +429,7 @@ end
 # @inline vmaximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:max}, v)
 # @inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)
 
+# TODO: Handle cases with vectors of different lengths correctly!
 @inline vmul(x, y) = Base.FastMath.mul_fast(x, y)
 @inline vadd(x, y) = Base.FastMath.add_fast(x, y)
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
