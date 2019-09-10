@@ -247,7 +247,7 @@ setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, x, Int(i))
 @generated function pirate_reinterpret(::Type{Vec{N,R}},
         v1::Vec{N1,T1}) where {N,R,N1,T1}
     if N*sizeof(R) != N1*sizeof(T1)
-        throw("N*sizeof(R) == N1*sizeof(T1) is not true; $N * $(sizeof(R)) != $N1 * $(sizeof(T1))")
+        throw("N*sizeof(R) == N1*sizeof(T1) is not true; Trying to reinterpret to a size of $N * $(sizeof(R)) from a size of $N1 * $(sizeof(T1))")
     end
     # @assert N*sizeof(R) == N1*sizeof(T1)
     typ1 = llvmtype(T1)
