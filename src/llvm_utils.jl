@@ -289,7 +289,7 @@ end
     SVec(pirate_reinterpret(Vec{N,R}, extract_data(v1)))
 end
 
-const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :muladd, :fma))
+const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :muladd, :fma, :sqrt, :pow, :sin, :cos, :inv))
 
 const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :(==) => :visequal,
