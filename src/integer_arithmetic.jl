@@ -6,7 +6,7 @@ for op ∈ (:(~), :(+), :(-))
     @eval begin
         @inline $rename(s1::IntegerTypes) = $op($IntegerTypes)
         @vectordef $rename function Base.$op(v1) where {N,T<:IntegerTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1))
         end
     end
 end
@@ -58,11 +58,11 @@ for op ∈ (:(&), :(|), :(⊻), :(+), :(-), :(*), :(÷), :(%) )
         @inline $rename(s1::IntegerTypes, s2::IntegerTypes) = $op(s1, s2)
 
         @vectordef $rename function Base.$op(v1, v2) where {N,T<:IntegerTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:IntegerTypes} =
-        #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
+        #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2)
     end
 end
 
@@ -150,19 +150,19 @@ for op ∈ (:(<<), :(>>), :(>>>))
         @inline $rename(s1::IntegerTypes, s2::IntegerTypes) = $op(s1, s2)
 
         @vectordef $rename function Base.$op(v1, ::Val{I}) where {N,T<:IntegerTypes,I}
-            llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), Val{I})
+            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), Val{I})
         end
         @vectordef $rename function Base.$op(v1, x2::Unsigned) where {N,T<:IntegerTypes}
-            llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), x2)
+            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), x2)
         end
         @vectordef $rename function Base.$op(v1, x2::Int) where {N,T<:IntegerTypes}
-            llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), x2)
+            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), x2)
         end
         @vectordef $rename function Base.$op(v1, x2::Integer) where {N,T<:IntegerTypes}
-            llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), x2)
+            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), x2)
         end
         @vectordef $rename function Base.$op(v1, v2::Vec{N,U}) where {N,T<:IntegerTypes,U<:UIntTypes}
-            llvmwrapshift(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
+            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
         @vectordef $rename function Base.$op(x1::T, v2) where {N,T<:IntegerTypes}
             $rename(vbroadcast(Vec{N,T}, x1), extract_data(v2))
@@ -170,19 +170,19 @@ for op ∈ (:(<<), :(>>), :(>>>))
 
 
         # @inline $rename(v1::Vec{N,T}, ::Val{I}) where {N,T<:IntegerTypes,I} =
-            # llvmwrapshift(Val{$(QuoteNode(op))}, v1, Val{I})
+            # llvmwrapshift(Val{$(QuoteNode(op))}(), v1, Val{I})
         # @inline $rename(v1::Vec{N,T}, x2::Unsigned) where {N,T<:IntegerTypes} =
-        #     llvmwrapshift(Val{$(QuoteNode(op))}, v1, x2)
+        #     llvmwrapshift(Val{$(QuoteNode(op))}(), v1, x2)
         # @inline $rename(v1::Vec{N,T}, x2::Int) where {N,T<:IntegerTypes} =
-        #     llvmwrapshift(Val{$(QuoteNode(op))}, v1, x2)
+        #     llvmwrapshift(Val{$(QuoteNode(op))}(), v1, x2)
         # @inline $rename(v1::Vec{N,T}, x2::Integer) where {N,T<:IntegerTypes} =
-        #     llvmwrapshift(Val{$(QuoteNode(op))}, v1, x2)
+        #     llvmwrapshift(Val{$(QuoteNode(op))}(), v1, x2)
         # @inline $rename(v1::Vec{N,T},
         #                  v2::Vec{N,U}) where {N,T<:IntegerTypes,U<:UIntTypes} =
-        #     llvmwrapshift(Val{$(QuoteNode(op))}, v1, v2)
+        #     llvmwrapshift(Val{$(QuoteNode(op))}(), v1, v2)
         # @inline $rename(v1::Vec{N,T},
         #                  v2::Vec{N,U}) where {N,T<:IntegerTypes,U<:IntegerTypes} =
-        #     llvmwrapshift(Val{$(QuoteNode(op))}, v1, v2)
+        #     llvmwrapshift(Val{$(QuoteNode(op))}(), v1, v2)
         # @inline $rename(x1::T, v2::Vec{N,T}) where {N,T<:IntegerTypes} =
         #     $rename(vbroadcast(Vec{N,T}, x1), v2)
     end

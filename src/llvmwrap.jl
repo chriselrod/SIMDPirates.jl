@@ -1,14 +1,14 @@
 # Generic function wrappers
 
 # Functions taking one argument
-@generated function llvmwrap(::Type{Val{Op}}, v1::Vec{N,T1},
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
         ::Type{R} = T1) where {Op,N,T1,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
     vtyp1 = "<$N x $typ1>"
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
-    ins = llvmins(Val{Op}, N, T1)
+    ins = llvmins(Op, N, T1)
     decls = []
     instrs = []
     flags = [""]
@@ -40,12 +40,12 @@
 end
 
 # Functions taking one Bool argument
-@generated function llvmwrap(::Type{Val{Op}}, v1::Vec{N,Bool},
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,Bool},
         ::Type{Bool} = Bool) where {Op,N}
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
-    ins = llvmins(Val{Op}, N, Bool)
+    ins = llvmins(Op, N, Bool)
     decls = []
     instrs = []
     push!(instrs, "%arg1 = trunc $vbtyp %0 to <$N x i1>")
@@ -61,7 +61,7 @@ end
 end
 
 # Functions taking two arguments
-@generated function llvmwrap(::Type{Val{Op}}, v1::Vec{N,T1},
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
         v2::Vec{N,T2}, ::Type{R} = T1) where {Op,N,T1,T2,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
@@ -70,7 +70,7 @@ end
     vtyp2 = "<$N x $typ2>"
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
-    ins = llvmins(Val{Op}, N, T1)
+    ins = llvmins(Op, N, T1)
     decls = []
     instrs = []
     flags = [""]
@@ -91,7 +91,7 @@ end
             v1, v2)
     end
 end
-@generated function llvmwrap_notfast(::Type{Val{Op}}, v1::Vec{N,T1},
+@generated function llvmwrap_notfast(::Val{Op}, v1::Vec{N,T1},
         v2::Vec{N,T2}, ::Type{R} = T1) where {Op,N,T1,T2,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
@@ -100,7 +100,7 @@ end
     vtyp2 = "<$N x $typ2>"
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
-    ins = llvmins(Val{Op}, N, T1)
+    ins = llvmins(Op, N, T1)
     decls = []
     instrs = []
     if ins[1] == '@'
@@ -119,7 +119,7 @@ end
 end
 
 # Functions taking two arguments, returning Bool
-@generated function llvmwrap(::Type{Val{Op}}, v1::Vec{N,T1},
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
         v2::Vec{N,T2}, ::Type{Bool}) where {Op,N,T1,T2}
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
@@ -131,7 +131,7 @@ end
     typ2 = llvmtype(T2)
     vtyp2 = "<$N x $typ2>"
     atyp2 = "[$N x $typ2]"
-    ins = llvmins(Val{Op}, N, T1)
+    ins = llvmins(Op, N, T1)
     decls = []
     instrs = []
     if false && N == 1
@@ -155,12 +155,12 @@ end
 end
 
 # Functions taking two Bool arguments, returning Bool
-@generated function llvmwrap(::Type{Val{Op}}, v1::Vec{N,Bool},
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,Bool},
         v2::Vec{N,Bool}, ::Type{Bool} = Bool) where {Op,N}
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
-    ins = llvmins(Val{Op}, N, Bool)
+    ins = llvmins(Op, N, Bool)
     decls = []
     instrs = []
     push!(instrs, "%arg1 = trunc $vbtyp %0 to <$N x i1>")
@@ -177,7 +177,7 @@ end
 end
 
 # Functions taking three arguments
-@generated function llvmwrap(::Type{Val{Op}}, v1::Vec{N,T1},
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
         v2::Vec{N,T2}, v3::Vec{N,T3}, ::Type{R} = T1) where {Op,N,T1,T2,T3,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
@@ -188,7 +188,7 @@ end
     vtyp3 = "<$N x $typ3>"
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
-    ins = llvmins(Val{Op}, N, T1)
+    ins = llvmins(Op, N, T1)
     decls = []
     instrs = []
     if ins[1] == '@'
@@ -208,7 +208,7 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Type{Val{Op}}, v1::Vec{N,T},
+@generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
                                   ::Type{Val{I}}) where {Op,N,T,I}
     @assert isa(Op, Symbol)
     if I >= 0
@@ -231,7 +231,7 @@ end
     @assert i >= 0
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    ins = llvmins(Val{op}, N, T)
+    ins = llvmins(op, N, T)
     decls = []
     instrs = []
     nbits = 8*sizeof(T)
@@ -250,12 +250,12 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Type{Val{Op}}, v1::Vec{N,T},
+@generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
                                   x2::Unsigned) where {Op,N,T}
     @assert isa(Op, Symbol)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    ins = llvmins(Val{Op}, N, T)
+    ins = llvmins(Op, N, T)
     decls = []
     instrs = []
     append!(instrs, scalar2vector("%count", N, typ, "%1"))
@@ -280,7 +280,7 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Type{Val{Op}}, v1::Vec{N,T},
+@generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
                                   x2::Integer) where {Op,N,T}
     if Op === :>> || Op === :>>>
         NegOp = :<<
@@ -302,13 +302,13 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Type{Val{Op}},
+@generated function llvmwrapshift(::Val{Op},
                                   v1::Vec{N,T},
                                   v2::Vec{N,U}) where {Op,N,T,U<:UIntTypes}
     @assert isa(Op, Symbol)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    ins = llvmins(Val{Op}, N, T)
+    ins = llvmins(Op, N, T)
     decls = []
     instrs = []
     push!(instrs, "%tmp = $ins $vtyp %0, %1")
@@ -333,7 +333,7 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Type{Val{Op}},
+@generated function llvmwrapshift(::Val{Op},
                                   v1::Vec{N,T},
                                   v2::Vec{N,U}) where {Op,N,T,U<:IntegerTypes}
     if Op === :>> || Op === :>>>

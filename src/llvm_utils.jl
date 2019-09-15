@@ -1,12 +1,31 @@
 
 # Type-dependent optimization flags
-fastflags(::Type{T}) where {T<:IntTypes}= "nsw"
-fastflags(::Type{T}) where {T<:UIntTypes} = "nuw"
-fastflags(::Type{T}) where {T<:FloatingTypes} = "fast"
+function fastflags(@nospecialize(T))
+    if T <: IntTypes
+        s = "nsw"
+    elseif T <: UIntTypes
+        s = "nuw"
+    else#if T <: FloatingTypes
+        s = "fast"
+    end
+    return s
+end
 
+function suffix(N::Int, @nospecialize(T::DataType))
+    if T <: Ptr
+        if T <: Ptr{<:IntegerTypes}
+            t = "p0i"
+        else#if T <: Ptr{<:FloatingTypes}
+            t = "p0f"
+        end
+    elseif T <: IntegerTypes
+        t = "i"
+    else#if T <: FloatingTypes
+        t = "f"
+    end
+    "v$(N)$(t)$(8sizeof(T))"
+end
 
-suffix(N::Integer, ::Type{T}) where {T<:IntegerTypes} = "v$(N)i$(8*sizeof(T))"
-suffix(N::Integer, ::Type{T}) where {T<:FloatingTypes} = "v$(N)f$(8*sizeof(T))"
 
 # Type-dependent LLVM constants
 function llvmconst(::Type{T}, val) where T
@@ -41,91 +60,93 @@ function llvmtypedconst(::Type{Bool}, val)
 end
 
 # Type-dependent LLVM intrinsics
-llvmins(::Type{Val{:+}}, N, ::Type{T}) where {T <: IntegerTypes} = "add"
-llvmins(::Type{Val{:-}}, N, ::Type{T}) where {T <: IntegerTypes} = "sub"
-llvmins(::Type{Val{:*}}, N, ::Type{T}) where {T <: IntegerTypes} = "mul"
-llvmins(::Type{Val{:div}}, N, ::Type{T}) where {T <: IntTypes} = "sdiv"
-llvmins(::Type{Val{:rem}}, N, ::Type{T}) where {T <: IntTypes} = "srem"
-llvmins(::Type{Val{:div}}, N, ::Type{T}) where {T <: UIntTypes} = "udiv"
-llvmins(::Type{Val{:rem}}, N, ::Type{T}) where {T <: UIntTypes} = "urem"
+const LLVM_INS_Integer = Dict{Symbol,String}()
+const LLVM_INS_Int = Dict{Symbol,String}()
+const LLVM_INS_UInt = Dict{Symbol,String}()
+const LLVM_INS = Dict{Symbol,String}()
+const LLVM_OVERLOADED_INS = Dict{Symbol,String}()
 
-llvmins(::Type{Val{:~}}, N, ::Type{T}) where {T <: IntegerTypes} = "xor"
-llvmins(::Type{Val{:&}}, N, ::Type{T}) where {T <: IntegerTypes} = "and"
-llvmins(::Type{Val{:|}}, N, ::Type{T}) where {T <: IntegerTypes} = "or"
-llvmins(::Type{Val{:⊻}}, N, ::Type{T}) where {T <: IntegerTypes} = "xor"
 
-llvmins(::Type{Val{:<<}}, N, ::Type{T}) where {T <: IntegerTypes} = "shl"
-llvmins(::Type{Val{:>>>}}, N, ::Type{T}) where {T <: IntegerTypes} = "lshr"
-llvmins(::Type{Val{:>>}}, N, ::Type{T}) where {T <: UIntTypes} = "lshr"
-llvmins(::Type{Val{:>>}}, N, ::Type{T}) where {T <: IntTypes} = "ashr"
 
-llvmins(::Type{Val{:(==)}}, N, ::Type{T}) where {T <: IntegerTypes} = "icmp eq"
-llvmins(::Type{Val{:(!=)}}, N, ::Type{T}) where {T <: IntegerTypes} = "icmp ne"
-llvmins(::Type{Val{:(>)}}, N, ::Type{T}) where {T <: IntTypes} = "icmp sgt"
-llvmins(::Type{Val{:(>=)}}, N, ::Type{T}) where {T <: IntTypes} = "icmp sge"
-llvmins(::Type{Val{:(<)}}, N, ::Type{T}) where {T <: IntTypes} = "icmp slt"
-llvmins(::Type{Val{:(<=)}}, N, ::Type{T}) where {T <: IntTypes} = "icmp sle"
-llvmins(::Type{Val{:(>)}}, N, ::Type{T}) where {T <: UIntTypes} = "icmp ugt"
-llvmins(::Type{Val{:(>=)}}, N, ::Type{T}) where {T <: UIntTypes} = "icmp uge"
-llvmins(::Type{Val{:(<)}}, N, ::Type{T}) where {T <: UIntTypes} = "icmp ult"
-llvmins(::Type{Val{:(<=)}}, N, ::Type{T}) where {T <: UIntTypes} = "icmp ule"
+LLVM_INS_Integer[:+] = "add"
+LLVM_INS_Integer[:-] = "sub"
+LLVM_INS_Integer[:*] = "mul"
+LLVM_INS_Int[:div] = "sdiv"
+LLVM_INS_Int[:rem] = "srem"
+LLVM_INS_UInt[:div] = "udiv"
+LLVM_INS_UInt[:rem] = "urem"
 
-llvmins(::Type{Val{:vifelse}}, N, ::Type{T}) where {T} = "select"
+LLVM_INS_Integer[:~] = "xor"
+LLVM_INS_Integer[:&] = "and"
+LLVM_INS_Integer[:|] = "or"
+LLVM_INS_Integer[:⊻] = "xor"
 
-llvmins(::Type{Val{:+}}, N, ::Type{T}) where {T <: FloatingTypes} = "fadd"
-llvmins(::Type{Val{:-}}, N, ::Type{T}) where {T <: FloatingTypes} = "fsub"
-llvmins(::Type{Val{:*}}, N, ::Type{T}) where {T <: FloatingTypes} = "fmul"
-llvmins(::Type{Val{:/}}, N, ::Type{T}) where {T <: FloatingTypes} = "fdiv"
-llvmins(::Type{Val{:inv}}, N, ::Type{T}) where {T <: FloatingTypes} = "fdiv"
-llvmins(::Type{Val{:rem}}, N, ::Type{T}) where {T <: FloatingTypes} = "frem"
+LLVM_INS_Integer[:<<] = "shl"
+LLVM_INS_Integer[:>>>] = "lshr"
+LLVM_INS_UInt[:>>] = "lshr"
+LLVM_INS_Int[:>>] = "ashr"
 
-llvmins(::Type{Val{:(==)}}, N, ::Type{T}) where {T <: FloatingTypes} = "fcmp oeq"
-llvmins(::Type{Val{:(!=)}}, N, ::Type{T}) where {T <: FloatingTypes} = "fcmp une"
-llvmins(::Type{Val{:(>)}}, N, ::Type{T}) where {T <: FloatingTypes} = "fcmp ogt"
-llvmins(::Type{Val{:(>=)}}, N, ::Type{T}) where {T <: FloatingTypes} = "fcmp oge"
-llvmins(::Type{Val{:(<)}}, N, ::Type{T}) where {T <: FloatingTypes} = "fcmp olt"
-llvmins(::Type{Val{:(<=)}}, N, ::Type{T}) where {T <: FloatingTypes} = "fcmp ole"
+LLVM_INS_Integer[:(==)] = "icmp eq"
+LLVM_INS_Integer[:(!=)] = "icmp ne"
+LLVM_INS_Int[:(>)] = "icmp sgt"
+LLVM_INS_Int[:(>=)] = "icmp sge"
+LLVM_INS_Int[:(<)] = "icmp slt"
+LLVM_INS_Int[:(<=)] = "icmp sle"
+LLVM_INS_UInt[:(>)] = "icmp ugt"
+LLVM_INS_UInt[:(>=)] = "icmp uge"
+LLVM_INS_UInt[:(<)] = "icmp ult"
+LLVM_INS_UInt[:(<=)] = "icmp ule"
 
-llvmins(::Type{Val{:^}}, N, ::Type{T}) where {T <: FloatingTypes} =
-    "@llvm.pow.$(suffix(N,T))"
-llvmins(::Type{Val{:abs}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.fabs.$(suffix(N,T))"
-llvmins(::Type{Val{:ceil}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.ceil.$(suffix(N,T))"
-llvmins(::Type{Val{:copysign}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.copysign.$(suffix(N,T))"
-llvmins(::Type{Val{:cos}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.cos.$(suffix(N,T))"
-llvmins(::Type{Val{:exp}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.exp.$(suffix(N,T))"
-llvmins(::Type{Val{:exp2}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.exp2.$(suffix(N,T))"
-llvmins(::Type{Val{:floor}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.floor.$(suffix(N,T))"
-llvmins(::Type{Val{:fma}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.fma.$(suffix(N,T))"
-llvmins(::Type{Val{:log}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.log.$(suffix(N,T))"
-llvmins(::Type{Val{:log10}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.log10.$(suffix(N,T))"
-llvmins(::Type{Val{:log2}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.log2.$(suffix(N,T))"
-llvmins(::Type{Val{:max}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.maxnum.$(suffix(N,T))"
-llvmins(::Type{Val{:min}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.minnum.$(suffix(N,T))"
-llvmins(::Type{Val{:muladd}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.fmuladd.$(suffix(N,T))"
-llvmins(::Type{Val{:powi}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.powi.$(suffix(N,T))"
-llvmins(::Type{Val{:round}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.rint.$(suffix(N,T))"
-llvmins(::Type{Val{:sin}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.sin.$(suffix(N,T))"
-llvmins(::Type{Val{:sqrt}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.sqrt.$(suffix(N,T))"
-llvmins(::Type{Val{:trunc}}, N, ::Type{T}) where {T<:FloatingTypes} =
-    "@llvm.trunc.$(suffix(N,T))"
+LLVM_INS[:vifelse] = "select"
+
+LLVM_INS[:+] = "fadd"
+LLVM_INS[:-] = "fsub"
+LLVM_INS[:*] = "fmul"
+LLVM_INS[:/] = "fdiv"
+LLVM_INS[:inv] = "fdiv"
+LLVM_INS[:rem] = "frem"
+
+LLVM_INS[:(==)] = "fcmp oeq"
+LLVM_INS[:(!=)] = "fcmp une"
+LLVM_INS[:(>)] = "fcmp ogt"
+LLVM_INS[:(>=)] = "fcmp oge"
+LLVM_INS[:(<)] = "fcmp olt"
+LLVM_INS[:(<=)] = "fcmp ole"
+
+LLVM_OVERLOADED_INS[:^] = "@llvm.pow."
+LLVM_OVERLOADED_INS[:abs] = "@llvm.fabs."
+LLVM_OVERLOADED_INS[:ceil] = "@llvm.ceil."
+LLVM_OVERLOADED_INS[:copysign] = "@llvm.copysign."
+LLVM_OVERLOADED_INS[:cos] = "@llvm.cos."
+LLVM_OVERLOADED_INS[:exp] = "@llvm.exp."
+LLVM_OVERLOADED_INS[:exp2] = "@llvm.exp2."
+LLVM_OVERLOADED_INS[:floor] = "@llvm.floor."
+LLVM_OVERLOADED_INS[:fma] = "@llvm.fma."
+LLVM_OVERLOADED_INS[:log] = "@llvm.log."
+LLVM_OVERLOADED_INS[:log10] = "@llvm.log10."
+LLVM_OVERLOADED_INS[:log2] = "@llvm.log2."
+LLVM_OVERLOADED_INS[:max] = "@llvm.maxnum."
+LLVM_OVERLOADED_INS[:min] = "@llvm.minnum."
+LLVM_OVERLOADED_INS[:muladd] = "@llvm.fmuladd."
+LLVM_OVERLOADED_INS[:powi] = "@llvm.powi."
+LLVM_OVERLOADED_INS[:round] = "@llvm.rint."
+LLVM_OVERLOADED_INS[:sin] = "@llvm.sin."
+LLVM_OVERLOADED_INS[:sqrt] =  "@llvm.sqrt."
+LLVM_OVERLOADED_INS[:trunc] = "@llvm.trunc."
+
+function llvmins(func::Symbol, N::Int, T)::String
+    ins = get(LLVM_OVERLOADED_INS, func, nothing)
+    ins === nothing || return ins * suffix(N, T)
+    if T <: IntegerTypes
+        d = T <: IntTypes ? LLVM_INS_Int : LLVM_INS_UInt
+        return get(d, func) do
+            LLVM_INS_Integer[func]
+        end
+    else
+        return LLVM_INS[func]
+    end
+end
+
 
 # Convert between LLVM scalars, vectors, and arrays
 

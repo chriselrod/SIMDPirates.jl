@@ -13,15 +13,15 @@ for op ∈ (
         @inline $rename(s1::FloatingTypes) = @fastmath $op(s1)
 
         @vectordef $rename function Base.$op(v1) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1))
         end
 
         # @inline $rename(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     llvmwrap(Val{$(QuoteNode(op))}, v1)
+        #     llvmwrap(Val{$(QuoteNode(op))}(), v1)
         # @inline $rename(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1)))
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
         # @inline Base.$op(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1)))
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
     end
 end
 @inline vexp10(s1::FloatingTypes) = exp10(s1)
@@ -55,22 +55,22 @@ for op ∈ (
         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = @fastmath $op(s1, s2)
 
         @vectordef $rename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
 
         @inline $erename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
 
         @evectordef $erename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
-            llvmwrap_notfast(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2))
+            llvmwrap_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2)
+        #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2)
         # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
         # @inline Base.$op(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2)))
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
     end
 end
 @inline vmax(x, y) = max(x,y)
@@ -156,39 +156,39 @@ for op ∈ (:fma, :muladd)
     @eval begin
 
         @vectordef $rename function Base.$op(v1, v2, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(s1::T, v2, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(v1, s2::T, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(v1, v2, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
         end
         @vectordef $rename function Base.$op(s1::T, s2::T, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, SIMDPirates.vbroadcast(Vec{N,T}, s1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), SIMDPirates.vbroadcast(Vec{N,T}, s1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(s1::T, v2, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+            llvmwrap(Val{$(QuoteNode(op))}(), SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
         end
         @vectordef $rename function Base.$op(v1, s2::T, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
         end
 
         # scalar default already set in integer_arithmetic.jl
         # @inline function $rename(v1::Vec{N,T},
         #         v2::Vec{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes}
-        #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2, v3)
+        #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2, v3)
         # end
         # @inline function $rename(v1::AbstractSIMDVector{N,T},
         #         v2::AbstractSIMDVector{N,T}, v3::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), extract_data(v3)))
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
         # end
         # @inline function Base.$op(v1::AbstractStructVec{N,T},
         #         v2::AbstractStructVec{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), extract_data(v3)))
+        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
         # end
     end
 end
@@ -379,8 +379,8 @@ for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
                                     (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
     @eval begin
-        @inline $rename(v::AbstractSIMDVector{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}, extract_data(v))
-        @inline $name(v::AbstractStructVec{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}, extract_data(v))
+        @inline $rename(v::AbstractSIMDVector{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        @inline $name(v::AbstractStructVec{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
     end
 end
 

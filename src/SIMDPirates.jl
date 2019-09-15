@@ -6,19 +6,20 @@ using VectorizationBase
 using VectorizationBase: llvmtype
 
 export  Vec, SVec, VE,
-        @pirate,
-        vbroadcast,
-        valloc,
-        vload,
-        vloada,
-        vstore!,
-        vstorea!,
-        shufflevector,
-        vifelse,
-        vfma,
-        vmuladd,
-        rsqrt,
-        vadd, vmul, vsum
+    @pirate,
+    vbroadcast,
+    valloc,
+    vload,
+    vloada,
+    vstore!,
+    vstorea!,
+    shufflevector,
+    vifelse,
+    vfma, vmuladd,
+    rsqrt,
+    vadd, vmul, vsum,
+    vfmadd, vfnmadd, vfmsub, vfnmsub,
+    gather, scatter!
 
 
 function vector_args(args)
@@ -57,7 +58,6 @@ macro evectordef(rename, expr)
 end
 
 include("type_definitions.jl")
-# include("lazy_vectors.jl")
 include("llvm_utils.jl")
 include("llvmwrap.jl")
 include("conditionals.jl")
@@ -66,6 +66,5 @@ include("floating_point_arithmetic.jl")
 include("memory.jl")
 include("shufflevector.jl")
 include("pirate.jl")
-# include("restrict_simd.jl")
 
 end # module
