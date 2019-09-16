@@ -183,8 +183,6 @@ end
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
     decls = []
@@ -196,7 +194,6 @@ end
     end
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     if mtyp_input == mtyp_trunc
-        # push!(instrs, "%mask = trunc $vbtyp %1 to <$N x i1>")
         push!(instrs, "%mask = bitcast $mtyp_input %1 to <$N x i1>")
     else
         push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
@@ -387,8 +384,6 @@ end
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
     decls = []
@@ -399,7 +394,6 @@ end
         align = sizeof(T)   # This is overly optimistic
     end
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    # push!(instrs, "%mask = trunc $vbtyp %2 to <$N x i1>")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
     else
@@ -476,8 +470,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
     decls = []
     instrs = []
     if Aligned
@@ -509,8 +501,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
     decls = []
@@ -522,7 +512,6 @@ end
     end
     push!(instrs, "%ptr = inttoptr $vptyp %0 to $vptrtyp")
     if mtyp_input == mtyp_trunc
-        # push!(instrs, "%mask = trunc $vbtyp %1 to <$N x i1>")
         push!(instrs, "%mask = bitcast $mtyp_input %1 to <$N x i1>")
     else
         push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
@@ -548,8 +537,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
     decls = []
@@ -584,8 +571,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
     decls = []
@@ -597,7 +582,6 @@ end
     end
     push!(instrs, "%ptr = inttoptr $vptyp %1 to $vptrtyp")
     if mtyp_input == mtyp_trunc
-        # push!(instrs, "%mask = trunc $vbtyp %1 to <$N x i1>")
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
     else
         push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
@@ -616,3 +600,13 @@ end
             Cvoid, Tuple{Vec{$N,$T}, Vec{$N,Ptr{$T}}, $U}, v, ptr, mask)
     end
 end
+@inline function vadd(ptr::Ptr{T}, inds::Vec{W,I}) where {W,T,I<:Union{UInt,Int}}
+    pirate_reinterpret(Vec{Ptr{T}}, vadd(vbroadcast(Vec{W,I}, reinterpret(I, ptr)), inds))
+end
+@inline function vmuladd(s::I, inds::Vec{W,I}, ptr::Ptr{T}) where {W,T,I<:Union{UInt,Int}}
+    pirate_reinterpret(Vec{Ptr{T}}, vmuladd(vbroadcast(Vec{W,I}, s), inds, vbroadcast(Vec{W,I}, reinterpret(I, ptr))))
+end
+@inline scatter!(ptr::Ptr{T}, inds::Vec{N,I}, v::Vec{N,T}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = scatter!(vmuladd(sizeof(T), inds, ptr), v, mask)
+@inline scatter!(ptr::Ptr{T}, inds::Vec{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(vmuladd(sizeof(T), inds, ptr), v)
+@inline gather(ptr::Ptr{T}, inds::Vec{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(vmuladd(sizeof(T),inds,ptr), mask)
+@inline gather(ptr::Ptr{T}, inds::Vec{N,I}) where {N,T,I<:IntegerTypes} = gather(vmuladd(sizeof(T),inds,ptr))

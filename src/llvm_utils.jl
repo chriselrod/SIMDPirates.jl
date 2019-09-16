@@ -273,7 +273,7 @@ setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, x, Int(i))
     # @assert N*sizeof(R) == N1*sizeof(T1)
     typ1 = llvmtype(T1)
     vtyp1 = "<$N1 x $typ1>"
-    typr = llvmtype(R)
+    typr = R <: Ptr ? llvmtype(Int) : llvmtype(R)
     vtypr = "<$N x $typr>"
     decls = String[]
     instrs = String[]
@@ -291,7 +291,7 @@ end
     @assert N*sizeof(R) == N1*sizeof(T1)
     typ1 = llvmtype(T1)
     vtyp1 = "[$N1 x $typ1]"
-    typr = llvmtype(R)
+    typr = R <: Ptr ? llvmtype(Int) : llvmtype(R)
     vtypr = "<$N x $typr>"
     decls = String[]
     instrs = String[]

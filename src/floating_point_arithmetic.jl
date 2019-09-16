@@ -336,7 +336,7 @@ nextpow2(n) = nextpow(2, n)
 
 # We cannot pass in the neutral element via Val{}; if we try, Julia refuses to
 # inline this function, which is then disastrous for performance
-@generated function llvmwrapreduce(::Type{Val{Op}}, v::Vec{N,T}) where {Op,N,T}
+@generated function llvmwrapreduce(::Val{Op}, v::Vec{N,T}) where {Op,N,T}
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
     typ = llvmtype(T)
@@ -355,7 +355,7 @@ nextpow2(n) = nextpow(2, n)
         nold,n = n, div(n, 2)
         namold,nam = nam,"%vec_$n"
         vtyp = "<$n x $typ>"
-        ins = llvmins(Val{Op}, n, T)
+        ins = llvmins(Op, n, T)
         append!(instrs, subvector(namold, nold, typ, "$(nam)_1", n, 0))
         append!(instrs, subvector(namold, nold, typ, "$(nam)_2", n, n))
         if ins[1] == '@'
@@ -393,7 +393,7 @@ end
 # @inline vprod(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:*}, v)
 # @inline vsum(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:+}, v)
 
-@generated function vreduce(::Type{Val{Op}}, v::Vec{N,T}) where {Op,N,T}
+@generated function vreduce(::Val{Op}, v::Vec{N,T}) where {Op,N,T}
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
     stmts = []
