@@ -7,7 +7,7 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
         # scalar versions handled in floating_point_arithmetic.jl
         # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
         @vectordef $rename function Base.$op(v1, v2) where {N,T}
-            llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool)
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), Bool)
         end
         @vectordef $rename function Base.$op(v1, v2::T) where {N,T}
             $rename(extract_data(v1), v2)
@@ -15,15 +15,6 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
         @vectordef $rename function Base.$op(v1::T, v2) where {N,T}
             $rename(extract_data(v1), v2)
         end
-
-
-        # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
-        # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T} =
-        #     llvmwrap(Val{$(QuoteNode(op))}, v1, v2, Bool)
-        # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool))
-        # @inline Base.$op(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}, extract_data(v1), extract_data(v2), Bool))
     end
 end
 @inline visfinite(s::ScalarTypes) = isfinite(s)
