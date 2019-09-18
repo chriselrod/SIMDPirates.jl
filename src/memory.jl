@@ -63,13 +63,13 @@ end
             Vec{N,T}, Tuple{Ptr{T}}, ptr)
     end
 end
-@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.Pointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vload(Vec{N,T}, ptr.ptr, Val{Aligned}())
 end
-@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.Pointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     SVec(vload(Vec{N,T}, ptr.ptr, Val{Aligned}()))
 end
-@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.vpointer{T2}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
+@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.Pointer{T2}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
     convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, Val{Aligned}())))
 end
 
@@ -212,15 +212,15 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
     end
 end
-@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.vpointer{T},
+@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.Pointer{T},
                 mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}())
 end
-@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.vpointer{T},
+@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.Pointer{T},
                 mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     SVec(vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}()))
 end
-@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.vpointer{T2},
+@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.Pointer{T2},
                 mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
     convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, mask, Val{Aligned}())))
 end
@@ -444,17 +444,17 @@ end
 end
 
 
-@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::Vec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::Vec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vstore!(ptr.ptr, v, Val{Aligned}())
 end
-@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::AbstractSIMDVector{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::AbstractSIMDVector{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vstore!(ptr.ptr, extract_data(v), Val{Aligned}())
 end
-@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::Vec{N,T},
+@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::Vec{N,T},
                 mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vstore!(ptr.ptr, v, mask, Val{Aligned}())
 end
-@inline function vstore!(ptr::VectorizationBase.vpointer{T}, v::AbstractSIMDVector{N,T},
+@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::AbstractSIMDVector{N,T},
                 mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vstore!(ptr.ptr, extract_data(v), mask, Val{Aligned}())
 end

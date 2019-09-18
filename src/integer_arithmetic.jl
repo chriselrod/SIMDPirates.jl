@@ -150,7 +150,7 @@ for op ∈ (:(<<), :(>>), :(>>>))
         @inline $rename(s1::IntegerTypes, s2::IntegerTypes) = $op(s1, s2)
 
         @vectordef $rename function Base.$op(v1, ::Val{I}) where {N,T<:IntegerTypes,I}
-            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), Val{I})
+            llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), Val{I}())
         end
         @vectordef $rename function Base.$op(v1, x2::Unsigned) where {N,T<:IntegerTypes}
             llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), x2)
@@ -170,7 +170,7 @@ for op ∈ (:(<<), :(>>), :(>>>))
 
 
         # @inline $rename(v1::Vec{N,T}, ::Val{I}) where {N,T<:IntegerTypes,I} =
-            # llvmwrapshift(Val{$(QuoteNode(op))}(), v1, Val{I})
+            # llvmwrapshift(Val{$(QuoteNode(op))}(), v1, Val{I}())
         # @inline $rename(v1::Vec{N,T}, x2::Unsigned) where {N,T<:IntegerTypes} =
         #     llvmwrapshift(Val{$(QuoteNode(op))}(), v1, x2)
         # @inline $rename(v1::Vec{N,T}, x2::Int) where {N,T<:IntegerTypes} =

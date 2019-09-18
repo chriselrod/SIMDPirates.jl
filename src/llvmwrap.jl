@@ -209,7 +209,7 @@ end
 end
 
 @generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
-                                  ::Type{Val{I}}) where {Op,N,T,I}
+                                  ::Val{I}) where {Op,N,T,I}
     @assert isa(Op, Symbol)
     if I >= 0
         op = Op
@@ -292,8 +292,8 @@ end
             NegOp = :>>
         end
     end
-    ValOp = Val{Op}
-    ValNegOp = Val{NegOp}
+    ValOp = Val{Op}()
+    ValNegOp = Val{NegOp}()
     quote
         $(Expr(:meta, :inline))
         ifelse(x2 >= 0,
@@ -346,8 +346,8 @@ end
             NegOp = :>>
         end
     end
-    ValOp = Val{Op}
-    ValNegOp = Val{NegOp}
+    ValOp = Val{Op}()
+    ValNegOp = Val{NegOp}()
     quote
         $(Expr(:meta, :inline))
         vifelse(vgreater_or_equal(v2, 0),
