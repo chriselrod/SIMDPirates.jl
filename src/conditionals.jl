@@ -73,8 +73,8 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     atyp = "[$N x $typ]"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%cond = trunc $vbtyp %0 to <$N x i1>")
     push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
     push!(instrs, "ret $vtyp %res")
@@ -107,8 +107,8 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     atyp = "[$N x $typ]"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
 
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"

@@ -21,8 +21,8 @@ export setindex
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %1, $ityp $(I-1)")
     push!(instrs, "ret $vtyp %res")
     quote
@@ -36,8 +36,8 @@ end
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %2, $ityp %1")
     push!(instrs, "ret $vtyp %res")
     quote

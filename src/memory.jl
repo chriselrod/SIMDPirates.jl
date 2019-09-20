@@ -43,8 +43,8 @@ end
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -152,8 +152,8 @@ end
     vtyp = "<$N x $typ>"
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -185,8 +185,8 @@ end
     vtyp = "<$N x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -297,8 +297,8 @@ end
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -357,8 +357,8 @@ end
     vtyp = "<$N x $typ>"
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -386,8 +386,8 @@ end
     vtyp = "<$N x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -470,8 +470,8 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -503,8 +503,8 @@ end
     vptrtyp = "<$N x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -539,8 +539,8 @@ end
     vptrtyp = "<$N x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else
@@ -573,8 +573,8 @@ end
     vptrtyp = "<$N x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if Aligned
         align = N * sizeof(T)
     else

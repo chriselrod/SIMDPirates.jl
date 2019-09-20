@@ -340,8 +340,8 @@ nextpow2(n) = nextpow(2, n)
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
     typ = llvmtype(T)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     n = N
     nam = "%0"
     nold,n = n,nextpow2(n)
@@ -396,7 +396,7 @@ end
 @generated function vreduce(::Val{Op}, v::Vec{N,T}) where {Op,N,T}
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
-    stmts = []
+    stmts = String[]
     n = N
     push!(stmts, :($(Symbol(:v,n)) = v))
     nold,n = n,nextpow2(n)

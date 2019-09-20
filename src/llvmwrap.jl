@@ -9,8 +9,8 @@
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
     ins = llvmins(Op, N, T1)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     flags = [""]
     if Op in FASTOPS
         push!(flags, fastflags(promote_type(T1,R)))
@@ -46,8 +46,8 @@ end
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
     ins = llvmins(Op, N, Bool)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%arg1 = trunc $vbtyp %0 to <$N x i1>")
     otherarg = llvmconst(N, Bool, true)
     push!(instrs, "%res = $ins <$N x i1> $otherarg, %arg1")
@@ -71,8 +71,8 @@ end
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
     ins = llvmins(Op, N, T1)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     flags = [""]
     if Op in FASTOPS
         push!(flags, fastflags(promote_type(T1,T2,R)))
@@ -101,8 +101,8 @@ end
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
     ins = llvmins(Op, N, T1)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if ins[1] == '@'
         push!(decls, "declare $vtypr $ins($vtyp1, $vtyp2)")
         push!(instrs, "%res = call $vtypr $ins($vtyp1 %0, $vtyp2 %1)")
@@ -132,8 +132,8 @@ end
     vtyp2 = "<$N x $typ2>"
     atyp2 = "[$N x $typ2]"
     ins = llvmins(Op, N, T1)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if false && N == 1
         append!(instrs, array2vector("%arg1", N, typ1, "%0", "%arg1arr"))
         append!(instrs, array2vector("%arg2", N, typ2, "%1", "%arg2arr"))
@@ -161,8 +161,8 @@ end
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
     ins = llvmins(Op, N, Bool)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%arg1 = trunc $vbtyp %0 to <$N x i1>")
     push!(instrs, "%arg2 = trunc $vbtyp %1 to <$N x i1>")
     push!(instrs, "%res = $ins <$N x i1> %arg1, %arg2")
@@ -189,8 +189,8 @@ end
     typr = llvmtype(R)
     vtypr = "<$N x $typr>"
     ins = llvmins(Op, N, T1)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     if ins[1] == '@'
         push!(decls, "declare $vtypr $ins($vtyp1, $vtyp2, $vtyp3)")
         push!(instrs,
@@ -232,8 +232,8 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     ins = llvmins(op, N, T)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     nbits = 8*sizeof(T)
     if (op === :>> && T <: IntTypes) || i < nbits
         count = llvmconst(N, T, min(nbits-1, i))
@@ -256,8 +256,8 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     ins = llvmins(Op, N, T)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     append!(instrs, scalar2vector("%count", N, typ, "%1"))
     nbits = 8*sizeof(T)
     push!(instrs, "%tmp = $ins $vtyp %0, %count")
@@ -309,8 +309,8 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     ins = llvmins(Op, N, T)
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%tmp = $ins $vtyp %0, %1")
     nbits = llvmconst(N, T, 8*sizeof(T))
     push!(instrs, "%inbounds = icmp ult $vtyp %1, $nbits")

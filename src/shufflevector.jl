@@ -7,11 +7,11 @@ function shufflevector_instrs(N, T, I, two_operands)
     vtyp3 = "<$M x i32>"
     vtypr = "<$M x $typ>"
     mask = "<" * join(map(x->string("i32 ", x), I), ", ") * ">"
-    instrs = []
+    instrs = String[]
     v2 = two_operands ? "%1" : "undef"
     push!(instrs, "%res = shufflevector $vtyp1 %0, $vtyp2 $v2, $vtyp3 $mask")
     push!(instrs, "ret $vtypr %res")
-    return M, [], instrs
+    return M, String[], instrs
 end
 
 

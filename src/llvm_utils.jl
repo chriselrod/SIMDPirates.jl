@@ -151,7 +151,7 @@ end
 # Convert between LLVM scalars, vectors, and arrays
 
 function scalar2vector(vec, siz, typ, sca)
-    instrs = []
+    instrs = String[]
     accum(nam, i) = i<0 ? "undef" : i==siz-1 ? nam : "$(nam)_iter$i"
     for i in 0:siz-1
         push!(instrs,
@@ -163,7 +163,7 @@ function scalar2vector(vec, siz, typ, sca)
 end
 
 function array2vector(vec, siz, typ, arr, tmp="$(arr)_av")
-    instrs = []
+    instrs = String[]
     accum(nam, i) = i<0 ? "undef" : i==siz-1 ? nam : "$(nam)_iter$i"
     for i in 0:siz-1
         push!(instrs, "$(tmp)_elem$i = extractvalue [$siz x $typ] $arr, $i")
@@ -176,7 +176,7 @@ function array2vector(vec, siz, typ, arr, tmp="$(arr)_av")
 end
 
 function vector2array(arr, siz, typ, vec, tmp="$(vec)_va")
-    instrs = []
+    instrs = String[]
     accum(nam, i) = i<0 ? "undef" : i==siz-1 ? nam : "$(nam)_iter$i"
     for i in 0:siz-1
         push!(instrs,
@@ -191,7 +191,7 @@ end
 
 # TODO: change argument order
 function subvector(vec, siz, typ, rvec, rsiz, roff, tmp="$(rvec)_sv")
-    instrs = []
+    instrs = String[]
     accum(nam, i) = i<0 ? "undef" : i==rsiz-1 ? nam : "$(nam)_iter$i"
     @assert 0 <= roff
     @assert roff + rsiz <= siz
@@ -207,7 +207,7 @@ function subvector(vec, siz, typ, rvec, rsiz, roff, tmp="$(rvec)_sv")
 end
 
 function extendvector(vec, siz, typ, voff, vsiz, val, rvec, tmp="$(rvec)_ev")
-    instrs = []
+    instrs = String[]
     accum(nam, i) = i<0 ? "undef" : i==siz+vsiz-1 ? nam : "$(nam)_iter$i"
     rsiz = siz + vsiz
     for i in 0:siz-1
@@ -235,8 +235,8 @@ end
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %1, $ityp $(I-1)")
     push!(instrs, "ret $vtyp %res")
     quote
@@ -250,8 +250,8 @@ end
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"
-    decls = []
-    instrs = []
+    decls = String[]
+    instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %2, $ityp %1")
     push!(instrs, "ret $vtyp %res")
     quote
