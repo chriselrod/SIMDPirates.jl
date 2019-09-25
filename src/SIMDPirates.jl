@@ -16,8 +16,8 @@ export  Vec, SVec, VE,
     shufflevector,
     vifelse,
     vfma, vmuladd,
-    rsqrt,
-    vadd, vmul, vsum,
+    vsqrt, rsqrt,
+    vadd, vsub, vmul, vfdiv, vsum,
     vfmadd, vfnmadd, vfmsub, vfnmsub,
     gather, scatter!
 
