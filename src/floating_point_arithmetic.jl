@@ -319,20 +319,22 @@ end
 
 # TODO: map, mapreduce
 
-function getneutral(op::Symbol, ::Type{T}) where T
-    zs = Dict{Symbol,T}()
-    if T <: IntegerTypes
-        zs[:&] = ~T(0)
-        zs[:|] = T(0)
+function getneutral(op::Symbol, ::Type{T}) where {T}
+    if op == :&
+        return ~zero(T)
+    elseif op == :|
+        return zero(T)
+    elseif op == :max
+        return typemin(T)
+    elseif op == :min
+        return typemax(T)
+    elseif op == :+
+        return zero(T)
+    elseif op == :*
+        return one(T)
     end
-    zs[:max] = typemin(T)
-    zs[:min] = typemax(T)
-    zs[:+] = T(0)
-    zs[:*] = T(1)
-    zs[op]
+    throw("Op $op not recognized.")
 end
-
-nextpow2(n) = nextpow(2, n)
 
 # We cannot pass in the neutral element via Val{}; if we try, Julia refuses to
 # inline this function, which is then disastrous for performance
@@ -344,7 +346,7 @@ nextpow2(n) = nextpow(2, n)
     instrs = String[]
     n = N
     nam = "%0"
-    nold,n = n,nextpow2(n)
+    nold,n = n, VectorizationBase.nextpow2(n)
     if n > nold
         namold,nam = nam,"%vec_$n"
         append!(instrs,

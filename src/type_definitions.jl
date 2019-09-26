@@ -143,12 +143,22 @@ exponent_mask(::Type{T}) where {T<:FloatingTypes} =
 sign_mask(::Type{T}) where {T<:FloatingTypes} =
     uint_type(T)(1) << (significand_bits(T) + exponent_bits(T))
 
-for T in (Float16, Float32, Float64)
-    @assert sizeof(int_type(T)) == sizeof(T)
-    @assert sizeof(uint_type(T)) == sizeof(T)
-    @assert significand_bits(T) + exponent_bits(T) + sign_bits(T) == 8*sizeof(T)
-    @assert significand_mask(T) | exponent_mask(T) | sign_mask(T) ==
-        typemax(uint_type(T))
-    @assert significand_mask(T) ⊻ exponent_mask(T) ⊻ sign_mask(T) ==
-        typemax(uint_type(T))
+@generated function vecbool_to_unsigned(vb::Vec{N,Bool}) where {N}
+    Nout = VectorizationBase.nextpow2(max(N, 8))
+    Utype = VectorizationBase.mask_type(Nout)
+    btype = llvmtype(Bool)
+    vbtyp = "<$N x $btype>"
+    decls = String[]
+    instrs = String["%maskb = trunc $vbtyp %0 to <$N x i1>"]
+    u1name = Nout == N ? "%uout" : "%uabridged"
+    push!(instrs, "$u1name = bitcast <$N x i1> %maskb to i$N")
+    if Nout > N
+        push!(instrs, "%uout = zext i$N %uabridged to i$Nout")
+    end
+    push!(instrs, "ret i$Nout %uout")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall($(join(instrs, "\n")), $Utype, Tuple{Vec{$N,Bool}}, vb)
+    end
 end
+

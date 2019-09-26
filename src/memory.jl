@@ -172,7 +172,7 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,T}, Tuple{Ptr{T}, Vec{N,Bool}}, ptr, mask)
+            Vec{$N,$T}, Tuple{Ptr{$T}, Vec{$N,Bool}}, ptr, mask)
     end
 end
 @generated function vload(

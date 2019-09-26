@@ -61,8 +61,9 @@ end
 end
 
 # Functions taking two arguments
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
-        v2::Vec{N,T2}, ::Type{R} = T1) where {Op,N,T1,T2,R}
+@generated function llvmwrap(
+    ::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T2}, ::Type{R} = T1
+) where {Op,N,T1,T2,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
     vtyp1 = "<$N x $typ1>"

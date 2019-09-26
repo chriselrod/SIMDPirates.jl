@@ -141,3 +141,6 @@ end
 @vectordef visodd function Base.isodd(v) where {N,T<:Integer}
     visequal(vand(v, one(T)), one(T))
 end
+
+@inline vand(U::Unsigned, vb::Vec{N,Bool}) where {N} = U & vecbool_to_unsigned(vb)
+@inline vand(vb::Vec{N,Bool}, U::Unsigned) where {N} = U & vecbool_to_unsigned(vb)

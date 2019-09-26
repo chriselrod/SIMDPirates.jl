@@ -11,7 +11,7 @@ function fastflags(@nospecialize(T))
     return s
 end
 
-function suffix(N::Int, @nospecialize(T::DataType))
+function suffix(N::Int, @nospecialize(T))
     if T <: Ptr
         if T <: Ptr{<:IntegerTypes}
             t = "p0i"
@@ -28,7 +28,7 @@ end
 
 
 # Type-dependent LLVM constants
-function llvmconst(::Type{T}, val) where T
+function llvmconst(T, val)
     T(val) === T(0) && return "zeroinitializer"
     typ = llvmtype(T)
     "$typ $val"
@@ -38,7 +38,7 @@ function llvmconst(::Type{Bool}, val)
     typ = "i1"
     "$typ $(Int(val))"
 end
-function llvmconst(N::Integer, ::Type{T}, val) where T
+function llvmconst(N::Integer, T, val)
     T(val) === T(0) && return "zeroinitializer"
     typ = llvmtype(T)
     "<" * join(["$typ $val" for i in 1:N], ", ") * ">"
@@ -48,7 +48,7 @@ function llvmconst(N::Integer, ::Type{Bool}, val)
     typ = "i1"
     "<" * join(["$typ $(Int(val))" for i in 1:N], ", ") * ">"
 end
-function llvmtypedconst(::Type{T}, val) where T
+function llvmtypedconst(T, val)
     typ = llvmtype(T)
     T(val) === T(0) && return "$typ zeroinitializer"
     "$typ $val"
