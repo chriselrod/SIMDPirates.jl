@@ -499,7 +499,10 @@ for f ∈ (:vadd, :vsub, :vmul)
             $(Expr(:meta,:inline))
             vs = $littlev
             vb = $largerv
+            # vse = $(Expr(:tuple,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...,[:(vs[$w]) for w ∈ 1:Ws]...))
+            # vse = $(Expr(:tuple,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...,[:(vs[$(1 + Ws - w)]) for w ∈ 1:Ws]...))
             vse = $(Expr(:tuple,[:(vs[$w]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
+            # vse = $(Expr(:tuple,[:(vs[$(1+Ws-w)]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
 #            $f(vse, vb)
             $ret
         end
