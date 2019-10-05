@@ -7,6 +7,7 @@ using VectorizationBase: llvmtype, AbstractSIMDVector, AbstractStructVec
 
 export  Vec, SVec, VE,
     @pirate,
+    extract_data,
     vbroadcast,
     valloc,
     vload,
