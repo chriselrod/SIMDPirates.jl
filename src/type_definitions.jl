@@ -14,8 +14,7 @@ type_size(::Type{Vec{N,T}}, n::Integer) where {N,T} = (N,)[n]
 
 # Element-wise access
 
-export setindex
-@generated function setindex(v::AbstractSIMDVector{N,T}, x::Number, ::Val{I}) where {N,T,I}
+@generated function vsetindex(v::AbstractSIMDVector{N,T}, x::Number, ::Val{I}) where {N,T,I}
     @assert isa(I, Integer)
     1 <= I <= N || throw(BoundsError())
     typ = llvmtype(T)
@@ -32,7 +31,7 @@ export setindex
     end
 end
 
-@generated function setindex(v::AbstractSIMDVector{N,T}, x::Number, i::Int) where {N,T}
+@generated function vsetindex(v::AbstractSIMDVector{N,T}, x::Number, i::Int) where {N,T}
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"
@@ -49,7 +48,10 @@ end
     end
 end
 
-@inline setindex(v::AbstractSIMDVector{N,T}, x::Number, i) where {N,T} = setindex(v, Int(i), x)
+@inline Base.setindex(v::AbstractStructVec{N,T}, x::Number, i) where {N,T} = setindex(v, x, i)
+@inline Base.setindex(v::AbstractStructVec{N,T}, x::Number, i::Integer) where {N,T} = setindex(v, x, Int(i))
+
+
 @inline getvalindex(v::AbstractSIMDVector{N,T}, ::Val{I}) where {N,T,I} = extract_data(v)[I].value
 
 @inline function vbroadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
