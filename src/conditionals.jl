@@ -3,6 +3,7 @@
 
 for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
     rename = VECTOR_SYMBOLS[op]
+    rename_mask = Symbol(rename, :_mask)
     @eval begin
         # scalar versions handled in floating_point_arithmetic.jl
         # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
@@ -13,6 +14,15 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
             $rename(extract_data(v1), v2)
         end
         @vectordef $rename function Base.$op(v1::T, v2) where {N,T}
+            $rename(extract_data(v1), v2)
+        end
+        @evectordef $rename_mask function Base.$op(v1, v2) where {N,T}
+            llvmwrap_bitmask(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
+        end
+        @evectordef $rename_mask function Base.$op(v1, v2::T) where {N,T}
+            $rename(extract_data(v1), v2)
+        end
+        @evectordef $rename_mask function Base.$op(v1::T, v2) where {N,T}
             $rename(extract_data(v1), v2)
         end
     end

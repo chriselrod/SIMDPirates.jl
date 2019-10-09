@@ -135,22 +135,56 @@ end
     ins = llvmins(Op, N, T1)
     decls = String[]
     instrs = String[]
-    if false && N == 1
-        append!(instrs, array2vector("%arg1", N, typ1, "%0", "%arg1arr"))
-        append!(instrs, array2vector("%arg2", N, typ2, "%1", "%arg2arr"))
-        push!(instrs, "%cond = $ins $vtyp1 %arg1, %arg2")
-        push!(instrs, "%res = zext <$N x i1> %cond to $vbtyp")
-        append!(instrs, vector2array("%resarr", N, btyp, "%res"))
-        push!(instrs, "ret $abtyp %resarr")
-    else
-        push!(instrs, "%res = $ins $vtyp1 %0, %1")
-        push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
-        push!(instrs, "ret $vbtyp %resb")
-    end
+    # if false && N == 1
+        # append!(instrs, array2vector("%arg1", N, typ1, "%0", "%arg1arr"))
+        # append!(instrs, array2vector("%arg2", N, typ2, "%1", "%arg2arr"))
+        # push!(instrs, "%cond = $ins $vtyp1 %arg1, %arg2")
+        # push!(instrs, "%res = zext <$N x i1> %cond to $vbtyp")
+        # append!(instrs, vector2array("%resarr", N, btyp, "%res"))
+        # push!(instrs, "ret $abtyp %resarr")
+    # else
+    push!(instrs, "%res = $ins $vtyp1 %0, %1")
+    push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
+    push!(instrs, "ret $vbtyp %resb")
+    # end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{N,Bool}, Tuple{Vec{N,T1}, Vec{N,T2}},
+            v1, v2)
+    end
+end
+# Functions taking two arguments, returning a bitmask
+@generated function llvmwrap_bitmask(::Val{Op}, v1::Vec{N,T1},
+        v2::Vec{N,T2}) where {Op,N,T1,T2}
+    @assert isa(Op, Symbol)
+    btyp = llvmtype(Bool)
+    vbtyp = "<$N x $btyp>"
+    abtyp = "[$N x $btyp]"
+    typ1 = llvmtype(T1)
+    vtyp1 = "<$N x $typ1>"
+    atyp1 = "[$N x $typ1]"
+    typ2 = llvmtype(T2)
+    vtyp2 = "<$N x $typ2>"
+    atyp2 = "[$N x $typ2]"
+    ins = llvmins(Op, N, T1)
+    decls = String[]
+    instrs = String[]
+    push!(instrs, "%res = $ins $vtyp1 %0, %1")
+    # push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
+
+    maskbits = max(8, VectorizationBase.nextpow2(N))
+    bitcastname = maskbits == N ? "resu" : "resutrunc"
+    push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
+    if maskbits != N
+        push!(instrs, "%resu = zext i$N %$(bitcastname) to i$maskbits")
+    end
+    push!(instrs, "ret i$maskbits %resu")
+    julia_mask_type = VectorizationBase.mask_type(maskbits)
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            $julia_mask_type, Tuple{Vec{N,T1}, Vec{N,T2}},
             v1, v2)
     end
 end

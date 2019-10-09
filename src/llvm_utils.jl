@@ -229,7 +229,7 @@ end
 # Element-wise access
 
 # export setindex
-@generated function setindex(v::Vec{N,T}, x::Number, ::Type{Val{I}}) where {N,T,I}
+@generated function vsetindex(v::Vec{N,T}, x::Number, ::Type{Val{I}}) where {N,T,I}
     @assert isa(I, Integer)
     1 <= I <= N || throw(BoundsError())
     typ = llvmtype(T)
@@ -246,7 +246,7 @@ end
     end
 end
 
-@generated function setindex(v::Vec{N,T}, x::Number, i::Int) where {N,T}
+@generated function vsetindex(v::Vec{N,T}, x::Number, i::Int) where {N,T}
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$N x $typ>"

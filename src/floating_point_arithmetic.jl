@@ -213,7 +213,7 @@ for op ∈ (
         @vectordef $rename function Base.$op(v1, s2::ScalarTypes) where {N,T<:FloatingTypes}
             $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
         end
-
+        
         # @inline $rename(s1::ScalarTypes, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     $rename(vbroadcast(Vec{N,T}, s1), v2)
         # @inline $rename(v1::Vec{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes} =
@@ -503,7 +503,7 @@ for f ∈ (:vadd, :vsub, :vmul)
             # vse = $(Expr(:tuple,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...,[:(vs[$(1 + Ws - w)]) for w ∈ 1:Ws]...))
             vse = $(Expr(:tuple,[:(vs[$w]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
             # vse = $(Expr(:tuple,[:(vs[$(1+Ws-w)]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
-#            $f(vse, vb)
+            # $f(vse, vb)
             $ret
         end
     end
