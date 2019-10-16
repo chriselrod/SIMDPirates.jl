@@ -372,8 +372,29 @@ end
     push!(instrs, "ret $typ %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            T, Tuple{Vec{N,T}}, v)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            $T, Tuple{Vec{$N,$T}}, v
+        )
+    end
+end
+
+@generated function vsum(v::Vec{N,T}) where {N,T<:Union{Float32,Float64}}
+    decls = String[]
+    instrs = String[]
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    bits = 8sizeof(T)
+    ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(N)f$(bits)"
+    push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+    push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
+    push!(instrs, "ret $typ %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            $T, Tuple{Vec{$N,$T}}, v
+        )
     end
 end
 

@@ -482,7 +482,7 @@ end
     push!(decls,
         "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
     push!(instrs,
-        "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>, $vtyp $(llvmconst(N, T, 0)))")
+        "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>, $vtyp undef)")#$(llvmconst(N, T, 0)))")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
