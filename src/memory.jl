@@ -37,8 +37,10 @@ end
     end
 end
 
-@generated function vload(::Type{Vec{N,T}}, ptr::Ptr{T},
-                          ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@generated function vload(
+    ::Type{Vec{N,T}}, ptr::Ptr{T},
+    ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
+) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -51,16 +53,15 @@ end
         align = sizeof(T)   # This is overly optimistic
     end
     flags = [""]
-    if align > 0
-        push!(flags, "align $align")
-    end
+    align > 0 && push!(flags, "align $align")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,T}, Tuple{Ptr{T}}, ptr)
+            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
     end
 end
 @inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.Pointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
@@ -73,10 +74,11 @@ end
     convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, Val{Aligned}())))
 end
 
-@inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} =
-    vload(Vec{N,T}, ptr, Val{true}())
+@inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} = vload(Vec{N,T}, ptr, Val{true}())
 
+@inline vloadnt(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} = vload(Vec{N,T}, ptr, Val{true}(), Val{true}())
 
+    
 @inline function vload(::Type{Vec{N,T}},
                        ptr::Ptr{T},
                        i::Integer,
@@ -104,7 +106,6 @@ end
                         i::Integer) where {N,T}
     vload(Vec{N,T}, arr, i, Val{true}())
 end
-
 
 
 @inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned} =
@@ -291,8 +292,10 @@ end
 end
 
 
-@generated function vstore!(ptr::Ptr{T}, v::Vec{N,T},
-                           ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T},
+    ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
+) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -305,25 +308,25 @@ end
         align = sizeof(T)   # This is overly optimistic
     end
     flags = [""]
-    if align > 0
-        push!(flags, "align $align")
-    end
+    align > 0 && push!(flags, "align $align")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-                      Cvoid, Tuple{Ptr{T}, Vec{N,T}}, ptr, v)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}}, ptr, v
+        )
     end
 end
 @inline function vstore!(ptr::Ptr{T}, v::AbstractStructVec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
     vstore!(ptr, extract_data(v), Val{Aligned}())
 end
 
-@inline vstorea!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}) where {N,T} =
-            vstore!(ptr, extract_data(v), Val{true}())
-
+@inline vstorea!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}) where {N,T} = vstore!(ptr, extract_data(v), Val{true}())
+@inline vstorent!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}) where {N,T} = vstore!(ptr, extract_data(v), Val{true}(), Val{true}())
 
 @inline function vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T},
                         i::Integer,
@@ -373,9 +376,11 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Ptr{T}, Vec{N,T}, Vec{N,Bool}},
-            ptr, v, mask)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, Vec{$N,Bool}},
+            ptr, v, mask
+        )
     end
 end
 @generated function vstore!(ptr::Ptr{T}, v::Vec{N,T}, mask::U,
@@ -596,8 +601,10 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Vec{$N,$T}, Vec{$N,Ptr{$T}}, $U}, v, ptr, mask)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Vec{$N,$T}, Vec{$N,Ptr{$T}}, $U}, v, ptr, mask
+        )
     end
 end
 @inline function vadd(ptr::Ptr{T}, inds::Vec{W,I}) where {W,T,I<:Union{UInt,Int}}
@@ -610,3 +617,26 @@ end
 @inline scatter!(ptr::Ptr{T}, inds::Vec{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(vmuladd(sizeof(T), inds, ptr), v)
 @inline gather(ptr::Ptr{T}, inds::Vec{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(vmuladd(sizeof(T),inds,ptr), mask)
 @inline gather(ptr::Ptr{T}, inds::Vec{N,I}) where {N,T,I<:IntegerTypes} = gather(vmuladd(sizeof(T),inds,ptr))
+
+
+
+
+@generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
+    typ = llvmtype(T)
+    ptyp = llvmtype(Int)
+    decls = String[]
+    instrs = String[]
+    push!(instrs, "%ptr = alloca $typ, i32 $N, align $Align")
+    push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
+    push!(instrs, "ret $ptyp %iptr")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Ptr{$T}, Tuple{}
+        )
+    end
+end
+
+
+
