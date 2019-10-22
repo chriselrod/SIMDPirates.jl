@@ -620,7 +620,13 @@ end
 
 
 
+"""
+I'm not sure on the details, but I think this function can only allocate up to
 
+524288 doubles
+
+that is it may not be able to allocate arrays with more than about half a million elements, or 4 megabytes.
+"""
 @generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
     typ = llvmtype(T)
     ptyp = llvmtype(Int)
@@ -628,6 +634,8 @@ end
     instrs = String[]
     push!(instrs, "%ptr = alloca $typ, i32 $N, align $Align")
     push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
+    # push!(instrs, "%ptr = alloca i8, i32 $(N*sizeof(T)), align $Align")
+    # push!(instrs, "%iptr = ptrtoint i8* %ptr to $ptyp")
     push!(instrs, "ret $ptyp %iptr")
     quote
         $(Expr(:meta,:inline))
