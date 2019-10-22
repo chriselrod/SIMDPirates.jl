@@ -379,6 +379,7 @@ end
     end
 end
 
+@static if VERSION > v"1.4.0-DEV"
 @generated function vsum(v::Vec{N,T}) where {N,T<:Union{Float32,Float64}}
     decls = String[]
     instrs = String[]
@@ -396,6 +397,7 @@ end
             $T, Tuple{Vec{$N,$T}}, v
         )
     end
+end
 end
 
 for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
