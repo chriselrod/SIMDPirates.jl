@@ -379,7 +379,7 @@ end
     end
 end
 
-@static if VERSION > v"1.4.0-DEV"
+@static if Base.libllvm_version >= v"9.0.0"
 @generated function vsum(v::Vec{N,T}) where {N,T<:Union{Float32,Float64}}
     decls = String[]
     instrs = String[]
@@ -538,4 +538,5 @@ for f ∈ (:vadd, :vsub, :vmul)
 end
 
 @inline Base.abs2(v::SVec) = vmul(v,v)
+@inline Base.vabs2(v) = vmul(v,v)
 @inline vsum(s::FloatingTypes) = s
