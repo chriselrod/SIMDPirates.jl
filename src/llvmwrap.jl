@@ -242,6 +242,36 @@ end
             v1, v2, v3)
     end
 end
+@generated function llvmwrap_fast(::Val{Op}, v1::Vec{N,T1},
+        v2::Vec{N,T2}, v3::Vec{N,T3}, ::Type{R} = T1) where {Op,N,T1,T2,T3,R}
+    @assert isa(Op, Symbol)
+    typ1 = llvmtype(T1)
+    vtyp1 = "<$N x $typ1>"
+    typ2 = llvmtype(T2)
+    vtyp2 = "<$N x $typ2>"
+    typ3 = llvmtype(T3)
+    vtyp3 = "<$N x $typ3>"
+    typr = llvmtype(R)
+    vtypr = "<$N x $typr>"
+    ins = llvmins(Op, N, T1)
+    decls = String[]
+    instrs = String[]
+    if ins[1] == '@'
+        push!(decls, "declare $vtypr $ins($vtyp1, $vtyp2, $vtyp3)")
+        push!(instrs,
+            "%res = call fast $vtypr $ins($vtyp1 %0, $vtyp2 %1, $vtyp3 %2)")
+    else
+        push!(instrs, "%res = $ins fast $vtyp1 %0, %1, %2")
+    end
+    push!(instrs, "ret $vtypr %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{N,R},
+            Tuple{Vec{N,T1}, Vec{N,T2}, Vec{N,T3}},
+            v1, v2, v3)
+    end
+end
 
 @generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
                                   ::Val{I}) where {Op,N,T,I}

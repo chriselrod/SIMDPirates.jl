@@ -2,7 +2,7 @@
 # Floating point arithmetic functions
 
 for op ∈ (
-        :(+), :(-),
+        :(+), #:(-),
         :abs, :floor, :ceil, :round,
         :sin, :cos,
         :exp, :exp2, :inv, :log, :log10, :log2,
@@ -398,7 +398,27 @@ end
         )
     end
 end
+    @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
+        typ = llvmtype(T)
+        vtyp = "<$W x $typ>"
+        instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
+        end
+    end
+    Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+    vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+else
+    rename = VECTOR_SYMBOLS[:-]
+    @eval begin
+        @vectordef $rename function Base.:(-)(v1) where {N,T<:FloatingTypes}
+            llvmwrap(Val{:(-)}(), extract_data(v1))
+        end
+    end
 end
+vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
+
 
 for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
@@ -467,6 +487,27 @@ end
 @inline vfnmadd(a, b, c) = SIMDPirates.vsub(c, SIMDPirates.vmul( a, b ))
 @inline vfmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vmul( a, b), c )
 @inline vfnmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vsub(c), SIMDPirates.vmul( a, b ) )
+
+# Lowers to same split mul-add llvm as the 
+# @inline vfmadd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
+# definition, so I wont bother implementing
+# vfnmadd, vfmsub, and vfnmsub
+# in this manner.
+@generated function vfmadd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    ins = llvmins(:muladd, W, T)
+    decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
+    instrs = "%res = call fast $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((decls,instrs)),
+            Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}},
+            v1, v2, v3
+        )
+    end
+end
 
 @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
 @generated function Base.:*(a::T, b::SVec{N,<:IntegerTypes}) where {N,T<:FloatingTypes}
