@@ -1,6 +1,32 @@
 
+"""
+I'm not sure on the details, but I think this function can only allocate up to
 
-function valloc(::Type{T}, N::Int, sz::Int) where T
+524288 doubles
+
+that is it may not be able to allocate arrays with more than about half a million elements, or 4 megabytes.
+"""
+@generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
+    typ = llvmtype(T)
+    ptyp = llvmtype(Int)
+    decls = String[]
+    instrs = String[]
+    push!(instrs, "%ptr = alloca $typ, i32 $N, align $Align")
+    push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
+    # push!(instrs, "%ptr = alloca i8, i32 $(N*sizeof(T)), align $Align")
+    # push!(instrs, "%iptr = ptrtoint i8* %ptr to $ptyp")
+    push!(instrs, "ret $ptyp %iptr")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Ptr{$T}, Tuple{}
+        )
+    end
+end
+
+
+function valloc(::Type{T}, N::Int, sz::Int) where {T}
     @assert N > 0
     @assert sz >= 0
     # We use padding to align the address of the first element, and
@@ -18,7 +44,7 @@ function valloc(::Type{T}, N::Int, sz::Int) where T
     @assert mod(addr2, N * sizeof(T)) == 0
     res
 end
-function valloc(f, ::Type{T}, N::Int, sz::Int) where T
+function valloc(f, ::Type{T}, N::Int, sz::Int) where {T}
     mem = valloc(T, N, sz)
     @inbounds for i in 1:sz
         mem[i] = f(i)
@@ -26,20 +52,21 @@ function valloc(f, ::Type{T}, N::Int, sz::Int) where T
     mem
 end
 
-@generated function sub2ind(dims::NTuple{N}, I::NTuple{N}) where N
-    ex = :(I[$N] - 1)
-    for i = (N - 1):-1:1
-        ex = :(I[$i] - 1 + dims[$i] * $ex)
-    end
-    quote
-        $(Expr(:meta, :inline))
-        $ex + 1
-    end
-end
+# @generated function sub2ind(dims::NTuple{N}, I::NTuple{N}) where {N}
+#     ex = :(I[$N] - 1)
+#     for i = (N - 1):-1:1
+#         ex = :(I[$i] - 1 + dims[$i] * $ex)
+#     end
+#     quote
+#         $(Expr(:meta, :inline))
+#         $ex + 1
+#     end
+# end
 
 @generated function vload(
     ::Type{Vec{N,T}}, ptr::Ptr{T},
-    ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
+    ::Val{Aligned}, ::Val{Nontemporal}
+    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
@@ -64,89 +91,9 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
     end
 end
-@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.Pointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vload(Vec{N,T}, ptr.ptr, Val{Aligned}())
-end
-@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.Pointer{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    SVec(vload(Vec{N,T}, ptr.ptr, Val{Aligned}()))
-end
-@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.Pointer{T2}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
-    convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, Val{Aligned}())))
-end
-
-@inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} = vload(Vec{N,T}, ptr, Val{true}())
-
-@inline vloadnt(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T} = vload(Vec{N,T}, ptr, Val{true}(), Val{true}())
-
-    
-@inline function vload(::Type{Vec{N,T}},
-                       ptr::Ptr{T},
-                       i::Integer,
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned}())
-end
-@inline function vload(::Type{Vec{N,T}},
-                       arr::AbstractArray{T,D},
-                       i::Integer,
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, pointer(arr, i), Val{Aligned}())
-end
-@inline function vload(::Type{Vec{N,T}},
-                       arr::AbstractArray{T,D},
-                       ind::NTuple{D,<:Integer},
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    i = sub2ind(size(arr), ind)
-    vload(Vec{N,T}, pointer(arr, i), Val{Aligned}())
-end
-@inline function vloada(::Type{Vec{N,T}},
-                        arr::AbstractArray{T,1},
-                        i::Integer) where {N,T}
-    vload(Vec{N,T}, arr, i, Val{true}())
-end
-
-
-@inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned} =
-    SVec(vload(Vec{N,T}, ptr, Val{Aligned}()))
-
-@inline vloada(::Type{SVec{N,T}}, ptr::Ptr{T}) where {N,T} =
-    SVec(vload(Vec{N,T}, ptr, Val{true}()))
-
-
-@inline function vload(::Type{SVec{N,T}},
-                       ptr::Ptr{T},
-                       i::Integer,
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), Val{Aligned}()))
-end
-@inline function vload(::Type{SVec{N,T}},
-                       arr::AbstractArray{T,D},
-                       i::Integer,
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, pointer(arr, i), Val{Aligned}()))
-end
-@inline function vload(::Type{SVec{N,T}},
-                       arr::AbstractArray{T,D},
-                       ind::NTuple{D,<:Integer},
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    i = sub2ind(size(arr), ind)
-    SVec(vload(Vec{N,T}, pointer(arr, i), Val{Aligned}()))
-end
-@inline function vloada(::Type{SVec{N,T}},
-                        arr::AbstractArray{T,1},
-                        i::Integer) where {N,T}
-    SVec(vload(Vec{N,T}, arr, i, Val{true}()))
-end
-
-
-@generated function vload(::Type{Vec{N,T}}, ptr::Ptr{T},
-                          mask::Vec{N,Bool},
-                          ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@generated function vload(
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
+) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -177,7 +124,7 @@ end
     end
 end
 @generated function vload(
-    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned} = Val{false}()
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
@@ -213,88 +160,60 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
     end
 end
-@inline function vload(::Type{Vec{N,T}}, ptr::VectorizationBase.Pointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}())
-end
-@inline function vload(::Type{SVec{N,T}}, ptr::VectorizationBase.Pointer{T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    SVec(vload(Vec{N,T}, ptr.ptr, mask, Val{Aligned}()))
-end
-@inline function vload(::Type{SVec{N,T1}}, ptr::VectorizationBase.Pointer{T2},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T1,T2,Aligned}
-    convert(SVec{N,T1}, SVec(vload(Vec{N,T2}, ptr.ptr, mask, Val{Aligned}())))
-end
 
-@inline vloada(::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}) where {N,T} =
-    vload(Vec{N,T}, ptr, mask, Val{true}())
-
-@inline function vload(::Type{Vec{N,T}},
-                       ptr::Ptr{T},
-                       i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned}())
+for v ∈ (:Vec, :SVec)
+    vargs = [:(::Type{$v{W,T}})]
+    for ptr ∈ (:Ptr, :Pointer)
+        pargs = push!(copy(vargs), :(ptr::$ptr{T}))
+        for index ∈ (true,false)
+            if index
+                icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :(ptr + i) : :(ptr.ptr + sizeof(T)*i)]
+                iargs = push!(copy(pargs), :(i::Int))
+            else
+                icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :ptr : :(ptr.ptr)]
+                iargs = pargs
+            end
+            for mask ∈ (true,false)
+                if mask
+                    margs = push!(copy(iargs), :(mask::Union{Vec{W,Bool},<:Unsigned}))
+                    mcall = push!(copy(icall), :mask)
+                    fopts = (:vload,:vloada)
+                else
+                    margs = iargs
+                    mcall = icall
+                    fopts = (:vload,:vloada,:vloadnt)
+                end
+                for f ∈ fopts
+                    fcall = copy(mcall)
+                    if f == :vload # aligned arg
+                        push!(fcall, :(Val{false}()))
+                    else
+                        push!(fcall, :(Val{true}()))
+                    end
+                    if !mask
+                        if f == :vloadnt # nontemporal arg
+                            push!(fcall, :(Val{true}()))
+                        else
+                            push!(fcall, :(Val{false}()))
+                        end
+                    end
+                    body = Expr(:call, :vload, fcall...)
+                    if v == :SVec
+                        body = :(SVec($body))
+                    end
+                    @eval @inline function $f($(margs...)) where {W,T}
+                        $body
+                    end
+                end
+            end
+        end
+    end
 end
-@inline function vload(::Type{Vec{N,T}},
-                       arr::AbstractArray{T},
-                       i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}())
-end
-@inline function vload(::Type{Vec{N,T}},
-                       arr::AbstractArray{T,D},
-                       ind::NTuple{D,<:Integer}, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Val{Aligned} = Val{false}()) where {N,T,D,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    i = sub2ind(size(arr), ind)
-    vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}())
-end
-@inline function vloada(::Type{Vec{N,T}},
-                        arr::AbstractArray{T}, i::Integer,
-                        mask::Union{Vec{N,Bool},<:Unsigned}) where {N,T}
-    vload(Vec{N,T}, arr, i, mask, Val{true}())
-end
-
-@inline vload(::Type{SVec{N,T}}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned} =
-    SVec(vload(Vec{N,T}, ptr, mask, Val{Aligned}()))
-
-@inline vloada(::Type{SVec{N,T}}, ptr::Ptr{T}, mask::Union{Vec{N,Bool},<:Unsigned}) where {N,T} =
-    SVec(vload(Vec{N,T}, ptr, mask, Val{true}()))
-
-@inline function vload(::Type{SVec{N,T}},
-                       ptr::Ptr{T},
-                       i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, ptr + (i - 1)*sizeof(T), mask, Val{Aligned}()))
-end
-@inline function vload(::Type{SVec{N,T}},
-                       arr::AbstractArray{T},
-                       i::Integer, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    SVec(vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}()))
-end
-@inline function vload(::Type{SVec{N,T}},
-                       arr::AbstractArray{T,D},
-                       ind::NTuple{D,<:Integer}, mask::Union{Vec{N,Bool},<:Unsigned},
-                       ::Val{Aligned} = Val{false}()) where {N,T,D,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    i = sub2ind(size(arr), ind)
-    SVec(vload(Vec{N,T}, pointer(arr, i), mask, Val{Aligned}()))
-end
-@inline function vloada(::Type{SVec{N,T}},
-                        arr::AbstractArray{T}, i::Integer,
-                        mask::Union{Vec{N,Bool},<:Unsigned}) where {N,T}
-    SVec(vload(Vec{N,T}, arr, i, mask, Val{true}()))
-end
-
 
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T},
-    ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
+    ::Val{Aligned}, ::Val{Nontemporal}
+    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
@@ -302,7 +221,7 @@ end
     vtyp = "<$N x $typ>"
     decls = String[]
     instrs = String[]
-    if Aligned
+    if Aligned# || Nontemporal
         align = N * sizeof(T)
     else
         align = sizeof(T)   # This is overly optimistic
@@ -321,39 +240,10 @@ end
         )
     end
 end
-@inline function vstore!(ptr::Ptr{T}, v::AbstractStructVec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr, extract_data(v), Val{Aligned}())
-end
 
-@inline vstorea!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}) where {N,T} = vstore!(ptr, extract_data(v), Val{true}())
-@inline vstorent!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}) where {N,T} = vstore!(ptr, extract_data(v), Val{true}(), Val{true}())
-
-@inline function vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T},
-                        i::Integer,
-                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr + (i - 1)*sizeof(T), extract_data(v), Val{Aligned}())
-end
-@inline function vstore!(arr::AbstractArray{T,D},
-                        v::AbstractSIMDVector{N,T},
-                        i::Integer,
-                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore!(pointer(arr, i), extract_data(v), Val{Aligned}())
-end
-@inline function vstore!(arr::AbstractArray{T,D},
-                        v::AbstractSIMDVector{N,T},
-                        ind::NTuple,
-                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    i = sub2ind(size(arr), ind)
-    # @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore!(pointer(arr, i), extract_data(v), Val{Aligned}())
-end
-@inline function vstorea!(arr::AbstractArray{T,D}, v::AbstractSIMDVector{N,T}, i::Integer) where {N,T,D}
-    vstore!(arr, extract_data(v), i, Val{true}())
-end
-
-@generated function vstore!(ptr::Ptr{T}, v::Vec{N,T}, mask::Vec{N,Bool},
-                           ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
+) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -383,8 +273,9 @@ end
         )
     end
 end
-@generated function vstore!(ptr::Ptr{T}, v::Vec{N,T}, mask::U,
-                           ::Val{Aligned} = Val{false}()) where {N,T,Aligned,U<:Unsigned}
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
@@ -419,52 +310,50 @@ end
             ptr, v, mask)
     end
 end
-@inline function vstore!(ptr::Ptr{T}, v::AbstractStructVec{N,T}, mask::Union{Vec{N,Bool},Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr, extract_data(v), mask, Val{Aligned}())
-end
-
-@inline vstorea!(ptr::Ptr{T}, v::AbstractSIMDVector{N,T}, mask::Union{Vec{N,Bool},Unsigned}) where {N,T} =
-    vstore!(ptr, extract_data(v), mask, Val{true}())
-
-@inline function vstore!(ptr::Ptr{T},
-                        v::AbstractSIMDVector{N,T},
-                        i::Integer,
-                        mask::Union{Vec{N,Bool},Unsigned},
-                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore!(ptr + (i - 1)*sizeof(T), extract_data(v), mask, Val{Aligned}())
-end
-@inline function vstore!(arr::AbstractArray{T,D},
-                        v::AbstractSIMDVector{N,T},
-                        i::Integer,
-                        mask::Union{Vec{N,Bool},Unsigned},
-                        ::Val{Aligned} = Val{false}()) where {N,T,Aligned,D}
-    #TODO @boundscheck 1 <= i <= length(arr) - (N-1) || throw(BoundsError())
-    vstore!(pointer(arr, i), extract_data(v), mask, Val{Aligned}())
-end
-@inline function vstorea!(arr::AbstractArray{T},
-                         v::AbstractSIMDVector{N,T},
-                         i::Integer, mask::Union{Vec{N,Bool},Unsigned}) where {N,T}
-    vstore!(arr, extract_data(v), i, mask, Val{true}())
-end
 
 
-@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::Vec{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr.ptr, v, Val{Aligned}())
+for ptr ∈ (:Ptr, :Pointer)
+    pargs = [:(ptr::$ptr{T}), :(v::AbstractSIMDVector{W,T})]
+    for index ∈ (true,false)
+        if index
+            icall = Union{Symbol,Expr}[ptr == :Ptr ? :(ptr + i) : :(ptr.ptr + sizeof(T)*i), :(extract_data(v))]
+            iargs = push!(copy(pargs), :(i::Int))
+        else
+            icall = Union{Symbol,Expr}[ptr == :Ptr ? :ptr : :(ptr.ptr), :(extract_data(v))]
+            iargs = pargs
+        end
+        for mask ∈ (true,false)
+            if mask
+                margs = push!(copy(iargs), :(mask::Union{Vec{W,Bool},<:Unsigned}))
+                mcall = push!(copy(icall), :mask)
+                fopts = (:vstore!,:vstorea!)
+            else
+                margs = iargs
+                mcall = icall
+                fopts = (:vstore!,:vstorea!,:vstorent!)
+            end
+            for f ∈ fopts
+                fcall = copy(mcall)
+                if f == :vstore! # aligned arg
+                    push!(fcall, :(Val{false}()))
+                else
+                    push!(fcall, :(Val{true}()))
+                end
+                if !mask
+                    if f == :vstorent! # nontemporal arg
+                        push!(fcall, :(Val{true}()))
+                    else
+                        push!(fcall, :(Val{false}()))
+                    end
+                end
+                body = Expr(:call, :vstore!, fcall...)
+                @eval @inline function $f($(margs...)) where {W,T}
+                    $body
+                end
+            end
+        end
+    end
 end
-@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::AbstractSIMDVector{N,T}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr.ptr, extract_data(v), Val{Aligned}())
-end
-@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::Vec{N,T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr.ptr, v, mask, Val{Aligned}())
-end
-@inline function vstore!(ptr::VectorizationBase.Pointer{T}, v::AbstractSIMDVector{N,T},
-                mask::Union{Vec{N,Bool},SVec{N,Bool},<:Unsigned}, ::Val{Aligned} = Val{false}()) where {N,T,Aligned}
-    vstore!(ptr.ptr, extract_data(v), mask, Val{Aligned}())
-end
-
-
 
 @generated function gather(
    ptr::Vec{N,Ptr{T}}, ::Val{Aligned} = Val{false}()
@@ -617,34 +506,6 @@ end
 @inline scatter!(ptr::Ptr{T}, inds::Vec{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(vmuladd(sizeof(T), inds, ptr), v)
 @inline gather(ptr::Ptr{T}, inds::Vec{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(vmuladd(sizeof(T),inds,ptr), mask)
 @inline gather(ptr::Ptr{T}, inds::Vec{N,I}) where {N,T,I<:IntegerTypes} = gather(vmuladd(sizeof(T),inds,ptr))
-
-
-
-"""
-I'm not sure on the details, but I think this function can only allocate up to
-
-524288 doubles
-
-that is it may not be able to allocate arrays with more than about half a million elements, or 4 megabytes.
-"""
-@generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
-    typ = llvmtype(T)
-    ptyp = llvmtype(Int)
-    decls = String[]
-    instrs = String[]
-    push!(instrs, "%ptr = alloca $typ, i32 $N, align $Align")
-    push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
-    # push!(instrs, "%ptr = alloca i8, i32 $(N*sizeof(T)), align $Align")
-    # push!(instrs, "%iptr = ptrtoint i8* %ptr to $ptyp")
-    push!(instrs, "ret $ptyp %iptr")
-    quote
-        $(Expr(:meta,:inline))
-        Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
-            Ptr{$T}, Tuple{}
-        )
-    end
-end
 
 
 
