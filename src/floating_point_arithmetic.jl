@@ -546,6 +546,9 @@ end
 @inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt_fast(x) = vinv(vsqrt(x))
 @inline rsqrt(x) = vinv(vsqrt(x))
+@inline vinv(x::IntegerTypes) = vinv(float(x))
+@inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt64,Int64}} = vinv(pirate_convert(Vec{W,Float64}, v))
+@inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt32,Int32}} = vinv(pirate_convert(Vec{W,Float32}, v))
 
 for f ∈ (:vadd, :vsub, :vmul)
     @eval @generated function $f(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
