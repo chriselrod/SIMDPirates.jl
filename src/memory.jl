@@ -566,5 +566,22 @@ end
 @inline lifetime_start!(::Any) = nothing
 @inline lifetime_end!(::Any) = nothing
 
-
+@generated function noalias!(ptr::Ptr{T}) where {T}
+    ptyp = llvmtype(Int)
+    typ = llvmtype(T)
+    decls = "define noalias $typ* @noalias($typ *%a) noinline { ret $typ* %a }"
+    instrs = [
+        "%ptr = inttoptr $ptyp %0 to $typ*",
+        "%naptr = call $typ* @noalias($typ* %ptr)",
+        "%jptr = ptrtoint $typ* %naptr to $ptyp",
+        "ret $ptyp %jptr"
+    ]
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((decls, join(instrs, "\n"))),
+            Ptr{$T}, Tuple{Ptr{$T}}, ptr
+        )
+    end    
+end
 
