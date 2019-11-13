@@ -380,8 +380,10 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$T}, Tuple{Vec{$N,Ptr{$T}}}, ptr)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Vec{$N,Ptr{$T}}}, ptr
+        )
     end
 end
 
@@ -418,8 +420,10 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$T}, Tuple{Vec{$N,Ptr{$T}}, $U}, ptr, mask)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Vec{$N,Ptr{$T}}, $U}, ptr, mask
+        )
     end
 end
 @generated function scatter!(
@@ -511,4 +515,56 @@ end
 @inline gather(A::AbstractArray, args...) = gather(VectorizationBase.vectorizable(A), args...)
 @inline vstore!(A::AbstractArray, args...) = vstore!(VectorizationBase.vectorizable(A), args...)
 @inline scatter!(A::AbstractArray, args...) = scatter!(VectorizationBase.vectorizable(A), args...)
+
+@generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
+    ptyp = llvmtype(Int)
+    decls = "declare void @llvm.lifetime.start(i64, i8* nocapture)"
+    instrs = [
+        "%ptr = inttoptr $ptyp %0 to i8*",
+        "call void @llvm.lifetime.start(i64 $(L*sizeof(T)), i8* %ptr)",
+        "ret void"
+    ]
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((decls, join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}}, ptr
+        )
+    end
+end
+@generated function lifetime_end!(ptr::Ptr{T}, ::Val{L}) where {L,T}
+    ptyp = llvmtype(Int)
+    decls = "declare void @llvm.lifetime.end(i64, i8* nocapture)"
+    instrs = [
+        "%ptr = inttoptr $ptyp %0 to i8*",
+        "call void @llvm.lifetime.end(i64 $(L*sizeof(T)), i8* %ptr)",
+        "ret void"
+    ]
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((decls, join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}}, ptr
+        )
+    end
+end
+
+@inline function lifetime_start!(ptr::Pointer{T}) where {T}
+    SIMDPirates.lifetime_start!(pointer(ptr), Val{1}())
+end
+@inline function lifetime_start!(ptr::Ptr{T}) where {T}
+    SIMDPirates.lifetime_start!(ptr, Val{1}())
+end
+
+@inline function lifetime_end!(ptr::Pointer{T}) where {T}
+    SIMDPirates.lifetime_end!(pointer(ptr), Val{1}())
+end
+@inline function lifetime_end!(ptr::Ptr{T}) where {T}
+    SIMDPirates.lifetime_end!(ptr, Val{1}())
+end
+# Fallback is to do nothing
+@inline lifetime_start!(::Any) = nothing
+@inline lifetime_end!(::Any) = nothing
+
+
 
