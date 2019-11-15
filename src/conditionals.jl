@@ -37,6 +37,16 @@ end
 @inline visfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
 @inline Base.isfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
 
+@inline visfinite_mask(s::ScalarTypes) = isfinite(s)
+@inline function visfinite_mask(v1::Vec{N,T}) where {N,T<:FloatingTypes}
+    U = uint_type(T)
+    em = vbroadcast(Vec{N,U}, exponent_mask(T))
+    iv = pirate_reinterpret(Vec{N,U}, v1)
+    vnot_equal_mask(vand(iv, em), em)
+end
+@inline visfinite_mask(v1::AbstractStructVec) = SVec(visfinite_mask(extract_data(v1)))
+
+
 @inline visinf(s1::ScalarTypes) = isinf(s1)
 @inline visinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = visequal(vabs(v1), vbroadcast(Vec{N,T},Inf))
 @inline visinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
