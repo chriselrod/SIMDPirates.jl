@@ -585,3 +585,47 @@ end
     end    
 end
 
+### LLVM syntax errors on invariants
+# struct Invariant{L,T}
+#     ivp::Ptr{Cvoid}
+#     ptr::Ptr{T}
+# end
+# @generated function invariant_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
+#     ptyp = llvmtype(Int)
+#     decls = "declare {}* @llvm.invariant.start.p0i8(i64, i8* nocapture)"
+#     instrs = [
+#         "%ptr = inttoptr $ptyp %0 to i8*",
+#         "%ivt = call {}* @llvm.invariant.start.p0i8(i64 $(L*sizeof(T)), i8* %ptr)",
+#         "%ivp = ptrtoint {}* %ivt to $ptyp",
+#         "ret %ivp"
+#     ]
+#     quote
+#         $(Expr(:meta,:inline))
+#         ivp = Base.llvmcall(
+#             $((decls, join(instrs, "\n"))),
+#             Ptr{Cvoid}, Tuple{Ptr{$T}}, ptr
+#         )
+#         Invariant{$(L*sizeof(T)),T}(ivp, ptr)
+#     end
+# end
+# @generated function invariant_end!(ivp::Invariant{L}) where {L}
+#     ptyp = llvmtype(Int)
+#     decls = "declare void @llvm.invariant.end.p0i8({}*, i64, i8* nocapture)"
+#     instrs = [
+#         "%ivp = inttoptr $ptyp %0 to {}*",
+#         "%ptr = inttoptr $ptyp %1 to i8*",
+#         "call void @llvm.lifetime.end.p0i8({}* %ivp, i64 $(L), i8* %ptr)",
+#         "ret void"
+#     ]
+#     quote
+#         $(Expr(:meta,:inline))
+#         Base.llvmcall(
+#             $((decls, join(instrs, "\n"))),
+#             Cvoid, Tuple{Ptr{$T}}, ivp.ivp, ivp.ptr
+#         )
+#     end
+# end
+
+
+
+
