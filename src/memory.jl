@@ -663,7 +663,7 @@ end
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
     else
-        push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
+        push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
     end
     # push!(decls,
@@ -768,21 +768,20 @@ end
 
 @generated function compressstore!(
     ptr::Ptr{T}, v::Vec{N,T}, mask::U
-) where {N,T,U<:Unisnged}
+) where {N,T,U<:Unsigned}
     @assert 8sizeof(U) >= N
     ptyp = llvmtype(Int)
-    vptyp = "<$N x $ptyp>"
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$N"
     decls = String[]
     instrs = String[]
-    push!(instrs, "%ptr = inttoptr $vptyp %1 to $typ*")
+    push!(instrs, "%ptr = inttoptr $ptyp %1 to $typ*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
     else
-        push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
+        push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
     end
     push!(decls, "declare void @llvm.masked.compressstore.$(suffix(N,T))($vtyp, $typ*, <$N x i1>)")
@@ -802,7 +801,6 @@ end
 ) where {N,T,U<:Unsigned}
     @assert 8sizeof(U) >= N
     ptyp = llvmtype(Int)
-    vptyp = "<$N x $ptyp>"
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
@@ -810,12 +808,7 @@ end
     mtyp_trunc = "i$N"
     decls = String[]
     instrs = String[]
-    if Aligned
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    push!(instrs, "%ptr = inttoptr $vptyp %0 to $typ*")
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $typ*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %1 to <$N x i1>")
     else
@@ -823,7 +816,7 @@ end
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
     end
     push!(decls, "declare $vtyp @llvm.masked.expandload.$(suffix(N,T))($typ*, <$N x i1>, $vtyp)")
-    push!(instrs, "%res = call $vtyp @llvm.masked.expandload.$(suffix(N,T)).($typ* %ptr, <$N x i1> %mask, $vtyp $(llvmconst(N, T, 0)))")
+    push!(instrs, "%res = call $vtyp @llvm.masked.expandload.$(suffix(N,T))($typ* %ptr, <$N x i1> %mask, $vtyp $(llvmconst(N, T, 0)))")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
