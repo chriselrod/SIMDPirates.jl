@@ -163,7 +163,7 @@ end
 
 for v ∈ (:Vec, :SVec)
     vargs = [:(::Type{$v{W,T}})]
-    for ptr ∈ (:Ptr, :Pointer)
+    for ptr ∈ (:Ptr, :Pointer, :ZeroInitializedPointer)
         pargs = push!(copy(vargs), :(ptr::$ptr{T}))
         for index ∈ (true,false)
             if index
@@ -197,9 +197,13 @@ for v ∈ (:Vec, :SVec)
                             push!(fcall, :(Val{false}()))
                         end
                     end
-                    body = Expr(:call, :vload, fcall...)
-                    if v == :SVec
-                        body = :(SVec($body))
+                    if ptr === :ZeroInitializedPointer
+                        body = Expr(:tuple, :vbroadcast, :(Vec{W,T}), :(zero(T)))
+                    else
+                        body = Expr(:call, :vload, fcall...)
+                        if v == :SVec
+                            body = :(SVec($body))
+                        end
                     end
                     @eval @inline function $f($(margs...)) where {W,T}
                         $body
@@ -312,7 +316,7 @@ end
 end
 
 
-for ptr ∈ (:Ptr, :Pointer)
+for ptr ∈ (:Ptr, :Pointer, :ZeroInitializedPointer)
     pargs = [:(ptr::$ptr{T}), :(v::AbstractSIMDVector{W,T})]
     for index ∈ (true,false)
         if index
