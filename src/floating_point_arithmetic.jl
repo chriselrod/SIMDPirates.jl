@@ -2,11 +2,12 @@
 # Floating point arithmetic functions
 
 for op ∈ (
-        :(+), #:(-),
-        :abs, :floor, :ceil, :round,
-        :sin, :cos,
-        :exp, :exp2, :inv, :log, :log10, :log2,
-        :sqrt, :trunc
+    :(+), #:(-),
+    :abs, :floor, :ceil, :round,
+    :sin, :cos,
+    :exp2, :inv, :log10, :log2,
+    :sqrt, :trunc
+    # :exp, :log
     )
     rename = VECTOR_SYMBOLS[op]
     @eval begin

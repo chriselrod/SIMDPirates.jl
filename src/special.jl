@@ -74,8 +74,9 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
         )
     end
 end
-
-
+@inline vexp(v::SVec) = SVec(vexp(extract_data(v)))
+@inline Base.exp(v::SVec) = SVec(vexp(extract_data(v)))
+@inline vexp(x::Float64) = exp(x)
 
 # @inline function vexp(v::Vec{8,Float64})
 #     Base.llvmcall(("""
@@ -195,7 +196,10 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
         Base.llvmcall(($declr,$instr), Vec{$W,Float64}, Tuple{Vec{$W,Float64}}, v)
     end
 end
-vlog(x::Float64) = log(x)
+@inline vlog(v::SVec) = SVec(vlog(extract_data(v)))
+@inline Base.log(v::SVec) = SVec(vlog(extract_data(v)))
+@inline vlog(x::Float64) = log(x)
+
 
 @inline function verf(v::Vec{8,Float64})
     Base.llvmcall(
@@ -606,6 +610,8 @@ declare <4 x i32> @llvm.x86.sse2.cvttpd2dq(<2 x double>) #7
 """), Vec{2,Float64}, Tuple{Vec{2,Float64}}, v)
 end
 
+@inline verf(v::SVec) = SVec(verf(extract_data(v)))
+# @inline SpecialFunctions.erf(v::SVec) = SVec(verf(extract_data(v)))
 
 function bn(n)
     sum(0:n) do k
@@ -662,6 +668,9 @@ This is a fairly bad (slow, unoptimized, not all that accurate) implementation, 
     end
     lg
 end
+
+@inline loggamma(v::SVec) = SVec(loggamma(extract_data(v)))
+
 # @inline function loggamma_fastfast(z::Vec{W,Float64}) where {W}
 #     zp1 = vadd(z, vbroadcast(Vec{W,Float64}, 1.0))
 #     vsub(loggamma_fastfastfast(zp1), vlog(z))
