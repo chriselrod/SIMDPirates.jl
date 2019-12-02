@@ -67,5 +67,7 @@ include("memory.jl")
 include("shufflevector.jl")
 include("special.jl")
 include("pirate.jl")
+include("precompile.jl")
+_precompile_()
 
 end # module
