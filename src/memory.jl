@@ -64,7 +64,7 @@ end
 # end
 
 @generated function vload(
-    ::Type{Vec{N,T}}, ptr::Ptr{T},
+    ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T},
     ::Val{Aligned}, ::Val{Nontemporal}
     # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 ) where {N,T,Aligned, Nontemporal}
@@ -92,7 +92,7 @@ end
     end
 end
 @generated function vload(
-    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
+    ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = llvmtype(Int)
@@ -124,7 +124,7 @@ end
     end
 end
 @generated function vload(
-    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}# = Val{false}()
+    ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
@@ -161,8 +161,8 @@ end
     end
 end
 
-for v ∈ (:Vec, :SVec)
-    vargs = [:(::Type{$v{W,T}})]
+for v ∈ (:Vec, :SVec, :Val)
+    vargs = [v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}})]
     for ptr ∈ (:Ptr, :Pointer, :ZeroInitializedPointer)
         pargs = push!(copy(vargs), :(ptr::$ptr{T}))
         for index ∈ (true,false)
@@ -185,13 +185,13 @@ for v ∈ (:Vec, :SVec)
                 end
                 for f ∈ fopts
                     fcall = copy(mcall)
-                    if f == :vload # aligned arg
+                    if f === :vload # aligned arg
                         push!(fcall, :(Val{false}()))
                     else
                         push!(fcall, :(Val{true}()))
                     end
                     if !mask
-                        if f == :vloadnt # nontemporal arg
+                        if f === :vloadnt # nontemporal arg
                             push!(fcall, :(Val{true}()))
                         else
                             push!(fcall, :(Val{false}()))
@@ -201,7 +201,7 @@ for v ∈ (:Vec, :SVec)
                         body = Expr(:tuple, :vbroadcast, :(Vec{W,T}), :(zero(T)))
                     else
                         body = Expr(:call, :vload, fcall...)
-                        if v == :SVec
+                        if v !== :Vec
                             body = :(SVec($body))
                         end
                     end
