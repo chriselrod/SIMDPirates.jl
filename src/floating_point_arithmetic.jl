@@ -585,3 +585,5 @@ end
 @inline Base.abs2(v::SVec) = vmul(v,v)
 @inline vabs2(v) = vmul(v,v)
 @inline vsum(s::FloatingTypes) = s
+@inline vprod(s::FloatingTypes) = s
+
