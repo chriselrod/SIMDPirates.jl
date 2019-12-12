@@ -29,30 +29,32 @@ function vector_args(args)
     vecargs, abstractargs, structargs
 end
 
+function parse_func_decl(expr::Expr)
+    @assert (expr.head === :(=) || expr.head === :function) "Failed to match function declaration: $expr."
+    w = expr.args[1]
+    body = expr.args[2]
+    WT = @view(w.args[2:end])
+    func = first(w.args)
+    f = first(func.args)
+    args = @view(func.args[2:end])
+    f, args, WT, body
+end
 macro vectordef(rename, expr)
-    if @capture(expr, (f_(args__) where {R__} = body_) | (function f_(args__) where {R__}; body_ end))
+    f, args, R, body = parse_func_decl(expr)
     vecargs, abstractargs, structargs = vector_args(args)
-        q = quote
-            @inline $rename($(vecargs...)) where {$(R...)} = $body
-            @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
-            @inline $f($(structargs...)) where {$(R...)} = SVec($body)
-        end
-    else
-        @show expr
-        throw("Failed to match expression $expr")
+    q = quote
+        @inline $rename($(vecargs...)) where {$(R...)} = $body
+        @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
+        @inline $f($(structargs...)) where {$(R...)} = SVec($body)
     end
     esc(q)
 end
 macro evectordef(rename, expr)
-    if @capture(expr, (f_(args__) where {R__} = body_) | (function f_(args__) where {R__}; body_ end))
+    f, args, R, body = parse_func_decl(expr)
     vecargs, abstractargs, structargs = vector_args(args)
-        q = quote
-            @inline $rename($(vecargs...)) where {$(R...)} = $body
-            @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
-        end
-    else
-        @show expr
-        throw("Failed to match expression $expr")
+    q = quote
+        @inline $rename($(vecargs...)) where {$(R...)} = $body
+        @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
     end
     esc(q)
 end

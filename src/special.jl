@@ -27,6 +27,7 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
     const18 = join(("double 0x40862E42FE102C83" for w ∈ 1:W), ", ")
     const19 = join(("double 0x7FF0000000000000" for w ∈ 1:W), ", ")
     const20 = join(("double 0xC0874910D52D3052" for w ∈ 1:W), ", ")
+    const21 = join(("i64 1" for w ∈ 1:W), ", ")
     # const00 = join(("" for w ∈ 1:W), ", ")
     instr = """
   %res.i = fmul fast <$(W) x double> %0, <$const00>
@@ -50,8 +51,8 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
   %res.i19 = fmul fast <$(W) x double> %res.i33, %res.i21
   %res.i18 = fadd fast <$(W) x double> %res.i34, <$const14>
   %res.i17 = fadd fast <$(W) x double> %res.i18, %res.i19
-  %3 = lshr <$(W) x i64> %2, <i64 1, i64 1, i64 1, i64 1, i64 1, i64 1, i64 1, i64 1>
-  %res.i16 = shl <$(W) x i64> %3, <i64 52, i64 52, i64 52, i64 52, i64 52, i64 52, i64 52, i64 52>
+  %3 = lshr <$(W) x i64> %2, <$const21>
+  %res.i16 = shl <$(W) x i64> %3, <$const16>
   %tmp.i15 = add <$(W) x i64> %res.i16, <$const15>
   %res.i13 = bitcast <$(W) x i64> %tmp.i15 to <$(W) x double>
   %res.i12 = fmul <$(W) x double> %res.i17, %res.i13
