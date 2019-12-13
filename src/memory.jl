@@ -873,6 +873,25 @@ end
 #     end
 # end
 
+@generated function vrange(::Val{W}) where {W}
+    quote
+        $(Expr(:meta,:inline))
+        $(Expr(:tuple, [Core.VecElement(w) for w ∈ 0:W-1]...))
+    end
+end
+
+@inline function vload(::Type{Vec{W,T}}, ptr::AbstractStridedPointer{T}) where {W,T}
+    gather(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), Val{false}())
+end
+@inline function vload(::Type{Vec{W,T}}, ptr::AbstractStridedPointer{T}, U::Unsigned) where {W,T}
+    gather(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), U, Val{false}())
+end
+@inline function vstore!(ptr::AbstractStridedPointer{T}, v::Vec{W,T}) where {W,T}
+    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), v, Val{false}())
+end
+@inline function vstore!(v::Vec{W,T}, ptr::AbstractStridedPointer{T}, U::Unsigned) where {W,T}
+    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), v, U, Val{false}())
+end
 
 
 
