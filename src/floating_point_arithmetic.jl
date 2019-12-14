@@ -587,10 +587,10 @@ end
 @inline vsum(s::FloatingTypes) = s
 @inline vprod(s::FloatingTypes) = s
 
-@inline reduced_add(v::Vec{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(s::T, v::Vec{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T} = vadd(v1, v2)
-@inline reduced_prod(v::Vec{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(s::T, v::Vec{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T} = vmul(v1, v2)
+@inline reduced_add(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vadd(v1, v2)
+@inline reduced_prod(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmul(v1, v2)
 
