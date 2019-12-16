@@ -1,10 +1,10 @@
 module SIMDPirates
 
-
-using MacroTools: postwalk, @capture
 using VectorizationBase
-using VectorizationBase: llvmtype, AbstractSIMDVector, AbstractStructVec, AbstractStridedPointer
-
+using VectorizationBase:
+    llvmtype, AbstractSIMDVector, AbstractStructVec,
+    AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer
+    
 export  Vec, SVec, VE,
     @pirate,
     extract_data,
@@ -68,6 +68,7 @@ include("floating_point_arithmetic.jl")
 include("memory.jl")
 include("shufflevector.jl")
 include("special.jl")
+include("contract_pass.jl")
 include("pirate.jl")
 include("precompile.jl")
 _precompile_()

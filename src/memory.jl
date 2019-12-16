@@ -24,6 +24,27 @@ that is it may not be able to allocate arrays with more than about half a millio
         )
     end
 end
+@generated function alloca(N::Int32, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
+    typ = llvmtype(T)
+    ptyp = llvmtype(Int)
+    decls = String[]
+    instrs = String[]
+    push!(instrs, "%ptr = alloca $typ, i32 %0, align $Align")
+    push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
+    # push!(instrs, "%ptr = alloca i8, i32 $(N*sizeof(T)), align $Align")
+    # push!(instrs, "%iptr = ptrtoint i8* %ptr to $ptyp")
+    push!(instrs, "ret $ptyp %iptr")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Ptr{$T}, Tuple{Int32}, N
+        )
+    end
+end
+@inline function alloca(N::Int, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
+    alloca(Base.unsafe_trunc(Int32, N), T, Val{Align}())
+end
 
 
 function valloc(::Type{T}, N::Int, sz::Int) where {T}
@@ -162,13 +183,13 @@ end
 end
 
 for v ∈ (:Vec, :SVec, :Val)
-    vargs = [v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}})]
-    for ptr ∈ (:Ptr, :Pointer, :ZeroInitializedPointer)
+    vargs = Union{Symbol,Expr}[v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}})]
+    for ptr ∈ (:Ptr, :AbstractInitializedPointer)
         pargs = push!(copy(vargs), :(ptr::$ptr{T}))
         for index ∈ (true,false)
             if index
-                icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :(ptr + i) : :(ptr.ptr + sizeof(T)*i)]
-                iargs = push!(copy(pargs), :(i::Int))
+                icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :(ptr + i) : Expr(:call, :gep, :ptr, :i)]
+                iargs = push!(copy(pargs), :i)
             else
                 icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :ptr : :(ptr.ptr)]
                 iargs = pargs
@@ -197,13 +218,9 @@ for v ∈ (:Vec, :SVec, :Val)
                             push!(fcall, :(Val{false}()))
                         end
                     end
-                    if ptr === :ZeroInitializedPointer
-                        body = Expr(:tuple, :vbroadcast, :(Vec{W,T}), :(zero(T)))
-                    else
-                        body = Expr(:call, :vload, fcall...)
-                        if v !== :Vec
-                            body = :(SVec($body))
-                        end
+                    body = Expr(:call, :vload, fcall...)
+                    if v !== :Vec
+                        body = :(SVec($body))
                     end
                     @eval @inline function $f($(margs...)) where {W,T}
                         $body
@@ -213,6 +230,8 @@ for v ∈ (:Vec, :SVec, :Val)
         end
     end
 end
+
+@inline vload(::Type{Vec{W,T}}, ::VectorizationBase.AbstractZeroInitializedPointer, args...) where {W,T} = vbroadcast(Vec{W,T}, zero(T))
 
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T},
@@ -316,12 +335,12 @@ end
 end
 
 
-for ptr ∈ (:Ptr, :Pointer, :ZeroInitializedPointer)
-    pargs = [:(ptr::$ptr{T}), :(v::AbstractSIMDVector{W,T})]
+for ptr ∈ (:Ptr, :AbstractPointer)#, :AbstractZeroInitializedPointer)
+    pargs = Union{Symbol,Expr}[:(ptr::$ptr{T}), :(v::AbstractSIMDVector{W,T})]
     for index ∈ (true,false)
         if index
-            icall = Union{Symbol,Expr}[ptr == :Ptr ? :(ptr + i) : :(ptr.ptr + sizeof(T)*i), :(extract_data(v))]
-            iargs = push!(copy(pargs), :(i::Int))
+            icall = Union{Symbol,Expr}[ptr == :Ptr ? :(ptr + i) : Expr(:call, :gep, :ptr, :i), :(extract_data(v))]
+            iargs = push!(copy(pargs), :i)
         else
             icall = Union{Symbol,Expr}[ptr == :Ptr ? :ptr : :(ptr.ptr), :(extract_data(v))]
             iargs = pargs
@@ -359,124 +378,6 @@ for ptr ∈ (:Ptr, :Pointer, :ZeroInitializedPointer)
     end
 end
 
-@generated function vloadscope(
-    ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Scope},
-    ::Val{Aligned}, ::Val{Nontemporal}
-) where {N, T, Scope, Aligned, Nontemporal}
-    @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    domain,scope,list = Scope::NTuple{3,Int}
-    # domain, scope, list = "\"domain\"", "\"scope\"", "\"list\""
-    decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
-    # decls = String[]
-    instrs = String[]
-    if Aligned
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    flags = [""]
-    align > 0 && push!(flags, "align $align")
-    push!(flags, "!alias.scope !$list")
-    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
-    push!(instrs, "ret $vtyp %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
-    end
-end
-@generated function vstorescope!(
-    ptr::Ptr{T}, v::Vec{N,T}, ::Val{Scope},
-    ::Val{Aligned}, ::Val{Nontemporal}
-    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
-) where {N,T,Scope,Aligned, Nontemporal}
-    @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    domain,scope,list = Scope::NTuple{3,Int}
-    decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
-    # decls = String[]
-    instrs = String[]
-    if Aligned# || Nontemporal
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    flags = [""]
-    align > 0 && push!(flags, "align $align")
-    push!(flags, "!noalias !$list")
-    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
-    push!(instrs, "ret void")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}}, ptr, v
-        )
-    end
-end
-function nonaliased_store_and_load!(storeptr::Ptr{T}, v::Vec{W,T}, loadptr::Ptr{T}) where {W,T}
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$W x $typ>"
-    decls = """!0 = !{!0}
-!1 = !{!1, !0}
-!2 = !{!1}
-"""
-    instrs = """
-%spt = inttoptr $ptyp %0 to $vtyp
-%lpt = inttoptr $ptyp %2 to $vtyp
-store $vtyp %1, $vtyp* %spt align $(sizeof(T)), !noalias !2
-%res = load $vtyp, $vtyp* %lpt align $(sizeof(T)), !noalias !2
-ret $vtyp %res
-"""
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall(
-            ($decls, $instrs),
-            Vec{$W,$T},
-            Tuple{Ptr{$T},Vec{$W,$T},Ptr{$T}},
-            storeptr, v, loadptr
-        )
-    end
-end
-
-@generated function vloadconstant(
-    ::Type{Vec{N,T}}, ptr::Ptr{T},
-    ::Val{Aligned}, ::Val{Nontemporal}
-) where {N, T, Aligned, Nontemporal}
-    @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    decls = String[]
-    instrs = String[]
-    if Aligned
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    flags = [""]
-    align > 0 && push!(flags, "align $align")
-    push!(flags, "!tbaa !13")
-    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
-    push!(instrs, "ret $vtyp %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
-    end
-end
 # @generated function vloadscope(
 #     ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Scope},
 #     ::Val{Aligned}, ::Val{Nontemporal}
@@ -737,12 +638,18 @@ end
 @inline function lifetime_start!(ptr::Pointer{T}) where {T}
     SIMDPirates.lifetime_start!(pointer(ptr), Val{1}())
 end
+@inline function lifetime_start!(ptr::Pointer{T}, ::Val{L}) where {T,L}
+    SIMDPirates.lifetime_start!(pointer(ptr), Val{L}())
+end
 @inline function lifetime_start!(ptr::Ptr{T}) where {T}
     SIMDPirates.lifetime_start!(ptr, Val{1}())
 end
 
 @inline function lifetime_end!(ptr::Pointer{T}) where {T}
     SIMDPirates.lifetime_end!(pointer(ptr), Val{1}())
+end
+@inline function lifetime_end!(ptr::Pointer{T}, ::Val{L}) where {T,L}
+    SIMDPirates.lifetime_end!(pointer(ptr), Val{L}())
 end
 @inline function lifetime_end!(ptr::Ptr{T}) where {T}
     SIMDPirates.lifetime_end!(ptr, Val{1}())
@@ -880,18 +787,34 @@ end
     end
 end
 
-@inline function vload(::Type{Vec{W,T}}, ptr::AbstractStridedPointer{T}) where {W,T}
+@inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i) where {W,T} = vload(Vec{W,T}, gep(ptr, i))
+@inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i, U::Unsigned) where {W,T} = vload(Vec{W,T}, gep(ptr, i), U)
+@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i) where {T} = vstore!(gep(ptr, i), v)
+@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i, U::Unsigned) where {T} = vstore!(gep(ptr, i), v, U)
+
+@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}) where {W,T}
     gather(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), Val{false}())
 end
-@inline function vload(::Type{Vec{W,T}}, ptr::AbstractStridedPointer{T}, U::Unsigned) where {W,T}
+@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}, U::Unsigned) where {W,T}
     gather(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), U, Val{false}())
 end
-@inline function vstore!(ptr::AbstractStridedPointer{T}, v::Vec{W,T}) where {W,T}
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}) where {W,T}
     scatter!(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), v, Val{false}())
 end
-@inline function vstore!(v::Vec{W,T}, ptr::AbstractStridedPointer{T}, U::Unsigned) where {W,T}
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}, U::Unsigned) where {W,T}
     scatter!(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), v, U, Val{false}())
 end
-
+@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}, i) where {W,T}
+    gather(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), Val{false}())
+end
+@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}, i, U::Unsigned) where {W,T}
+    gather(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), U, Val{false}())
+end
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}, i) where {W,T}
+    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), v, Val{false}())
+end
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}, i, U::Unsigned) where {W,T}
+    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), v, U, Val{false}())
+end
 
 

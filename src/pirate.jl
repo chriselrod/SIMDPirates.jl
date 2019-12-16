@@ -7,36 +7,38 @@ function horner(x, p...)
     Expr(:block, :($t = $x), ex)
 end
 
+function pirate(ex::Expr)
+
+end
+
 function _pirate(ex)
-    postwalk(ex) do x
-        # @show x
-        # if @capture(x, SIMDPirates.vadd(SIMDPirates.vmul(a_, b_), c_)) || @capture(x, SIMDPirates.vadd(c_, SIMDPirates.vmul(a_, b_)))
-        #     return :(SIMDPirates.vmuladd($a, $b, $c))
-        # elseif @capture(x, SIMDPirates.vadd(SIMDPirates.vmul(a_, b_), SIMDPirates.vmul(c_, d_), e_)) || @capture(x, SIMDPirates.vadd(SIMDPirates.vmul(a_, b_), e_, SIMDPirates.vmul(c_, d_))) || @capture(x, SIMDPirates.vadd(e_, SIMDPirates.vmul(a_, b_), SIMDPirates.vmul(c_, d_)))
-        #     return :(SIMDPirates.vmuladd($a, $b, SIMDPirates.vmuladd($c, $d, $e)))
-        # elseif @capture(x, a_ += b_)
-        if @capture(x, a_ += b_)
-            return :($a = SIMDPirates.vadd($a, $b))
-        elseif @capture(x, a_ -= b_)
-            return :($a = SIMDPirates.vsub($a, $b))
-        elseif @capture(x, a_ *= b_)
-            return :($a = SIMDPirates.vmul($a, $b))
-        elseif @capture(x, a_ /= b_)
-            return :($a = SIMDPirates.vdiv($a, $b))
-        elseif @capture(x, @horner a__)
-            return horner(a...)
-        elseif @capture(x, Base.Math.muladd(a_, b_, c_))
-            return :( SIMDPirates.vmuladd($a, $b, $c) )
-        elseif isa(x, Symbol) && !occursin("@", string(x))
-            if x ∈ keys(VECTOR_SYMBOLS)
-                return :(SIMDPirates.$(VECTOR_SYMBOLS[x]))
-            else
+    postwalk(contract_pass(ex)) do x
+        if x isa Symbol
+            f = get(VECTOR_SYMBOLS, x, x)
+            if f === x
                 return x
+            else
+                return Expr(:(.), :SIMDPirates, QuoteNode(f))
             end
-            # return get(VECTOR_SYMBOLS, x, x)
-            # return :(extract_data($(get(VECTOR_SYMBOLS, x, x))))
+        end
+        x isa Expr || return x
+        xexpr::Expr = x
+        xexpr.head === :call || return x
+        f = first(xexpr.args)
+        if f == :(Base.FastMath.add_fast)
+            vf = :vadd
+        elseif f == :(Base.FastMath.sub_fast)
+            vf = :vsub
+        elseif f == :(Base.FastMath.mul_fast)
+            vf = :vmul
+        elseif f == :(Base.FastMath.div_fast)
+            vf = :vfdiv
+        elseif f == :(Base.FastMath.sqrt)
+            vf = :vsqrt
+        elseif f == :(Base.Math.muladd)
+            vf = :vmuladd
         else
-            return x
+            return xexpr
         end
     end |> esc
 end
@@ -58,27 +60,12 @@ end
 @inline function Base.:-(b::vBitArray, i)
     vBitArray(b.ptr - (i >> 3))
 end
-function unsigned_type(N)
-    if N <= 8
-        return :UInt8
-    elseif N <= 16
-        return :UInt16
-    elseif N <= 32
-        return :UInt32
-    elseif N <= 64
-        return :UInt64
-    elseif N <= 128
-        return :UInt128
-    else
-        throw("Vectors of length $N > 128 not yet supported.")
-    end
-end
 """
 The method on BitArrays is a hack, ignoring the type passed to Vec, to better support the LoopVectorization.jl implementation.
 """
 @generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
@@ -86,7 +73,7 @@ The method on BitArrays is a hack, ignoring the type passed to Vec, to better su
 end
 @generated function vload(::Type{Vec{N,T}}, b::vBitArray) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
@@ -94,7 +81,7 @@ end
 end
 @generated function vload(::Type{SVec{N,T}}, b::vBitArray) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
@@ -102,7 +89,7 @@ end
 end
 @generated function vload(::Type{SVec{N,T}}, b::vBitArray, i) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
@@ -114,7 +101,7 @@ Masks on vectorizable bit arrays are currently ignored.
 """
 @generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
@@ -122,7 +109,7 @@ Masks on vectorizable bit arrays are currently ignored.
 end
 @generated function vload(::Type{Vec{N,T}}, b::vBitArray, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
@@ -130,7 +117,7 @@ end
 end
 @generated function vload(::Type{SVec{N,T}}, b::vBitArray, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
@@ -138,7 +125,7 @@ end
 end
 @generated function vload(::Type{SVec{N,T}}, b::vBitArray, i, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = unsigned_type(N)
+    utype = mask_type(N)
     quote
         $(Expr(:meta, :inline))
         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
