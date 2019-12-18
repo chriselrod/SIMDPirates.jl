@@ -82,7 +82,7 @@ end
 @inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
 @inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
 
-@generated vbroadcast(::Val{W}, v::T) where {W,T} = Expr(:block, Expr(:meta,:inline), Expr(:tuple, fill(:v,W)...))
+@generated vbroadcast(::Val{W}, v::T) where {W,T} = Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, Expr(:tuple, fill(:v,W)...)))
 
 @inline vone(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(one(T)), Val(N))
 @inline vzero(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(zero(T)), Val(N))

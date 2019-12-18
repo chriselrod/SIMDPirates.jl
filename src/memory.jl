@@ -206,21 +206,13 @@ for v ∈ (:Vec, :SVec, :Val)
                 end
                 for f ∈ fopts
                     fcall = copy(mcall)
-                    if f === :vload # aligned arg
-                        push!(fcall, :(Val{false}()))
-                    else
-                        push!(fcall, :(Val{true}()))
-                    end
+                    push!(fcall, Expr(:call, Expr(:curly, :Val, f !== :vload))) # aligned arg
                     if !mask
-                        if f === :vloadnt # nontemporal arg
-                            push!(fcall, :(Val{true}()))
-                        else
-                            push!(fcall, :(Val{false}()))
-                        end
+                        push!(fcall, Expr(:call, Expr(:curly, :Val, f === :vloadnt))) # nontemporal argf
                     end
                     body = Expr(:call, :vload, fcall...)
                     if v !== :Vec
-                        body = :(SVec($body))
+                        body = Expr(:call, :SVec, body)
                     end
                     @eval @inline function $f($(margs...)) where {W,T}
                         $body
@@ -357,17 +349,9 @@ for ptr ∈ (:Ptr, :AbstractPointer)#, :AbstractZeroInitializedPointer)
             end
             for f ∈ fopts
                 fcall = copy(mcall)
-                if f == :vstore! # aligned arg
-                    push!(fcall, :(Val{false}()))
-                else
-                    push!(fcall, :(Val{true}()))
-                end
+                push!(fcall, Expr(:call, Expr(:curly, :Val, f !== :vload))) # aligned arg
                 if !mask
-                    if f == :vstorent! # nontemporal arg
-                        push!(fcall, :(Val{true}()))
-                    else
-                        push!(fcall, :(Val{false}()))
-                    end
+                    push!(fcall, Expr(:call, Expr(:curly, :Val, f === :vloadnt))) # nontemporal argf
                 end
                 body = Expr(:call, :vstore!, fcall...)
                 @eval @inline function $f($(margs...)) where {W,T}
