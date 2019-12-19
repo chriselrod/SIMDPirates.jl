@@ -65,7 +65,7 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[VectorizationBase]]
 deps = ["CpuId", "LinearAlgebra"]
-git-tree-sha1 = "5105ee9720b9f4d90059ef1f99506c99c17b95cd"
+git-tree-sha1 = "1cc48a9bce5c18f2f70fa16cc5b2b39b39332a9e"
 repo-rev = "master"
 repo-url = "https://github.com/chriselrod/VectorizationBase.jl"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
