@@ -63,7 +63,6 @@ function capture_muladd(ex::Expr, mod)
     end
 end
 
-using MacroTools: prewalk
 contract_pass(x) = x # x will probably be a symbol
 function contract_pass(expr::Expr, mod = nothing)::Expr
     prewalk(expr) do ex

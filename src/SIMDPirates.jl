@@ -4,6 +4,7 @@ using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, AbstractStructVec,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer
+using MacroTools: prewalk, postwalk
     
 export  Vec, SVec, VE,
     @pirate,

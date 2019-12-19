@@ -349,9 +349,9 @@ for ptr ∈ (:Ptr, :AbstractPointer)#, :AbstractZeroInitializedPointer)
             end
             for f ∈ fopts
                 fcall = copy(mcall)
-                push!(fcall, Expr(:call, Expr(:curly, :Val, f !== :vload))) # aligned arg
+                push!(fcall, Expr(:call, Expr(:curly, :Val, f !== :vstore!))) # aligned arg
                 if !mask
-                    push!(fcall, Expr(:call, Expr(:curly, :Val, f === :vloadnt))) # nontemporal argf
+                    push!(fcall, Expr(:call, Expr(:curly, :Val, f === :vstorent!))) # nontemporal argf
                 end
                 body = Expr(:call, :vstore!, fcall...)
                 @eval @inline function $f($(margs...)) where {W,T}
@@ -576,10 +576,10 @@ end
 @inline function vmuladd(s::I, inds::Vec{W,I}, ptr::Ptr{T}) where {W,T,I<:Union{UInt,Int}}
     pirate_reinterpret(Vec{W,Ptr{T}}, vmuladd(vbroadcast(Vec{W,I}, s), inds, vbroadcast(Vec{W,I}, reinterpret(I, ptr))))
 end
-@inline scatter!(ptr::Ptr{T}, inds::Vec{N,I}, v::Vec{N,T}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = scatter!(vmuladd(sizeof(T), inds, ptr), v, mask)
-@inline scatter!(ptr::Ptr{T}, inds::Vec{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(vmuladd(sizeof(T), inds, ptr), v)
-@inline gather(ptr::Ptr{T}, inds::Vec{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(vmuladd(sizeof(T),inds,ptr), mask)
-@inline gather(ptr::Ptr{T}, inds::Vec{N,I}) where {N,T,I<:IntegerTypes} = gather(vmuladd(sizeof(T),inds,ptr))
+@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = scatter!(vmuladd(sizeof(T), extract_data(inds), ptr), v, mask)
+@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(vmuladd(sizeof(T), extract_data(inds), ptr), v)
+@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(vmuladd(sizeof(T),extract_data(inds),ptr), mask)
+@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}) where {N,T,I<:IntegerTypes} = gather(vmuladd(sizeof(T),extract_data(inds),ptr))
 
 @inline vload(::Type{Vec{W,T}}, A::AbstractArray, args...) where {W,T} = vload(Vec{W,T}, VectorizationBase.vectorizable(A), args...)
 @inline gather(A::AbstractArray, args...) = gather(VectorizationBase.vectorizable(A), args...)
@@ -776,29 +776,42 @@ end
 @inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i) where {T} = vstore!(gep(ptr, i), v)
 @inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i, U::Unsigned) where {T} = vstore!(gep(ptr, i), v, U)
 
-@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}) where {W,T}
-    gather(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), Val{false}())
+using VectorizationBase: stride1
+for v ∈ (:Vec, :SVec, :Val)
+    vargs = Union{Symbol,Expr}[v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}}), :(ptr::VectorizationBase.SparseStridedPointer{T})]
+    vcall = :(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}())))
+    for index ∈ (true,false)
+        icall = copy(vcall)
+        if index
+            push!(icall.args, index ? Expr(:call, :gep, :ptr, :i) : :(ptr.ptr))
+            iargs = index ? push!(copy(vargs), :i) : vargs
+            for mask ∈ (true,false)
+                mcall = Expr(:call, :gather, icall)
+                margs = if mask
+                    push!(mcall.args, :mask)
+                    push!(copy(iargs), :(mask::Unsigned))
+                else
+                    iargs
+                end
+                push!(mcall.args, :(Val{false}()))
+                body = v === :Vec ? mcall : Expr(:call, :SVec, mcall)
+                @eval @inline function vload($(margs...)) where {W,T}
+                    $body
+                end
+            end
+        end
+    end
 end
-@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}, U::Unsigned) where {W,T}
-    gather(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), U, Val{false}())
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, i) where {W,T}
+    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), gep(ptr, i)), extract_data(v), Val{false}())
 end
-@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}) where {W,T}
-    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), v, Val{false}())
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, i, U::Unsigned) where {W,T}
+    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), gep(ptr, i)), extract_data(v), U, Val{false}())
 end
-@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}, U::Unsigned) where {W,T}
-    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), ptr.ptr), v, U, Val{false}())
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}) where {W,T}
+    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), ptr.ptr), extract_data(v), Val{false}())
 end
-@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}, i) where {W,T}
-    gather(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), Val{false}())
+@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, U::Unsigned) where {W,T}
+    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), ptr.ptr), extract_data(v), U, Val{false}())
 end
-@inline function vload(::Type{Vec{W,T}}, ptr::VectorizationBase.SparseStridedPointer{T}, i, U::Unsigned) where {W,T}
-    gather(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), U, Val{false}())
-end
-@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}, i) where {W,T}
-    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), v, Val{false}())
-end
-@inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::Vec{W,T}, i, U::Unsigned) where {W,T}
-    scatter!(vmuladd(stride(ptr), vrange(Val{W}()), gep(ptr, i)), v, U, Val{false}())
-end
-
 

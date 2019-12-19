@@ -1,4 +1,4 @@
-function horner(x, p...)
+function horner(x, pu...)
     t = gensym(:t)
     ex = p[end]
     for i ∈ length(p)-1:-1:1
@@ -7,12 +7,8 @@ function horner(x, p...)
     Expr(:block, :($t = $x), ex)
 end
 
-function pirate(ex::Expr)
-
-end
-
 function _pirate(ex)
-    postwalk(contract_pass(ex)) do x
+    postwalk(contract_pass(ex, :SIMDPirates)) do x
         if x isa Symbol
             f = get(VECTOR_SYMBOLS, x, x)
             if f === x
