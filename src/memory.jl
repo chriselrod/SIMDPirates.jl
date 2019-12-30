@@ -72,7 +72,14 @@ end
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    decls = String[]
+    decls = String[
+        "!29 = !{!30, !30, i64 0}",
+        "!30 = !{!\"tbaa_mutab\", !33, i64 0}",
+        "!31 = !{!32, !32, i64 0}",
+        "!32 = !{!\"jtbaa_const\", !33, i64 0}",
+        "!33 = !{!\"jtbaa\", !34, i64 0}",
+        "!34 = !{!\"jtbaa\"}"
+    ]
     instrs = String[]
     if Aligned
         align = N * sizeof(T)
@@ -82,6 +89,7 @@ end
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!tbaa !29")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret $vtyp %res")
@@ -219,7 +227,18 @@ end
     ptyp = llvmtype(Int)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
-    decls = String[]
+    # decls = String[]
+    decls = String[
+        # "!81 = !{!\"jtbaa_immut\", !82, i64 0}",
+        # "!82 = !{!\"jtbaa_value\", !79, i64 0}",
+        # "!79 = !{!\"jtbaa_data\", !33, i64 0}",
+        "!29 = !{!30, !30, i64 0}",
+        "!30 = !{!\"tbaa_mutab\", !33, i64 0}",
+        "!31 = !{!32, !32, i64 0}",
+        "!32 = !{!\"jtbaa_const\", !33, i64 0}",
+        "!33 = !{!\"jtbaa\", !34, i64 0}",
+        "!34 = !{!\"jtbaa\"}"
+    ]
     instrs = String[]
     if Aligned# || Nontemporal
         align = N * sizeof(T)
@@ -229,6 +248,7 @@ end
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!tbaa !29")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
@@ -355,124 +375,6 @@ for ptr ∈ (:Ptr, :Pointer)
     end
 end
 
-@generated function vloadscope(
-    ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Scope},
-    ::Val{Aligned}, ::Val{Nontemporal}
-) where {N, T, Scope, Aligned, Nontemporal}
-    @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    domain,scope,list = Scope::NTuple{3,Int}
-    # domain, scope, list = "\"domain\"", "\"scope\"", "\"list\""
-    decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
-    # decls = String[]
-    instrs = String[]
-    if Aligned
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    flags = [""]
-    align > 0 && push!(flags, "align $align")
-    push!(flags, "!alias.scope !$list")
-    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
-    push!(instrs, "ret $vtyp %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
-    end
-end
-@generated function vstorescope!(
-    ptr::Ptr{T}, v::Vec{N,T}, ::Val{Scope},
-    ::Val{Aligned}, ::Val{Nontemporal}
-    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
-) where {N,T,Scope,Aligned, Nontemporal}
-    @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    domain,scope,list = Scope::NTuple{3,Int}
-    decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
-    # decls = String[]
-    instrs = String[]
-    if Aligned# || Nontemporal
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    flags = [""]
-    align > 0 && push!(flags, "align $align")
-    push!(flags, "!noalias !$list")
-    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
-    push!(instrs, "ret void")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}}, ptr, v
-        )
-    end
-end
-function nonaliased_store_and_load!(storeptr::Ptr{T}, v::Vec{W,T}, loadptr::Ptr{T}) where {W,T}
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$W x $typ>"
-    decls = """!0 = !{!0}
-!1 = !{!1, !0}
-!2 = !{!1}
-"""
-    instrs = """
-%spt = inttoptr $ptyp %0 to $vtyp
-%lpt = inttoptr $ptyp %2 to $vtyp
-store $vtyp %1, $vtyp* %spt align $(sizeof(T)), !noalias !2
-%res = load $vtyp, $vtyp* %lpt align $(sizeof(T)), !noalias !2
-ret $vtyp %res
-"""
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall(
-            ($decls, $instrs),
-            Vec{$W,$T},
-            Tuple{Ptr{$T},Vec{$W,$T},Ptr{$T}},
-            storeptr, v, loadptr
-        )
-    end
-end
-
-@generated function vloadconstant(
-    ::Type{Vec{N,T}}, ptr::Ptr{T},
-    ::Val{Aligned}, ::Val{Nontemporal}
-) where {N, T, Aligned, Nontemporal}
-    @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    decls = String[]
-    instrs = String[]
-    if Aligned
-        align = N * sizeof(T)
-    else
-        align = sizeof(T)   # This is overly optimistic
-    end
-    flags = [""]
-    align > 0 && push!(flags, "align $align")
-    push!(flags, "!tbaa !13")
-    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
-    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
-    push!(instrs, "ret $vtyp %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
-    end
-end
 # @generated function vloadscope(
 #     ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Scope},
 #     ::Val{Aligned}, ::Val{Nontemporal}
@@ -482,6 +384,7 @@ end
 #     typ = llvmtype(T)
 #     vtyp = "<$N x $typ>"
 #     domain,scope,list = Scope::NTuple{3,Int}
+#     # domain, scope, list = "\"domain\"", "\"scope\"", "\"list\""
 #     decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
 #     # decls = String[]
 #     instrs = String[]
@@ -536,6 +439,145 @@ end
 #         )
 #     end
 # end
+# function nonaliased_store_and_load!(storeptr::Ptr{T}, v::Vec{W,T}, loadptr::Ptr{T}) where {W,T}
+#     ptyp = llvmtype(Int)
+#     typ = llvmtype(T)
+#     vtyp = "<$W x $typ>"
+#     decls = """!0 = !{!0}
+# !1 = !{!1, !0}
+# !2 = !{!1}
+# """
+#     instrs = """
+# %spt = inttoptr $ptyp %0 to $vtyp
+# %lpt = inttoptr $ptyp %2 to $vtyp
+# store $vtyp %1, $vtyp* %spt align $(sizeof(T)), !noalias !2
+# %res = load $vtyp, $vtyp* %lpt align $(sizeof(T)), !noalias !2
+# ret $vtyp %res
+# """
+#     quote
+#         $(Expr(:meta, :inline))
+#         Base.llvmcall(
+#             ($decls, $instrs),
+#             Vec{$W,$T},
+#             Tuple{Ptr{$T},Vec{$W,$T},Ptr{$T}},
+#             storeptr, v, loadptr
+#         )
+#     end
+# end
+
+@generated function vloadconstant(
+    ::Type{Vec{N,T}}, ptr::Ptr{T},
+    ::Val{Aligned}, ::Val{Nontemporal}
+) where {N, T, Aligned, Nontemporal}
+    @assert isa(Aligned, Bool)
+    ptyp = llvmtype(Int)
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    decls = String[
+        # "!81 = !{!\"jtbaa_immut\", !82, i64 0}",
+        # "!82 = !{!\"jtbaa_value\", !79, i64 0}",
+        # "!79 = !{!\"jtbaa_data\", !33, i64 0}",
+        "!29 = !{!30, !30, i64 0}",
+        "!30 = !{!\"tbaa_mutab\", !33, i64 0}",
+        "!31 = !{!32, !32, i64 0}",
+        "!32 = !{!\"jtbaa_const\", !33, i64 0}",
+        "!33 = !{!\"jtbaa\", !34, i64 0}",
+        "!34 = !{!\"jtbaa\"}"
+]
+    instrs = String[]
+    if Aligned
+        align = N * sizeof(T)
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    flags = [""]
+    align > 0 && push!(flags, "align $align")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!tbaa !31")
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
+    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
+    end
+end
+@inline function vloadconstant(
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, i::Int
+) where {N, T}
+    vloadconstant(Vec{N,T}, ptr + i, Val{false}(), Val{false}())
+end
+@inline function vloadconstant(
+    ::Type{Vec{N,T}}, ptr::Pointer{T}, i::Int
+) where {N, T}
+    vloadconstant(Vec{N,T}, ptr.ptr + i*sizeof(T), Val{false}(), Val{false}())
+end
+
+const animal_names = []
+@generated function vloadscope(
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Scope},
+    ::Val{Aligned}, ::Val{Nontemporal}
+) where {N, T, Scope, Aligned, Nontemporal}
+    @assert isa(Aligned, Bool)
+    ptyp = llvmtype(Int)
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    domain,scope,list = Scope::NTuple{3,Int}
+    decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
+    # decls = String[]
+    instrs = String[]
+    if Aligned
+        align = N * sizeof(T)
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    flags = [""]
+    align > 0 && push!(flags, "align $align")
+    push!(flags, "!alias.scope !$list")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
+    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
+    end
+end
+@generated function vstorescope!(
+    ptr::Ptr{T}, v::Vec{N,T}, ::Val{Scope},
+    ::Val{Aligned}, ::Val{Nontemporal}
+    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
+) where {N,T,Scope,Aligned, Nontemporal}
+    @assert isa(Aligned, Bool)
+    ptyp = llvmtype(Int)
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    domain,scope,list = Scope::NTuple{3,Int}
+    decls = String["!$domain = !{!$domain}","!$scope = !{!$scope, !$domain}", "!$list = !{!$scope}"]
+    # decls = String[]
+    instrs = String[]
+    if Aligned# || Nontemporal
+        align = N * sizeof(T)
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    flags = [""]
+    align > 0 && push!(flags, "align $align")
+    push!(flags, "!noalias !$list")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
+    push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}}, ptr, v
+        )
+    end
+end
 
 
 @generated function gather(
