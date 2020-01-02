@@ -586,6 +586,35 @@ end
 @inline vstore!(A::AbstractArray, args...) = vstore!(VectorizationBase.vectorizable(A), args...)
 @inline scatter!(A::AbstractArray, args...) = scatter!(VectorizationBase.vectorizable(A), args...)
 
+@inline function gather(
+    ptr::VectorizationBase.AbstractInitializedStridedPointer{T},
+    ci::Union{NTuple{N,Int},CartesianIndex{N}},
+    inds::AbstractSIMDVector{W,I}, mask::U
+) where {T,N,W,I <: IntegerTypes,U}
+    SVec(gather(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci)), mask))
+end
+@inline function gather(
+    ptr::VectorizationBase.AbstractInitializedStridedPointer{T},
+    ci::Union{NTuple{N,Int},CartesianIndex{N}},
+    inds::AbstractSIMDVector{W,I}
+) where {T,N,W,I <: IntegerTypes}
+    SVec(gather(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci))))
+end
+@inline function scatter!(
+    ptr::VectorizationBase.AbstractStridedPointer{T},
+    ci::Union{NTuple{N,Int},CartesianIndex{N}},
+    inds::AbstractSIMDVector{W,I}, v::Vec{W,T}, mask::U
+) where {T,N,W,I <: IntegerTypes,U}
+    scatter!(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci)), v, mask)
+end
+@inline function scatter!(
+    ptr::VectorizationBase.AbstractStridedPointer{T},
+    ci::Union{NTuple{N,Int},CartesianIndex{N}},
+    inds::AbstractSIMDVector{W,I}, v::Vec{W,T}
+) where {T,N,W,I <: IntegerTypes}
+    scatter!(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci)), v)
+end
+
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = llvmtype(Int)
     decls = "declare void @llvm.lifetime.start(i64, i8* nocapture)"
