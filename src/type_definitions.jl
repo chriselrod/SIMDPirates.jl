@@ -95,16 +95,24 @@ end
 
 @inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
 
-@inline function pirate_convert(::Type{Vec{N,T}}, xs::NTuple{N,T}) where {N,T<:ScalarTypes}
-    @inbounds ntuple(i -> VE(xs[i]), Val(N))
-end
-@inline function pirate_convert(::Type{Vec{N,T1}}, xs::Vec{N,T2}) where {N,T1<:ScalarTypes,T2<:ScalarTypes}
-    @inbounds ntuple(i -> VE(T1(xs[i].value)), Val(N))
-end
+@inline Base.convert(::Type{SVec{W,T}}, v::Vec{W,T}) where {W,T} = SVec(v)
 @generated function Base.convert(::Type{SVec{N,T}}, xs::NTuple{N,T}) where {N,T}
+    svecq = Expr(:call, :SVec, Expr(:tuple, [:(VE(xs[$n])) for n ∈ 1:N]...))
     quote
         $(Expr(:meta,:inline))
-        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE(xs[n])))
+        @inbounds $svecq
+    end
+end
+@generated function Base.convert(::Type{SVec{N,T2}}, xs::NTuple{N,T1}) where {N,T1,T2}
+    quote
+        $(Expr(:meta,:inline))
+        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE(convert(T2,xs[n]))))
+    end
+end
+@generated function Base.convert(::Type{SVec{N,T2}}, xs::Vec{N,T1}) where {N,T1,T2}
+    quote
+        $(Expr(:meta,:inline))
+        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE(convert(T2,xs[n].value))))
     end
 end
 @generated function Base.convert(::Type{SVec{N,T1}}, xs::SVec{N,T2}) where {N,T1,T2}
@@ -114,6 +122,90 @@ end
     end
 end
 @inline Base.convert(::Type{SVec{N,T}}, x::SVec{N,T}) where {N,T} = x
+
+@generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W,T1 <: FloatingTypes, T2 <: Signed}
+    typ1 = llvmtype(T1)
+    typ2 = llvmtype(T2)
+    vtyp1 = "<$W x $typ1>"
+    vtyp2 = "<$W x $typ2>"
+    instrs = """
+%res = sitofp $vtyp2 %0 to $vtyp1
+ret $vtyp1 %res
+    """
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+    end
+end
+@generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W,T1 <: FloatingTypes, T2 <: Unsigned}
+    typ1 = llvmtype(T1)
+    typ2 = llvmtype(T2)
+    vtyp1 = "<$W x $typ1>"
+    vtyp2 = "<$W x $typ2>"
+    instrs = """
+%res = uitofp $vtyp2 %0 to $vtyp1
+ret $vtyp1 %res
+    """
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+    end
+end
+@generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W,T1 <: Signed, T2 <: FloatingTypes}
+    typ1 = llvmtype(T1)
+    typ2 = llvmtype(T2)
+    vtyp1 = "<$W x $typ1>"
+    vtyp2 = "<$W x $typ2>"
+    instrs = """
+%res = fptosi $vtyp2 %0 to $vtyp1
+ret $vtyp1 %res
+    """
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+    end
+end
+@generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W,T1 <: Unsigned, T2 <: FloatingTypes}
+    typ1 = llvmtype(T1)
+    typ2 = llvmtype(T2)
+    vtyp1 = "<$W x $typ1>"
+    vtyp2 = "<$W x $typ2>"
+    instrs = """
+%res = fptoui $vtyp2 %0 to $vtyp1
+ret $vtyp1 %res
+    """
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+    end
+end
+@inline vconvert(::Type{Vec{W,T}}, v::SVec) where {W,T} = vconvert(Vec{W,T}, extract_data(v))
+@inline vconvert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))
+@inline vconvert(::Type{T}, v::T) where {T} = v
+@inline vconvert(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T} = v
+@inline vconvert(::Type{SVec{W,T}}, v::SVec{W,T}) where {W,T} = v
+@inline Base.convert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))
+
+
+@inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
+@inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
+    T = promote_Type(T1, T2)
+    Vec{W,T}
+end
+@inline function promote_vtype(::Type{SVec{W,T1}}, ::Type{V2}) where {W,T1,T2,V2<:AbstractSIMDVector{W,T2}}
+    T = promote_Type(T1, T2)
+    SVec{W,T}
+end
+@inline function promote_vtype(::Type{V1}, ::Type{SVec{W,T2}}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1}}
+    T = promote_Type(T1, T2)
+    SVec{W,T}
+end
+@inline function promote_vtype(::Type{SVec{W,T1}}, ::Type{SVec{W,T2}}) where {W,T1,T2}
+    T = promote_Type(T1, T2)
+    SVec{W,T}
+end
+
+
 
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))

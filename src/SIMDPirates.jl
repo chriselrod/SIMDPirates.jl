@@ -71,6 +71,7 @@ include("shufflevector.jl")
 include("special.jl")
 include("contract_pass.jl")
 include("pirate.jl")
+include("genericpromotions.jl")
 include("precompile.jl")
 _precompile_()
 

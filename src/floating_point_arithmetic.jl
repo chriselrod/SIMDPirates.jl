@@ -59,13 +59,21 @@ for op ∈ (
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
-
         @inline $erename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
 
         @evectordef $erename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
             llvmwrap_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
+        @inline function Base.$op(v1::AbstractStructVec{W,T1}, v2::AbstractStructVec{W,T2}) where {W,T1,T2}
+            T = promote_type(T1, T2)
+            $op(vconvert(SVec{W,T}, v1), vconvert(SVec{W,T}, v2))
+        end
+        @inline function $rename(v1::V1, v2::V2) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
+            V = promote_vtype(V1, V2)
+            $rename(vconvert(V, v1), vconvert(V, v2))
+        end
+        
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2)
         # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
