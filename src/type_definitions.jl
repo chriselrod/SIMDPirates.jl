@@ -189,19 +189,19 @@ end
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
 @inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
-    T = promote_Type(T1, T2)
+    T = promote_type(T1, T2)
     Vec{W,T}
 end
 @inline function promote_vtype(::Type{SVec{W,T1}}, ::Type{V2}) where {W,T1,T2,V2<:AbstractSIMDVector{W,T2}}
-    T = promote_Type(T1, T2)
+    T = promote_type(T1, T2)
     SVec{W,T}
 end
 @inline function promote_vtype(::Type{V1}, ::Type{SVec{W,T2}}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1}}
-    T = promote_Type(T1, T2)
+    T = promote_type(T1, T2)
     SVec{W,T}
 end
 @inline function promote_vtype(::Type{SVec{W,T1}}, ::Type{SVec{W,T2}}) where {W,T1,T2}
-    T = promote_Type(T1, T2)
+    T = promote_type(T1, T2)
     SVec{W,T}
 end
 
