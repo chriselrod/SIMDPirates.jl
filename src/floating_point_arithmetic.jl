@@ -597,8 +597,15 @@ end
 
 @inline reduced_add(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
 @inline reduced_add(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vadd(v1, v2)
+# @inline reduced_add(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vadd(v1, v2)
 @inline reduced_prod(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
 @inline reduced_prod(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmul(v1, v2)
+# @inline reduced_prod(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmul(v1, v2)
+
+@inline reduced_add(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.add_fast(s, concert(T2,vsum(v)))
+@inline reduced_add(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
+@inline reduced_add(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vadd(v1, v2)
+@inline reduced_prod(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
+@inline reduced_prod(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
+@inline reduced_prod(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmul(v1, v2)
 
