@@ -3,7 +3,7 @@ module SIMDPirates
 using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, AbstractStructVec,
-    AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer
+    AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType
 using MacroTools: prewalk, postwalk
     
 export  Vec, SVec, VE,

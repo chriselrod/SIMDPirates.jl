@@ -266,7 +266,7 @@ end
 setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, x, Int(i))
 # Type conversion
 
-@generated function pirate_reinterpret(::Type{Vec{N,R}},
+@generated function vreinterpret(::Type{Vec{N,R}},
         v1::Vec{N1,T1}) where {N,R,N1,T1}
     if N*sizeof(R) != N1*sizeof(T1)
         throw("N*sizeof(R) == N1*sizeof(T1) is not true; Trying to reinterpret to a size of $N * $(sizeof(R)) from a size of $N1 * $(sizeof(T1))")
@@ -286,7 +286,7 @@ setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, x, Int(i))
             Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
     end
 end
-@generated function pirate_reinterpret(::Type{Vec{N,R}},
+@generated function vreinterpret(::Type{Vec{N,R}},
         v1::Vec{N1,UInt128}) where {N,R,N1}
     T1 = UInt128
     @assert N*sizeof(R) == N1*sizeof(T1)
@@ -305,11 +305,27 @@ end
     end
 end
 @inline function Base.reinterpret(::Type{SVec{N,R}}, v1::AbstractStructVec{N1,T1}) where {N,R,N1,T1}
-    SVec(pirate_reinterpret(Vec{N,R}, extract_data(v1)))
+    SVec(vreinterpret(Vec{N,R}, extract_data(v1)))
 end
 @inline function Base.reinterpret(::Type{SVec{N,R}}, v1::AbstractStructVec{N1,UInt128}) where {N,R,N1}
-    SVec(pirate_reinterpret(Vec{N,R}, extract_data(v1)))
+    SVec(vreinterpret(Vec{N,R}, extract_data(v1)))
 end
+
+# Doesn't seem to do anything, eg
+# assume(N < 10)
+# for n ∈ 1:10
+#
+# end
+# will still often be unrolled by factors greater than 10. =( 
+# @inline function assume(b::Bool)
+#     decls = "declare void @llvm.assume(i1 %cond)"
+#     instrs = """
+#     %b = trunc i8 %0 to i1
+#     call void @llvm.assume(i1 %b)
+#     ret void
+# """
+#     Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
+# end
 
 const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :muladd, :fma, :sqrt, :pow, :sin, :cos, :inv))
 

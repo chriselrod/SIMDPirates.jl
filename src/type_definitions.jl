@@ -54,44 +54,36 @@ end
 
 @inline getvalindex(v::AbstractSIMDVector{N,T}, ::Val{I}) where {N,T,I} = extract_data(v)[I].value
 
-@inline function vbroadcast(::Type{Vec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
-    @inbounds ntuple(i -> VE{T}(s), Val(N))
-end
-@inline function vbroadcast(::Type{Vec{N,T}}, s::Core.VecElement{T}) where {N,T}
-    @inbounds ntuple(i -> s, Val(N))
-end
-@inline vbroadcast(::Type{Vec{N,T}}, s::Vec{N,T}) where {N,T} = s
-@inline function vbroadcast(::Type{Vec{N,T}}, ptr::Ptr{T}) where {N,T}
-    s = Core.VecElement{T}(VectorizationBase.load(ptr))
-    @inbounds ntuple(_ -> s, Val(N))
-end
-@inline function vbroadcast(::Type{Vec{N,T}}, ptr::Ptr) where {N,T}
-    s = Core.VecElement{T}(VectorizationBase.load(Base.unsafe_convert(Ptr{T},ptr)))
-    @inbounds ntuple(_ -> s, Val(N))
-end
-@inline function svbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
-    @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
-end
-@inline svbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
-@inline function vbroadcast(::Type{SVec{N,T}}, s::S) where {N,T,S<:ScalarTypes}
-    @inbounds SVec(ntuple(i -> VE{T}(s), Val(N)))
-end
-@inline function vbroadcast(::Type{SVec{N,T}}, s::Core.VecElement{T}) where {N,T}
-    @inbounds SVec(ntuple(i -> s, Val(N)))
-end
-@inline vbroadcast(::Type{SVec{N,T}}, s::Vec{N,T}) where {N,T} = SVec(s)
-@inline vbroadcast(::Type{SVec{N,T}}, s::SVec{N,T}) where {N,T} = s
 
-@generated function vbroadcast(::Val{W}, v::T) where {W,T}
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, Expr(:tuple, fill(Expr(:call,Expr(:(.),:Core,QuoteNode(:VecElement)),:v),W)...)))
+@generated function vbroadcast(::Type{Vec{W,T}}, s::T) where {W, T <: ScalarTypes}
+    typ = llvmtype(T)
+    vtyp = vtyp1 = "<$W x $typ>"
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp undef, $typ %0, i32 0")
+    push!(instrs, "%v = shufflevector $vtyp %ie, $vtyp undef, <$W x i32> zeroinitializer")
+    push!(instrs, "ret $vtyp %v")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), Vec{$W,$T}, Tuple{$T}, s )
+    end
 end
+@inline vbroadcast(::Val{W}, s::T) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
+@inline vbroadcast(::Val{W}, ptr::Ptr{T}) where {W,T} = SVec(vbroadcast(Vec{W,T}, VectorizationBase.load(ptr)))
+@inline vbroadcast(::Type{Vec{W,T1}}, s::T2) where {W,T1,T2} = vbroadcast(Vec{W,T1}, convert(T1,s))
+@inline vbroadcast(::Type{Vec{W,T}}, s::Vec{W,T}) where {W,T} = s
+@inline vbroadcast(::Type{Vec{W,T}}, ptr::Ptr{T}) where {W,T} = vbroadcast(Vec{W,T}, VectorizationBase.load(ptr))
+@inline vbroadcast(::Type{Vec{W,T}}, ptr::Ptr) where {W,T} = vbroadcast(Vec{W,T}, Base.unsafe_convert(Ptr{T},ptr))
+@inline vbroadcast(::Type{SVec{W,T}}, s) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
 
-@inline vone(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(one(T)), Val(N))
-@inline vzero(::Type{Vec{N,T}}) where {N,T} = ntuple(i -> Core.VecElement(zero(T)), Val(N))
-@inline vone(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(one(T)), Val(N)))
-@inline vzero(::Type{SVec{N,T}}) where {N,T} = SVec(ntuple(i -> Core.VecElement(zero(T)), Val(N)))
+@inline vone(::Type{Vec{N,T}}) where {N,T} = vbroadcast(Vec{W,T}, one(T))
+@inline vzero(::Type{Vec{N,T}}) where {N,T} = vbroadcast(Vec{W,T}, zero(T))
+@inline vone(::Type{SVec{N,T}}) where {N,T} = SVec(vbroadcast(Vec{W,T}, one(T)))
+@inline vzero(::Type{SVec{N,T}}) where {N,T} = SVec(vbroadcast(Vec{W,T}, zero(T)))
 @inline vone(::Type{T}) where {T} = one(T)
 @inline vzero(::Type{T}) where {T} = zero(T)
+@inline VectorizationBase.SVec{W,T}(s::T) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
+@inline VectorizationBase.SVec{W,T}(s::Number) where {W,T} = SVec(vbroadcast(Vec{W,T}, convert(T, s)))
+
 
 @inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
 

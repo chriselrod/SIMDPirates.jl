@@ -8,7 +8,7 @@ that is it may not be able to allocate arrays with more than about half a millio
 """
 @generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
     typ = llvmtype(T)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     decls = String[]
     instrs = String[]
     push!(instrs, "%ptr = alloca $typ, i32 $N, align $Align")
@@ -26,7 +26,7 @@ that is it may not be able to allocate arrays with more than about half a millio
 end
 @generated function alloca(N::Int32, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
     typ = llvmtype(T)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     decls = String[]
     instrs = String[]
     push!(instrs, "%ptr = alloca $typ, i32 %0, align $Align")
@@ -90,7 +90,7 @@ end
     # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     decls = String[]
@@ -116,7 +116,7 @@ end
     ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     btyp = llvmtype(Bool)
@@ -149,7 +149,7 @@ end
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     mtyp_input = llvmtype(U)
@@ -231,7 +231,7 @@ end
     # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     decls = String[]
@@ -260,7 +260,7 @@ end
     ptr::Ptr{T}, v::Vec{N,T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     btyp = llvmtype(Bool)
@@ -274,10 +274,8 @@ end
     end
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "%mask = trunc $vbtyp %2 to <$N x i1>")
-    push!(decls,
-        "declare void @llvm.masked.store.$(suffix(N,T))($vtyp, $vtyp*, i32, <$N x i1>)")
-    push!(instrs,
-        "call void @llvm.masked.store.$(suffix(N,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$N x i1> %mask)")
+    push!(decls, "declare void @llvm.masked.store.$(suffix(N,T))($vtyp, $vtyp*, i32, <$N x i1>)")
+    push!(instrs, "call void @llvm.masked.store.$(suffix(N,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$N x i1> %mask)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
@@ -292,7 +290,7 @@ end
     ptr::Ptr{T}, v::Vec{N,T}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     mtyp_input = llvmtype(U)
@@ -367,7 +365,7 @@ end
 #     ::Val{Aligned}, ::Val{Nontemporal}
 # ) where {N, T, Scope, Aligned, Nontemporal}
 #     @assert isa(Aligned, Bool)
-#     ptyp = llvmtype(Int)
+#     ptyp = JuliaPointerType
 #     typ = llvmtype(T)
 #     vtyp = "<$N x $typ>"
 #     domain,scope,list = Scope::NTuple{3,Int}
@@ -398,7 +396,7 @@ end
 #     # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 # ) where {N,T,Scope,Aligned, Nontemporal}
 #     @assert isa(Aligned, Bool)
-#     ptyp = llvmtype(Int)
+#     ptyp = JuliaPointerType
 #     typ = llvmtype(T)
 #     vtyp = "<$N x $typ>"
 #     domain,scope,list = Scope::NTuple{3,Int}
@@ -431,7 +429,7 @@ end
    ptr::Vec{N,Ptr{T}}, ::Val{Aligned} = Val{false}()
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     vptyp = "<$N x $ptyp>"
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
@@ -464,7 +462,7 @@ end
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     vptyp = "<$N x $ptyp>"
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
@@ -502,7 +500,7 @@ end
     ptr::Vec{N,Ptr{T}}, v::Vec{N,T}, ::Val{Aligned} = Val{false}()
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     vptyp = "<$N x $ptyp>"
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
@@ -534,7 +532,7 @@ end
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     vptyp = "<$N x $ptyp>"
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
@@ -570,16 +568,19 @@ end
         )
     end
 end
-@inline function vadd(ptr::Ptr{T}, inds::Vec{W,I}) where {W,T,I<:Union{UInt,Int}}
-    pirate_reinterpret(Vec{W,Ptr{T}}, vadd(vbroadcast(Vec{W,I}, reinterpret(I, ptr)), inds))
-end
-@inline function vmuladd(s::I, inds::Vec{W,I}, ptr::Ptr{T}) where {W,T,I<:Union{UInt,Int}}
-    pirate_reinterpret(Vec{W,Ptr{T}}, vmuladd(vbroadcast(Vec{W,I}, s), inds, vbroadcast(Vec{W,I}, reinterpret(I, ptr))))
-end
-@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = scatter!(vmuladd(sizeof(T), extract_data(inds), ptr), v, mask)
-@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(vmuladd(sizeof(T), extract_data(inds), ptr), v)
-@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(vmuladd(sizeof(T),extract_data(inds),ptr), mask)
-@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}) where {N,T,I<:IntegerTypes} = gather(vmuladd(sizeof(T),extract_data(inds),ptr))
+# @inline function vadd(ptr::Ptr{T}, inds::Vec{W,I}) where {W,T,I <: Intger}
+#     gep(ptr, i)
+# end
+# @inline function vmuladd(s::I, inds::Vec{W,I}, ptr::Ptr{T}) where {W,T,I<:Union{UInt,Int}}
+#     gep(
+#     vreinterpret(Vec{W,Ptr{T}}, vmuladd(vbroadcast(Vec{W,I}, s), inds, vbroadcast(Vec{W,I}, reinterpret(I, ptr))))
+# end
+
+@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = scatter!(gep(ptr, extract_data(inds)), v, mask)
+@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(gep(ptr, extract_data(inds)), v)
+@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(gep(ptr,extract_data(inds)), mask)
+@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}) where {N,T,I<:IntegerTypes} = gather(gep(ptr,extract_data(inds)), mask)
+
 
 @inline vload(::Type{Vec{W,T}}, A::AbstractArray, args...) where {W,T} = vload(Vec{W,T}, VectorizationBase.vectorizable(A), args...)
 @inline gather(A::AbstractArray, args...) = gather(VectorizationBase.vectorizable(A), args...)
@@ -591,32 +592,32 @@ end
     ci::Union{NTuple{N,Int},CartesianIndex{N}},
     inds::AbstractSIMDVector{W,I}, mask::U
 ) where {T,N,W,I <: IntegerTypes,U}
-    SVec(gather(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci)), mask))
+    SVec(gather(gep(gep(ptr,ci), extract_data(inds)), mask))
 end
 @inline function gather(
     ptr::VectorizationBase.AbstractInitializedStridedPointer{T},
     ci::Union{NTuple{N,Int},CartesianIndex{N}},
     inds::AbstractSIMDVector{W,I}
 ) where {T,N,W,I <: IntegerTypes}
-    SVec(gather(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci))))
+    SVec(gather(gep(gep(ptr,ci),extract_data(inds))))
 end
 @inline function scatter!(
     ptr::VectorizationBase.AbstractStridedPointer{T},
     ci::Union{NTuple{N,Int},CartesianIndex{N}},
     inds::AbstractSIMDVector{W,I}, v::Vec{W,T}, mask::U
 ) where {T,N,W,I <: IntegerTypes,U}
-    scatter!(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci)), v, mask)
+    scatter!(gep(gep(ptr,ci),extract_data(inds)), v, mask)
 end
 @inline function scatter!(
     ptr::VectorizationBase.AbstractStridedPointer{T},
     ci::Union{NTuple{N,Int},CartesianIndex{N}},
     inds::AbstractSIMDVector{W,I}, v::Vec{W,T}
 ) where {T,N,W,I <: IntegerTypes}
-    scatter!(vmuladd(sizeof(T),extract_data(inds),gep(ptr,ci)), v)
+    scatter!(gep(gep(ptr,ci),extract_data(inds)), v)
 end
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     decls = "declare void @llvm.lifetime.start(i64, i8* nocapture)"
     instrs = [
         "%ptr = inttoptr $ptyp %0 to i8*",
@@ -632,7 +633,7 @@ end
     end
 end
 @generated function lifetime_end!(ptr::Ptr{T}, ::Val{L}) where {L,T}
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     decls = "declare void @llvm.lifetime.end(i64, i8* nocapture)"
     instrs = [
         "%ptr = inttoptr $ptyp %0 to i8*",
@@ -649,30 +650,30 @@ end
 end
 
 @inline function lifetime_start!(ptr::Pointer{T}) where {T}
-    SIMDPirates.lifetime_start!(pointer(ptr), Val{1}())
+    lifetime_start!(pointer(ptr), Val{1}())
 end
 @inline function lifetime_start!(ptr::Pointer{T}, ::Val{L}) where {T,L}
-    SIMDPirates.lifetime_start!(pointer(ptr), Val{L}())
+    lifetime_start!(pointer(ptr), Val{L}())
 end
 @inline function lifetime_start!(ptr::Ptr{T}) where {T}
-    SIMDPirates.lifetime_start!(ptr, Val{1}())
+    lifetime_start!(ptr, Val{1}())
 end
 
 @inline function lifetime_end!(ptr::Pointer{T}) where {T}
-    SIMDPirates.lifetime_end!(pointer(ptr), Val{1}())
+    lifetime_end!(pointer(ptr), Val{1}())
 end
 @inline function lifetime_end!(ptr::Pointer{T}, ::Val{L}) where {T,L}
-    SIMDPirates.lifetime_end!(pointer(ptr), Val{L}())
+    lifetime_end!(pointer(ptr), Val{L}())
 end
 @inline function lifetime_end!(ptr::Ptr{T}) where {T}
-    SIMDPirates.lifetime_end!(ptr, Val{1}())
+    lifetime_end!(ptr, Val{1}())
 end
 # Fallback is to do nothing
 @inline lifetime_start!(::Any) = nothing
 @inline lifetime_end!(::Any) = nothing
 
 @generated function noalias!(ptr::Ptr{T}) where {T}
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     decls = "define noalias $typ* @noalias($typ *%a) noinline { ret $typ* %a }"
     instrs = [
@@ -694,7 +695,7 @@ end
     ptr::Ptr{T}, v::Vec{N,T}, mask::U
 ) where {N,T,U<:Unsigned}
     @assert 8sizeof(U) >= N
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     mtyp_input = llvmtype(U)
@@ -724,7 +725,7 @@ end
     ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::U
 ) where {N,T,U<:Unsigned}
     @assert 8sizeof(U) >= N
-    ptyp = llvmtype(Int)
+    ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
@@ -758,7 +759,7 @@ end
 #     ptr::Ptr{T}
 # end
 # @generated function invariant_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
-#     ptyp = llvmtype(Int)
+#     ptyp = JuliaPointerType
 #     decls = "declare {}* @llvm.invariant.start.p0i8(i64, i8* nocapture)"
 #     instrs = [
 #         "%ptr = inttoptr $ptyp %0 to i8*",
@@ -776,7 +777,7 @@ end
 #     end
 # end
 # @generated function invariant_end!(ivp::Invariant{L}) where {L}
-#     ptyp = llvmtype(Int)
+#     ptyp = JuliaPointerType
 #     decls = "declare void @llvm.invariant.end.p0i8({}*, i64, i8* nocapture)"
 #     instrs = [
 #         "%ivp = inttoptr $ptyp %0 to {}*",
@@ -810,7 +811,7 @@ end
 using VectorizationBase: stride1
 for v ∈ (:Vec, :SVec, :Val)
     vargs = Union{Symbol,Expr}[v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}}), :(ptr::VectorizationBase.SparseStridedPointer{T})]
-    vcall = :(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}())))
+    vcall = :(vmul(stride1(ptr), vrange(Val{W}())))
     for index ∈ (true,false)
         icall = copy(vcall)
         if index
@@ -834,15 +835,15 @@ for v ∈ (:Vec, :SVec, :Val)
     end
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, i) where {W,T}
-    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), gep(ptr, i)), extract_data(v), Val{false}())
+    scatter!(gep(gep(ptr, i), vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), Val{false}())
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, i, U::Unsigned) where {W,T}
-    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), gep(ptr, i)), extract_data(v), U, Val{false}())
+    scatter!(gep(gep(ptr, i), vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), U, Val{false}())
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}) where {W,T}
-    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), ptr.ptr), extract_data(v), Val{false}())
+    scatter!(gep(ptr.ptr, vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), Val{false}())
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, U::Unsigned) where {W,T}
-    scatter!(vmuladd(stride1(ptr)*sizeof(T), vrange(Val{W}()), ptr.ptr), extract_data(v), U, Val{false}())
+    scatter!(gep(ptr.ptr, vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), U, Val{false}())
 end
 

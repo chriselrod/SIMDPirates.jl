@@ -168,22 +168,22 @@ for op ∈ (:fma, :muladd)
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(s1::T, v2, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(v1, s2::T, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(v1, v2, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
         end
         @vectordef $rename function Base.$op(s1::T, s2::T, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), SIMDPirates.vbroadcast(Vec{N,T}, s1), SIMDPirates.vbroadcast(Vec{N,T}, s2), extract_data(v3))
+            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
         end
         @vectordef $rename function Base.$op(s1::T, v2, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), SIMDPirates.vbroadcast(Vec{N,T}, s1), extract_data(v2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{N,T}, s1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
         end
         @vectordef $rename function Base.$op(v1, s2::T, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), SIMDPirates.vbroadcast(Vec{N,T}, s2), SIMDPirates.vbroadcast(Vec{N,T}, s3))
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
         end
 
         # scalar default already set in integer_arithmetic.jl
@@ -389,24 +389,78 @@ end
 end
 
 @static if Base.libllvm_version >= v"9.0.0"
-@generated function vsum(v::Vec{N,T}) where {N,T<:Union{Float32,Float64}}
-    decls = String[]
-    instrs = String[]
-    typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    bits = 8sizeof(T)
-    ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(N)f$(bits)"
-    push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
-    push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
-    push!(instrs, "ret $typ %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
-            $T, Tuple{Vec{$N,$T}}, v
-        )
+    @generated function vsum(v::Vec{N,T}) where {N,T<:FloatingTypes}
+        decls = String[]
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$N x $typ>"
+        bits = 8sizeof(T)
+        ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(N)f$(bits)"
+        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$N,$T}}, v
+            )
+        end
     end
-end
+    @generated function vprod(v::Vec{N,T}) where {N,T<:FloatingTypes}
+        decls = String[]
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$N x $typ>"
+        bits = 8sizeof(T)
+        ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(N)f$(bits)"
+        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        push!(instrs, "%res = call fast $typ $ins($typ 1.0, $vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$N,$T}}, v
+            )
+        end
+    end
+    @generated function vsum(v::Vec{N,T}) where {N,T<:IntegerTypes}
+        decls = String[]
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$N x $typ>"
+        bits = 8sizeof(T)
+        ins = "@llvm.experimental.vector.reduce.add.v$(N)i$(bits)"
+        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$N,$T}}, v
+            )
+        end
+    end
+    @generated function vprod(v::Vec{N,T}) where {N,T<:IntegerTypes}
+        decls = String[]
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$N x $typ>"
+        bits = 8sizeof(T)
+        ins = "@llvm.experimental.vector.reduce.mul.v$(N)i$(bits)"
+        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        push!(instrs, "%res = call fast $typ $ins($typ 1.0, $vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$N,$T}}, v
+            )
+        end
+    end
     @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -427,7 +481,6 @@ else
     end
 end
 vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
-
 
 for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
@@ -491,21 +544,21 @@ end
 @inline vadd(x, y) = Base.FastMath.add_fast(x, y)
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
-@inline vmuladd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
-@inline vfmadd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
-@inline vfnmadd(a, b, c) = SIMDPirates.vsub(c, SIMDPirates.vmul( a, b ))
-@inline vfmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vmul( a, b), c )
-@inline vfnmsub(a, b, c) = SIMDPirates.vsub(SIMDPirates.vsub(c), SIMDPirates.vmul( a, b ) )
+@inline vmuladd(a, b, c) = vadd(vmul( a, b), c)
+@inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
+@inline vfnmadd(a, b, c) = vsub(c, vmul( a, b ))
+@inline vfmsub(a, b, c) = vsub(vmul( a, b), c )
+@inline vfnmsub(a, b, c) = vsub(vsub(c), vmul( a, b ) )
 
 # Lowers to same split mul-add llvm as the 
-# @inline vfmadd(a, b, c) = SIMDPirates.vadd(SIMDPirates.vmul( a, b), c)
+# @inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
 # definition, so I wont bother implementing
 # vfnmadd, vfmsub, and vfnmsub
 # in this manner.
 @generated function vfmadd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    ins = llvmins(:muladd, W, T)
+    ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
     decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
     instrs = "%res = call fast $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
     quote
