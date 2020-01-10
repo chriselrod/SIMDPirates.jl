@@ -149,7 +149,8 @@ end
 @inline vconvert(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T} = v
 @inline vconvert(::Type{SVec{W,T}}, v::SVec{W,T}) where {W,T} = v
 @inline Base.convert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))
-
+@inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:FloatingTypes,T2<:IntegerTypes} = vconvert(SVec{W,T1}, v)
+@inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:IntegerTypes,T2<:FloatingTypes} = vconvert(SVec{W,T1}, v)
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
 @inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
