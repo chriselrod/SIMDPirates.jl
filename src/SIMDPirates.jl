@@ -19,14 +19,19 @@ export  Vec, SVec, VE,
     vfma, vmuladd,
     vsqrt, rsqrt, vinv, vabs2,
     vadd, vsub, vmul, vfdiv, vsum, vprod,
+    vnmul, vnsub,
     vfmadd, vfnmadd, vfmsub, vfnmsub,
+    vfmadd_fast, vfnmadd_fast, vfmsub_fast, vfnmsub_fast,
     gather, scatter!
 
 
+vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]
+abstractarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{N,T})    : arg for arg ∈ args]
+structvecarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractStructVec{N,T})     : arg for arg ∈ args]
 function vector_args(args)
-    vecargs =       [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]
-    abstractargs =  [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{N,T})    : arg for arg ∈ args]
-    structargs =    [isa(arg, Symbol) ? :($arg::AbstractStructVec{N,T})     : arg for arg ∈ args]
+    vecargs = vecarguments(args)
+    abstractargs = abstractarguments(args)
+    structargs = structvecarguments(args)
     vecargs, abstractargs, structargs
 end
 
@@ -58,6 +63,38 @@ macro evectordef(rename, expr)
         @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
     end
     esc(q)
+end
+
+macro vpromote(expr)
+    f = first(expr.args)::Symbol
+    args = convert(Vector{Symbol}, @view(expr.args[2:end]))
+    vecargs = [isa(arg, Symbol) ? :($arg::Union{T,Vec{W,T}})    : arg for arg ∈ args]
+    mixargs = [isa(arg, Symbol) ? :($arg::Union{T,AbstractSIMDVector{W,T}})    : arg for arg ∈ args]
+    svecargs = [isa(arg, Symbol) ? :($arg::SVec{W,T})    : arg for arg ∈ args]
+    esc(Expr(
+        :block,
+        Expr(:macrocall,# create all SVec definition
+             Symbol("@inline"), LineNumberNode(@__LINE__, @__FILE__),
+             Expr(:(=),
+                  Expr(:where, Expr(:call, f, svecargs...), :W, :T),
+                  Expr(:block,Expr(:call, :SVec, Expr(:call, f, [ Expr(:call, :extract_data, arg) for arg ∈ args  ]... ) ))
+                  )
+             ),
+        Expr(:macrocall,# call all-Vec definition, promoting scalars
+             Symbol("@inline"), LineNumberNode(@__LINE__, @__FILE__),
+             Expr(:(=),
+                  Expr(:where, Expr(:call, f, vecargs...), :W, :T),
+                  Expr(:block,Expr(:call, f, [ Expr(:call, :vbroadcast, Expr(:curly,:Vec,:W,:T), arg) for arg ∈ args  ]... ))
+                  )
+             ),
+        Expr(:macrocall,# call all-SVec definition, promoting scalars and Vecs
+             Symbol("@inline"), LineNumberNode(@__LINE__, @__FILE__),
+             Expr(:(=),
+                  Expr(:where, Expr(:call, f, mixargs...), :W, :T),
+                  Expr(:block,Expr(:call, f, [ Expr(:call, :vbroadcast, Expr(:curly,:SVec,:W,:T), arg) for arg ∈ args  ]... ))
+                  )
+             )
+    ))
 end
 
 include("type_definitions.jl")

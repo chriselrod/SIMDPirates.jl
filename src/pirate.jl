@@ -43,87 +43,87 @@ end
 macro pirate(ex) _pirate(ex) end
 
 
-struct vBitArray
-    ptr::Ptr{UInt64}
-end
-@inline VectorizationBase.vectorizable(b::BitArray) = vBitArray(pointer(b.chunks))
-@inline function Base.:+(i, b::vBitArray)
-    vBitArray((i >> 3) + b.ptr)
-end
-@inline function Base.:+(b::vBitArray, i)
-    vBitArray((i >> 3) + b.ptr)
-end
-@inline function Base.:-(b::vBitArray, i)
-    vBitArray(b.ptr - (i >> 3))
-end
-"""
-The method on BitArrays is a hack, ignoring the type passed to Vec, to better support the LoopVectorization.jl implementation.
-"""
-@generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
-    end
-end
-@generated function vload(::Type{Vec{N,T}}, b::vBitArray) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
-    end
-end
-@generated function vload(::Type{SVec{N,T}}, b::vBitArray) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
-    end
-end
-@generated function vload(::Type{SVec{N,T}}, b::vBitArray, i) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
-    end
-end
+# struct vBitArray
+#     ptr::Ptr{UInt64}
+# end
+# @inline VectorizationBase.vectorizable(b::BitArray) = vBitArray(pointer(b.chunks))
+# @inline function Base.:+(i, b::vBitArray)
+#     vBitArray((i >> 3) + b.ptr)
+# end
+# @inline function Base.:+(b::vBitArray, i)
+#     vBitArray((i >> 3) + b.ptr)
+# end
+# @inline function Base.:-(b::vBitArray, i)
+#     vBitArray(b.ptr - (i >> 3))
+# end
+# """
+# The method on BitArrays is a hack, ignoring the type passed to Vec, to better support the LoopVectorization.jl implementation.
+# """
+# @generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
+#     end
+# end
+# @generated function vload(::Type{Vec{N,T}}, b::vBitArray) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
+#     end
+# end
+# @generated function vload(::Type{SVec{N,T}}, b::vBitArray) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
+#     end
+# end
+# @generated function vload(::Type{SVec{N,T}}, b::vBitArray, i) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
+#     end
+# end
 
-"""
-Masks on vectorizable bit arrays are currently ignored.
-"""
-@generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
-    end
-end
-@generated function vload(::Type{Vec{N,T}}, b::vBitArray, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
-    end
-end
-@generated function vload(::Type{SVec{N,T}}, b::vBitArray, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
-    end
-end
-@generated function vload(::Type{SVec{N,T}}, b::vBitArray, i, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
-    N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
-    utype = mask_type(N)
-    quote
-        $(Expr(:meta, :inline))
-        unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
-    end
-end
+# """
+# Masks on vectorizable bit arrays are currently ignored.
+# """
+# @generated function vload(::Type{Vec{N,T}}, b::vBitArray, i::Integer, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
+#     end
+# end
+# @generated function vload(::Type{Vec{N,T}}, b::vBitArray, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
+#     end
+# end
+# @generated function vload(::Type{SVec{N,T}}, b::vBitArray, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr))
+#     end
+# end
+# @generated function vload(::Type{SVec{N,T}}, b::vBitArray, i, mask::Union{<:Unsigned,Vec{N,Bool}}) where {N,T}
+#     N < 8 && throw("Bit array vectors with $N < 8 not yet supported.")
+#     utype = mask_type(N)
+#     quote
+#         $(Expr(:meta, :inline))
+#         unsafe_load(Base.unsafe_convert(Ptr{$utype}, b.ptr + (i >> 3)))
+#     end
+# end

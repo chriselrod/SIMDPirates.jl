@@ -70,10 +70,12 @@ end
 @inline vbroadcast(::Val{W}, s::T) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
 @inline vbroadcast(::Val{W}, ptr::Ptr{T}) where {W,T} = SVec(vbroadcast(Vec{W,T}, VectorizationBase.load(ptr)))
 @inline vbroadcast(::Type{Vec{W,T1}}, s::T2) where {W,T1,T2} = vbroadcast(Vec{W,T1}, convert(T1,s))
-@inline vbroadcast(::Type{Vec{W,T}}, s::Vec{W,T}) where {W,T} = s
 @inline vbroadcast(::Type{Vec{W,T}}, ptr::Ptr{T}) where {W,T} = vbroadcast(Vec{W,T}, VectorizationBase.load(ptr))
 @inline vbroadcast(::Type{Vec{W,T}}, ptr::Ptr) where {W,T} = vbroadcast(Vec{W,T}, Base.unsafe_convert(Ptr{T},ptr))
 @inline vbroadcast(::Type{SVec{W,T}}, s) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
+@inline vbroadcast(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T} = v
+@inline vbroadcast(::Type{SVec{W,T}}, v::SVec{W,T}) where {W,T} = v
+@inline vbroadcast(::Type{SVec{W,T}}, v::Vec{W,T}) where {W,T} = SVec(v)
 
 @inline vone(::Type{Vec{N,T}}) where {N,T} = vbroadcast(Vec{W,T}, one(T))
 @inline vzero(::Type{Vec{N,T}}) where {N,T} = vbroadcast(Vec{W,T}, zero(T))
@@ -197,6 +199,16 @@ end
     SVec{W,T}
 end
 
+@generated function zeropad(v::Vec{W,T}) where {W,T}
+    typ = llvmtype(T)
+    W2 = W << 1
+    sv = join((i for i ∈ 0:W2-1), ", i32 ")
+    instr = """
+    %res = shufflevector <$W x $typ> %0, <$W x $typ> zeroinitializer, <$W2 x i32> <i32 $(sv)>
+    ret <$W2 x $typ> %res
+"""
+    :(Base.llvmcall($instr, Vec{$W2,$T}, Tuple{Vec{$W,$T}}, v))
+end
 
 
 # @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))

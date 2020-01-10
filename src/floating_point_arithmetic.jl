@@ -82,6 +82,9 @@ for op ∈ (
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
     end
 end
+@inline vfdiv(v1::Vec{W,Int32}, v2::Vec{W,Int32}) where {W} = vfdiv(vconvert(Vec{W,Float32}, v1), vconvert(Vec{W,Float32}, v2))
+@inline vfdiv(v1::Vec{W,Int64}, v2::Vec{W,Int64}) where {W} = vfdiv(vconvert(Vec{W,Float64}, v1), vconvert(Vec{W,Float64}, v2))
+@vpromote vfdiv(x,y)
 @inline vmax(x, y) = max(x,y)
 @vectordef vmax function Base.max(v1, v2) where {N,T<:FloatingTypes}
     vifelse(vgreater(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
@@ -545,17 +548,30 @@ end
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
 @inline vmuladd(a, b, c) = vadd(vmul( a, b), c)
-@inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
-@inline vfnmadd(a, b, c) = vsub(c, vmul( a, b ))
-@inline vfmsub(a, b, c) = vsub(vmul( a, b), c )
-@inline vfnmsub(a, b, c) = vsub(vsub(c), vmul( a, b ) )
+# These intrinsics are not FastMath.
 
-# Lowers to same split mul-add llvm as the 
-# @inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
-# definition, so I wont bother implementing
-# vfnmadd, vfmsub, and vfnmsub
-# in this manner.
 @generated function vfmadd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
+    decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
+    instrs = "%res = call $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((decls,instrs)),
+            Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}},
+            v1, v2, v3
+        )
+    end
+end
+vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
+@vpromote vfmadd(a, b, c)
+@inline vfnmadd(a, b, c) = vfmadd(vsub(a), b, c)
+@inline vfmsub(a, b, c) = vfmadd(a, b, vsub(c))
+@inline vfnmsub(a, b, c) = vsub(vfmadd(a, b, c))
+
+@generated function vfmadd_fast(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
@@ -570,15 +586,20 @@ end
         )
     end
 end
+vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
+@vpromote vfmadd_fast(a, b, c)
+@inline vfnmadd_fast(a, b, c) = vfmadd_fast(vsub(a), b, c)
+@inline vfmsub_fast(a, b, c) = vfmadd_fast(a, b, vsub(c))
+@inline vfnmsub_fast(a, b, c) = vsub(vfmadd_fast(a, b, c))
+
+# Lowers to same split mul-add llvm as the 
+# @inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
+# definition, so I wont bother implementing
+# vfnmadd, vfmsub, and vfnmsub
+# in this manner.
 
 @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
-@generated function Base.:*(a::T, b::SVec{N,<:IntegerTypes}) where {N,T<:FloatingTypes}
-    quote
-        $(Expr(:meta,:inline))
-        SVec{$N,$T}(a) * SVec{$N,$T}((Base.Cartesian.@ntuple $N n -> Core.VecElement{$T}(b[n])))
-    end
-end
-
+@inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vbroadcast(Vec{W,T}, a) * vconvert(Vec{W,T}, extract_data(b)))
 
 
 @generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
@@ -612,35 +633,23 @@ end
 @inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt64,Int64}} = vinv(pirate_convert(Vec{W,Float64}, v))
 @inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt32,Int32}} = vinv(pirate_convert(Vec{W,Float32}, v))
 
-for f ∈ (:vadd, :vsub, :vmul)
-    @eval @generated function $f(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
-        if W1 > W2
-            largerv = :v1
-            littlev = :v2
-            Ws, Wl = W2, W1
-        else
-            largerv = :v2
-            littlev = :v1
-            Ws, Wl = W1, W2
-        end
-        ret = Expr(:call, QuoteNode($f), :vse, :vb)
-        quote
-            $(Expr(:meta,:inline))
-            vs = $littlev
-            vb = $largerv
-            # vse = $(Expr(:tuple,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...,[:(vs[$w]) for w ∈ 1:Ws]...))
-            # vse = $(Expr(:tuple,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...,[:(vs[$(1 + Ws - w)]) for w ∈ 1:Ws]...))
-            vse = $(Expr(:tuple,[:(vs[$w]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
-            # vse = $(Expr(:tuple,[:(vs[$(1+Ws-w)]) for w ∈ 1:Ws]...,[Core.VecElement(zero(T)) for _ ∈ Ws+1:W2]...))
-            # $f(vse, vb)
-            $ret
-        end
+# for accumulating vector results of different sizes.
+@generated function vadd(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
+    @assert ispow2(W1)
+    @assert ispow2(W2)
+    W3 = W1
+    W4 = W2
+    v1e = :v1
+    while W3 < W2
+        W3 <<= 1
+        v1e = Expr(:call, :zeropad, v1e)
     end
-    @eval @inline function $f(v1::AbstractSIMDVector{W1,T}, v2::AbstractSIMDVector{W2,T}) where {W1,W2,T}
-        SVec(
-            $f(extract_data(v1), extract_data(v2))
-        )
+    v2e = :v2
+    while W4 < W1
+        W4 <<= 1
+        v2e = Expr(:call, :zeropad, v2e)
     end
+    Expr(:block, Expr(:meta, :inline), Expr(:call, :vadd, v1e, v2e))
 end
 
 @inline Base.abs2(v::SVec) = vmul(v,v)
@@ -662,3 +671,5 @@ end
 @inline reduced_prod(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
 @inline reduced_prod(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmul(v1, v2)
 
+@inline vnmul(x,y) = vsub(vmul(x, y))
+@inline vnsub(x,y) = vsub(y, x)
