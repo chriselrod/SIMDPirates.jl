@@ -55,36 +55,6 @@ end
 @inline getvalindex(v::AbstractSIMDVector{N,T}, ::Val{I}) where {N,T,I} = extract_data(v)[I].value
 
 
-@generated function vbroadcast(::Type{Vec{W,T}}, s::T) where {W, T <: ScalarTypes}
-    typ = llvmtype(T)
-    vtyp = vtyp1 = "<$W x $typ>"
-    instrs = String[]
-    push!(instrs, "%ie = insertelement $vtyp undef, $typ %0, i32 0")
-    push!(instrs, "%v = shufflevector $vtyp %ie, $vtyp undef, <$W x i32> zeroinitializer")
-    push!(instrs, "ret $vtyp %v")
-    quote
-        $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), Vec{$W,$T}, Tuple{$T}, s )
-    end
-end
-@inline vbroadcast(::Val{W}, s::T) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
-@inline vbroadcast(::Val{W}, ptr::Ptr{T}) where {W,T} = SVec(vbroadcast(Vec{W,T}, VectorizationBase.load(ptr)))
-@inline vbroadcast(::Type{Vec{W,T1}}, s::T2) where {W,T1,T2} = vbroadcast(Vec{W,T1}, convert(T1,s))
-@inline vbroadcast(::Type{Vec{W,T}}, ptr::Ptr{T}) where {W,T} = vbroadcast(Vec{W,T}, VectorizationBase.load(ptr))
-@inline vbroadcast(::Type{Vec{W,T}}, ptr::Ptr) where {W,T} = vbroadcast(Vec{W,T}, Base.unsafe_convert(Ptr{T},ptr))
-@inline vbroadcast(::Type{SVec{W,T}}, s) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
-@inline vbroadcast(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T} = v
-@inline vbroadcast(::Type{SVec{W,T}}, v::SVec{W,T}) where {W,T} = v
-@inline vbroadcast(::Type{SVec{W,T}}, v::Vec{W,T}) where {W,T} = SVec(v)
-
-@inline vone(::Type{Vec{N,T}}) where {N,T} = vbroadcast(Vec{W,T}, one(T))
-@inline vzero(::Type{Vec{N,T}}) where {N,T} = vbroadcast(Vec{W,T}, zero(T))
-@inline vone(::Type{SVec{N,T}}) where {N,T} = SVec(vbroadcast(Vec{W,T}, one(T)))
-@inline vzero(::Type{SVec{N,T}}) where {N,T} = SVec(vbroadcast(Vec{W,T}, zero(T)))
-@inline vone(::Type{T}) where {T} = one(T)
-@inline vzero(::Type{T}) where {T} = zero(T)
-@inline VectorizationBase.SVec{W,T}(s::T) where {W,T} = SVec(vbroadcast(Vec{W,T}, s))
-@inline VectorizationBase.SVec{W,T}(s::Number) where {W,T} = SVec(vbroadcast(Vec{W,T}, convert(T, s)))
 
 
 @inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
