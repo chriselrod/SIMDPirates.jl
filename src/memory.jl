@@ -576,10 +576,12 @@ end
 #     vreinterpret(Vec{W,Ptr{T}}, vmuladd(vbroadcast(Vec{W,I}, s), inds, vbroadcast(Vec{W,I}, reinterpret(I, ptr))))
 # end
 
-@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = scatter!(gep(ptr, extract_data(inds)), v, mask)
-@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, v::Vec{N,T}) where {N,T,I<:IntegerTypes} = scatter!(gep(ptr, extract_data(inds)), v)
-@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}, mask::U) where {N,T,I<:IntegerTypes,U<:Unsigned} = gather(gep(ptr,extract_data(inds)), mask)
-@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{N,I}) where {N,T,I<:IntegerTypes} = gather(gep(ptr,extract_data(inds)), mask)
+@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{W,I}, v::AbstractSIMDVector{W,T}, mask::U) where {W,T,I<:IntegerTypes,U<:Unsigned} = scatter!(gep(ptr, extract_data(inds)), extract_data(v), mask)
+@inline scatter!(ptr::Ptr{T}, inds::AbstractSIMDVector{W,I}, v::AbstractSIMDVector{W,T}) where {W,T,I<:IntegerTypes} = scatter!(gep(ptr, extract_data(inds)), extract_data(v))
+@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{W,I}, mask::U) where {W,T,I<:IntegerTypes,U<:Unsigned} = SVec(gather(gep(ptr,extract_data(inds)), mask))
+@inline gather(ptr::Ptr{T}, inds::AbstractSIMDVector{W,I}) where {W,T,I<:IntegerTypes} = SVec(gather(gep(ptr,extract_data(inds))))
+@inline gather(ptr::Ptr{T}, inds::Vec{W,I}, mask::U) where {W,T,I<:IntegerTypes,U<:Unsigned} = gather(gep(ptr,extract_data(inds)), mask)
+@inline gather(ptr::Ptr{T}, inds::Vec{W,I}) where {W,T,I<:IntegerTypes} = gather(gep(ptr,extract_data(inds)))
 
 
 @inline vload(::Type{Vec{W,T}}, A::AbstractArray, args...) where {W,T} = vload(Vec{W,T}, VectorizationBase.vectorizable(A), args...)
@@ -587,6 +589,18 @@ end
 @inline vstore!(A::AbstractArray, args...) = vstore!(VectorizationBase.vectorizable(A), args...)
 @inline scatter!(A::AbstractArray, args...) = scatter!(VectorizationBase.vectorizable(A), args...)
 
+@inline function gather(
+    ptr::VectorizationBase.AbstractInitializedStridedPointer{T},
+    inds::AbstractSIMDVector{W,I}, mask::U
+) where {T,W,I <: IntegerTypes,U}
+    SVec(gather(gep(ptr, extract_data(inds)), mask))
+end
+@inline function gather(
+    ptr::VectorizationBase.AbstractInitializedStridedPointer{T},
+    inds::AbstractSIMDVector{W,I}
+) where {T,W,I <: IntegerTypes}
+    SVec(gather(gep(ptr, extract_data(inds))))
+end
 @inline function gather(
     ptr::VectorizationBase.AbstractInitializedStridedPointer{T},
     ci::Union{NTuple{N,Int},CartesianIndex{N}},
@@ -600,6 +614,18 @@ end
     inds::AbstractSIMDVector{W,I}
 ) where {T,N,W,I <: IntegerTypes}
     SVec(gather(gep(gep(ptr,ci),extract_data(inds))))
+end
+@inline function scatter!(
+    ptr::VectorizationBase.AbstractStridedPointer{T},
+    inds::AbstractSIMDVector{W,I}, v::Vec{W,T}, mask::U
+) where {T,W,I <: IntegerTypes,U}
+    scatter!(gep(ptr,extract_data(inds)), v, mask)
+end
+@inline function scatter!(
+    ptr::VectorizationBase.AbstractStridedPointer{T},
+    inds::AbstractSIMDVector{W,I}, v::Vec{W,T}
+) where {T,W,I <: IntegerTypes}
+    scatter!(gep(ptr,extract_data(inds)), v)
 end
 @inline function scatter!(
     ptr::VectorizationBase.AbstractStridedPointer{T},
@@ -807,6 +833,67 @@ end
 @inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i, U::Unsigned) where {T} = vstore!(gep(ptr, i), v, U)
 
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractSIMDVector{W,T2}, args...) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), args...)
+using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdot
+
+@inline vadd(s::I1, v::Vec{W,I2}) where {I1<:Integer,I2<:Integer,W} = vadd(vconvert(Vec{W,I2}, s), v)
+
+@inline VectorizationBase.gep(ptr::AbstractPackedStridedPointer, i::Tuple) = gep(ptr.ptr, vadd(first(i), tdot(ptr.strides, Base.tail(i))))
+@inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{Vec{W,I},Any}) where {W,I} = vmul(first(a),first(b)) + tdot(Base.tail(a),Base.tail(b))
+@inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{SVec{W,I},Any}) where {W,I} = vmul(first(a),extract_data(first(b))) + tdot(Base.tail(a),Base.tail(b))
+@inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{Vec{W,I}}) where {W,I} = vmul(first(a),first(b))
+@inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{SVec{W,I}}) where {W,I} = vmul(first(a),extract_data(first(b)))
+
+
+
+@inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{Vec{W,I2},Any}) where {W,I1,I2}
+    vmul(Base.unsafe_trunc(I2,first(a)),first(b)) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+end
+@inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{SVec{W,I2},Any}) where {W,I1,I2}
+    vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b))) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+end
+@inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{Vec{W,I2}}) where {W,I1,I2}
+    vmul(Base.unsafe_trunc(I2,first(a)),first(b))
+end
+@inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{SVec{W,I2}}) where {W,I1,I2}
+    vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b)))
+end
+
+@inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
+    SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), Val{false}()))
+end
+@inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}, mask::Unsigned) where {W,T,I1,I2}
+    SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), mask, Val{false}()))
+end
+@inline function vstore!(ptr::AbstractPackedStridedPointer{T}, v::Vec{W,T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
+    scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, Val{false}())
+end
+@inline function vstore!(ptr::AbstractPackedStridedPointer{T}, v::Vec{W,T}, i::Tuple{I1,Vec{W,I2}}, mask::Unsigned) where {W,T,I1,I2}
+    scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, mask, Val{false}())
+end
+
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}) where {W,T,Aligned,Temporal} = gather(ptr, Val{false}())
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned} = gather(ptr, mask, Val{Aligned}())
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, mask::Unsigned) where {W,T} = gather(ptr, mask, Val{false}())
+
+# @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
+# @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
+# @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}) where {W,T,Aligned,Temporal} = gather(ptr, Val{false}())
+# @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned} = gather(ptr, mask, Val{Aligned}())
+# @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}, mask::Unsigned) where {W,T} = gather(ptr, mask, Val{false}())
+
+# @inline vload(::Type{Vec{W,T}}, ptr::AbstractSIMDVector{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
+# @inline vload(::Type{Vec{W,T}}, ptr::AbstractSIMDVector{W,Ptr{T}}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
+# @inline vload(::Type{Vec{W,T}}, ptr::AbstractSIMDVector{W,Ptr{T}}) where {W,T,Aligned,Temporal} = gather(ptr, Val{false}())
+# @inline vload(::Type{Vec{W,T}}, ptr::AbstractSIMDVector{W,Ptr{T}}, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned} = gather(ptr, mask, Val{Aligned}())
+# @inline vload(::Type{Vec{W,T}}, ptr::AbstractSIMDVector{W,Ptr{T}}, mask::Unsigned) where {W,T} = gather(ptr, mask, Val{false}())
+
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = scatter!(extract_data(ptr), extract_data(v), Val{Aligned}())
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = scatter!(extract_data(ptr), extract_data(v), Val{Aligned}())
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}) where {W,T,Aligned,Temporal} = scatter!(extract_data(ptr), extract_data(v), Val{false}())
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned} = scatter!(extract_data(ptr), extract_data(v), mask, Val{Aligned}())
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, mask::Unsigned) where {W,T} = scatter!(extract_data(ptr), extract_data(v), mask, Val{false}())
 
 using VectorizationBase: stride1
 for v ∈ (:Vec, :SVec, :Val)

@@ -143,6 +143,28 @@ ret $vtyp1 %res
         Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
     end
 end
+@generated function vconvert(::Type{Vec{W,I1}}, v::Vec{W,I2}) where {W,I1<:Integer,I2<:Integer}
+    typ1 = llvmtype(I1)
+    typ2 = llvmtype(I2)
+    b1 = 8sizeof(I1)
+    b2 = 8sizeof(I2)
+    op = if b1 < b2
+        "trunc"
+    elseif b1 > b2
+        "zext"
+    else
+        return I1 === I2 ? :v : Expr(:block, Expr(:meta,:inline), Expr(:call, :vreinterpret, Vec{W,I1}, :v))
+    end
+    instrs = """
+    %res = $op <$W x $typ2> %0 to <$W x $typ1>
+    ret <$W x $typ1> %res
+    """
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($instrs, Vec{$W,$I1}, Tuple{Vec{$W,$I2}}, v)
+    end
+end
+@inline vconvert(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T<:Integer} = v # specific definition
 @inline vconvert(::Type{Vec{W,T}}, v::SVec) where {W,T} = vconvert(Vec{W,T}, extract_data(v))
 @inline vconvert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))
 @inline vconvert(::Type{T}, v::T) where {T} = v
@@ -151,6 +173,9 @@ end
 @inline Base.convert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))
 @inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:FloatingTypes,T2<:IntegerTypes} = vconvert(SVec{W,T1}, v)
 @inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:IntegerTypes,T2<:FloatingTypes} = vconvert(SVec{W,T1}, v)
+@inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1, T2 <: FloatingTypes} = vbroadcast(Vec{W,T1}, convert(T1, s))
+@inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: Integer, T2 <: Integer} = vbroadcast(Vec{W,T1}, Base.unsafe_trunc(T1, s))
+@inline vconvert(::Type{Vec{W,T1}}, s::T1) where {W, T1 <: Integer} = vbroadcast(Vec{W,T1}, s)
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
 @inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
