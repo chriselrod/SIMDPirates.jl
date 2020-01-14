@@ -76,7 +76,7 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
     end
 end
 @inline vexp(v::SVec) = SVec(vexp(extract_data(v)))
-@inline Base.exp(v::SVec) = SVec(vexp(extract_data(v)))
+@inline Base.exp(v::SVec{W,Float64}) where {W} = SVec(vexp(extract_data(v)))
 @inline vexp(x::Float64) = exp(x)
 
 # @inline function vexp(v::Vec{8,Float64})
@@ -198,7 +198,7 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
     end
 end
 @inline vlog(v::SVec) = SVec(vlog(extract_data(v)))
-@inline Base.log(v::SVec) = SVec(vlog(extract_data(v)))
+@inline Base.log(v::SVec{W,Float64}) where {W} = SVec(vlog(extract_data(v)))
 @inline vlog(x::Float64) = log(x)
 
 
