@@ -837,38 +837,38 @@ using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdo
 
 @inline vadd(s::I1, v::Vec{W,I2}) where {I1<:Integer,I2<:Integer,W} = vadd(vconvert(Vec{W,I2}, s), v)
 
-@inline VectorizationBase.gep(ptr::AbstractPackedStridedPointer, i::Tuple) = gep(ptr.ptr, vadd(first(i), tdot(ptr.strides, Base.tail(i))))
-@inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{Vec{W,I},Any}) where {W,I} = vmul(first(a),first(b)) + tdot(Base.tail(a),Base.tail(b))
-@inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{SVec{W,I},Any}) where {W,I} = vmul(first(a),extract_data(first(b))) + tdot(Base.tail(a),Base.tail(b))
-@inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{Vec{W,I}}) where {W,I} = vmul(first(a),first(b))
-@inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{SVec{W,I}}) where {W,I} = vmul(first(a),extract_data(first(b)))
+@inline VectorizationBase.gep(ptr::AbstractPackedStridedPointer, i::Tuple) = @inbounds gep(ptr.ptr, vadd(first(i), tdot(ptr.strides, Base.tail(i))))
+@inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{Vec{W,I},Any}) where {W,I} = @inbounds vmul(first(a),first(b)) + tdot(Base.tail(a),Base.tail(b))
+@inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{SVec{W,I},Any}) where {W,I} = @inbounds vmul(first(a),extract_data(first(b))) + tdot(Base.tail(a),Base.tail(b))
+@inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{Vec{W,I}}) where {W,I} = @inbounds vmul(first(a),first(b))
+@inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{SVec{W,I}}) where {W,I} = @inbounds vmul(first(a),extract_data(first(b)))
 
 
 
 @inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{Vec{W,I2},Any}) where {W,I1,I2}
-    vmul(Base.unsafe_trunc(I2,first(a)),first(b)) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),first(b)) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{SVec{W,I2},Any}) where {W,I1,I2}
-    vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b))) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b))) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{Vec{W,I2}}) where {W,I1,I2}
-    vmul(Base.unsafe_trunc(I2,first(a)),first(b))
+    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),first(b))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{SVec{W,I2}}) where {W,I1,I2}
-    vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b)))
+    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b)))
 end
 
 @inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
-    SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), Val{false}()))
+    @inbounds SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), Val{false}()))
 end
 @inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}, mask::Unsigned) where {W,T,I1,I2}
-    SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), mask, Val{false}()))
+    @inbounds SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), mask, Val{false}()))
 end
 @inline function vstore!(ptr::AbstractPackedStridedPointer{T}, v::Vec{W,T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
-    scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, Val{false}())
+    @inbounds scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, Val{false}())
 end
 @inline function vstore!(ptr::AbstractPackedStridedPointer{T}, v::Vec{W,T}, i::Tuple{I1,Vec{W,I2}}, mask::Unsigned) where {W,T,I1,I2}
-    scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, mask, Val{false}())
+    @inbounds scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, mask, Val{false}())
 end
 
 @inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
