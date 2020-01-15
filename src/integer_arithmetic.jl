@@ -161,7 +161,7 @@ for op ∈ (:(<<), :(>>), :(>>>))
         @vectordef $rename function Base.$op(v1, x2::Integer) where {N,T<:IntegerTypes}
             llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), x2)
         end
-        @vectordef $rename function Base.$op(v1, v2::Vec{N,U}) where {N,T<:IntegerTypes,U<:UIntTypes}
+        @vectordef $rename function Base.$op(v1, v2) where {N,T<:IntegerTypes}
             llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
         @vectordef $rename function Base.$op(x1::T, v2) where {N,T<:IntegerTypes}
@@ -201,10 +201,10 @@ for op ∈ (
     @eval begin
         @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1, s2)
 
-        @vectordef $rename function Base.$op(s1::T, v2) where {N, T <: Union{Bool,IntegerTypes}}
+        @vectordef $rename function Base.$op(s1::Integer, v2) where {N, T <: Union{Bool,IntegerTypes}}
             $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2))
         end
-        @vectordef $rename function Base.$op(v1, s2::T) where {N, T <: Union{Bool,IntegerTypes}}
+        @vectordef $rename function Base.$op(v1, s2::Integer) where {N, T <: Union{Bool,IntegerTypes}}
             $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
         end
 
@@ -281,32 +281,3 @@ end
 #     end
 # end
 
-@generated function Base.:>>(a::SVec{N,I}, b::SVec{N,I}) where {N,I<:IntegerTypes}
-    if I == Int64
-        U = UInt64
-    elseif I == Int32
-        U = UInt32
-    else
-        throw("No method defined for Base.>>(::SVec{$N,$I}, ::SVec{$N,$I}).")
-    end
-    quote
-        $(Expr(:meta,:inline))
-        reinterpret(SVec{$N,$I}, reinterpret(SVec{$N,$U}, a) >> reinterpret(SVec{$N,$U}, b) )
-    end
-end
-# @generated function Base.:>>(a::SVec{N,I}, b::SVec{N,I}) where {N,I<:IntegerTypes}
-#     quote
-#         $(Expr(:meta,:inline))
-#         SVec(
-#             Base.Cartesian.@ntuple $N n -> Core.VecElement(a[n] >> b[n])
-#         )
-#     end
-# end
-@generated function Base.:>>(a::SVec{N,U}, b::SVec{N,U}) where {N,U<:Union{UInt32,UInt64}}
-    quote
-        $(Expr(:meta,:inline))
-        SVec(
-            Base.Cartesian.@ntuple $N n -> Core.VecElement(a[n] >> b[n])
-        )
-    end
-end

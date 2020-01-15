@@ -242,8 +242,9 @@ end
             v1, v2, v3)
     end
 end
-@generated function llvmwrap_fast(::Val{Op}, v1::Vec{N,T1},
-        v2::Vec{N,T2}, v3::Vec{N,T3}, ::Type{R} = T1) where {Op,N,T1,T2,T3,R}
+@generated function llvmwrap_fast(
+    ::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T2}, v3::Vec{N,T3}, ::Type{R} = T1
+) where {Op,N,T1,T2,T3,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
     vtyp1 = "<$N x $typ1>"
@@ -273,8 +274,9 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
-                                  ::Val{I}) where {Op,N,T,I}
+@generated function llvmwrapshift(
+    ::Val{Op}, v1::Vec{N,T}, ::Val{I}
+) where {Op,N,T,I}
     @assert isa(Op, Symbol)
     if I >= 0
         op = Op
@@ -315,8 +317,9 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
-                                  x2::Unsigned) where {Op,N,T}
+@generated function llvmwrapshift(
+    ::Val{Op}, v1::Vec{N,T}, x2::Unsigned
+) where {Op,N,T}
     @assert isa(Op, Symbol)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
@@ -345,8 +348,9 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Val{Op}, v1::Vec{N,T},
-                                  x2::Integer) where {Op,N,T}
+@generated function llvmwrapshift(
+    ::Val{Op}, v1::Vec{N,T}, x2::Integer
+) where {Op,N,T}
     if Op === :>> || Op === :>>>
         NegOp = :<<
     else
@@ -367,9 +371,11 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Val{Op},
-                                  v1::Vec{N,T},
-                                  v2::Vec{N,U}) where {Op,N,T,U<:UIntTypes}
+@generated function llvmwrapshift(
+    ::Val{Op},
+    v1::Vec{N,T},
+    v2::Vec{N,U}
+) where {Op,N,T,U<:UIntTypes}
     @assert isa(Op, Symbol)
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
@@ -398,9 +404,11 @@ end
     end
 end
 
-@generated function llvmwrapshift(::Val{Op},
-                                  v1::Vec{N,T},
-                                  v2::Vec{N,U}) where {Op,N,T,U<:IntegerTypes}
+@generated function llvmwrapshift(
+    ::Val{Op},
+    v1::Vec{N,T},
+    v2::Vec{N,U}
+) where {Op,N,T,U<:IntegerTypes}
     if Op === :>> || Op === :>>>
         NegOp = :<<
     else
@@ -415,8 +423,10 @@ end
     ValNegOp = Val{NegOp}()
     quote
         $(Expr(:meta, :inline))
-        vifelse(vgreater_or_equal(v2, 0),
-                llvmwrapshift($ValOp, v1, v2 % Vec{N,unsigned(U)}),
-                llvmwrapshift($ValNegOp, v1, -v2 % Vec{N,unsigned(U)}))
+        vifelse(
+            vgreater_or_equal(v2, 0),
+            llvmwrapshift($ValOp, v1, vrem(v2, Vec{N,unsigned(U)})),
+            llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{N,unsigned(U)}))
+        )
     end
 end

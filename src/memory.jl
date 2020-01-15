@@ -827,7 +827,7 @@ function tuple_range_vector_expr(W)
     end
     t
 end
-function intrangetuple(::Type{T}) where {T}
+function intrangetuple(W, ::Type{T}) where {T}
     if sizeof(T) == 8
         tuple_range_vector_expr(Int(W))
     elseif sizeof(T) == 4
@@ -841,10 +841,10 @@ function intrangetuple(::Type{T}) where {T}
     end
 end
 @generated function vrange(::Val{W}, ::Type{T}) where {W, T}
-    Expr(:block, Expr(:meta,:inline), intrangetuple(T))
+    Expr(:block, Expr(:meta,:inline), intrangetuple(W, T))
 end
 @generated function svrange(::Val{W}, ::Type{T}) where {W, T}
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, intrangetuple(T)))
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, intrangetuple(W, T)))
 end
 @inline vrange(::Val{W}) where {W} = vrange(Val{W}(), Float64)
 @inline svrange(::Val{W}) where {W} = svrange(Val{W}(), Float64)
@@ -856,6 +856,7 @@ end
 
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractSIMDVector{W,T2}, args...) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), args...)
 using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdot
+@inline VectorizationBase.gep(ptr::AbstractPackedStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, i)
 
 @inline vadd(s::I1, v::Vec{W,I2}) where {I1<:Integer,I2<:Integer,W} = vadd(vconvert(Vec{W,I2}, s), v)
 
@@ -880,6 +881,7 @@ end
     @inbounds vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b)))
 end
 
+
 @inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
     @inbounds SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), Val{false}()))
 end
@@ -894,11 +896,13 @@ end
 end
 
 @inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
-@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
-@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}) where {W,T,Aligned,Temporal} = gather(ptr, Val{false}())
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}) where {W,T,Aligned} = gather(ptr, Val{Aligned}())
+@inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}) where {W,T} = gather(ptr, Val{false}())
 @inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned} = gather(ptr, mask, Val{Aligned}())
 @inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, mask::Unsigned) where {W,T} = gather(ptr, mask, Val{false}())
 
+@inline vload(::Val{W}, ptr::Vec{W,Ptr{T}}) where {W,T} = SVec(gather(ptr, Val{false}()))
+@inline vload(::Val{W}, ptr::Vec{W,Ptr{T}}, mask::Unsigned) where {W,T} = SVec(gather(ptr, mask, Val{false}()))
 # @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
 # @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
 # @inline vload(::Type{Vec{W,T}}, ptr::SVec{W,Ptr{T}}) where {W,T,Aligned,Temporal} = gather(ptr, Val{false}())
@@ -912,10 +916,11 @@ end
 # @inline vload(::Type{Vec{W,T}}, ptr::AbstractSIMDVector{W,Ptr{T}}, mask::Unsigned) where {W,T} = gather(ptr, mask, Val{false}())
 
 @inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = scatter!(extract_data(ptr), extract_data(v), Val{Aligned}())
-@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, ::Val{Aligned}) where {W,T,Aligned,Temporal} = scatter!(extract_data(ptr), extract_data(v), Val{Aligned}())
-@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}) where {W,T,Aligned,Temporal} = scatter!(extract_data(ptr), extract_data(v), Val{false}())
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, ::Val{Aligned}) where {W,T,Aligned} = scatter!(extract_data(ptr), extract_data(v), Val{Aligned}())
+@inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}) where {W,T} = scatter!(extract_data(ptr), extract_data(v), Val{false}())
 @inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned} = scatter!(extract_data(ptr), extract_data(v), mask, Val{Aligned}())
 @inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, mask::Unsigned) where {W,T} = scatter!(extract_data(ptr), extract_data(v), mask, Val{false}())
+
 
 using VectorizationBase: stride1
 for v ∈ (:Vec, :SVec, :Val)
@@ -957,6 +962,11 @@ end
 end
 
 using VectorizationBase: _MM, AbstractZeroInitializedPointer
+@inline Base.:(+)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vadd(i.i, j)
+@inline Base.:(+)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vadd(i, j.i)
+@inline Base.:(*)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vmul(i.i, j)
+@inline Base.:(*)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vmul(i, j.i)
+
 # _MM support
 # zero initialized
 # scalar if only and Int
@@ -970,10 +980,10 @@ using VectorizationBase: _MM, AbstractZeroInitializedPointer
 @inline vload(ptr::AbstractZeroInitializedPointer{T}, i::Tuple{<:Integer,<:Integer,Vararg}) where {W,T} = vload(ptr, Base.tail(i))
 
 vectypewidth(::Type{V}) where {W, V<:AbstractSIMDVector{W}} = W::Int
-vectypewidth(::Type{MM}) where {W, MM <: _MM{W}} = W::Int
+vectypewidth(::Type{_MM{W}}) where {W} = W::Int
 vectypewidth(::Any) = 1
 # returns expr for gep call, and bool-tuple (scalar,contiguous)
-function packed_strided_ptr_index(Iparam, N)
+function packed_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
     @assert Ni == N+1
     Iₙ = Iparam[1]
@@ -983,7 +993,7 @@ function packed_strided_ptr_index(Iparam, N)
     for n ∈ 2:Ni
         Iₙ = Iparam[n]
         Wₜ = vectypewidth(Iₙ)::Int
-        W = W == 1 ? Wₜ : (W == Wₜ ? W : throw("W₁ ≠ W₂, but all vectors should be of the same width."))
+        W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
             iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
@@ -991,50 +1001,50 @@ function packed_strided_ptr_index(Iparam, N)
         indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n-1), indexpr)
     end
     indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
-    W, Expr(:call, :gep, :ptr, indexpr)
+    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
 end
 
 
 @generated function vload(ptr::PackedStridedPointer{T,N}, i::I) where {T,N,I<:Tuple}
-    Iparam = I.parameters
-    W, gepcall = packed_strided_ptr_index(Iparam, N)
+    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
     end
 end
 @generated function vload(ptr::PackedStridedPointer{T,N}, i::I, mask::Unsigned) where {T,N,I<:Tuple}
-    Iparam = I.parameters
-    W, gepcall = packed_strided_ptr_index(Iparam, N)
+    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
     end
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T,N,I<:Tuple}
-    Iparam = I.parameters
-    W, gepcall = packed_strided_ptr_index(Iparam, N)
-    @assert W == W1
-    if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :first, :v))))
+    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
     end
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T,N,I<:Tuple}
-    Iparam = I.parameters
-    W, gepcall = packed_strided_ptr_index(Iparam, N)
-    @assert W == W1
-    if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :first, :v))))
+    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
     end
 end
 
-function sparse_strided_ptr_index(Iparam, N)
+using VectorizationBase: SparseStridedPointer, AbstractSparseStridedPointer
+@inline VectorizationBase.gep(ptr::AbstractSparseStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, vmul(i,vbroadcast(Val{W}(), first(ptr.strides))))
+function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
     @assert Ni == N
     Iₙ = Iparam[1]
@@ -1045,7 +1055,7 @@ function sparse_strided_ptr_index(Iparam, N)
     for n ∈ 1:N
         Iₙ = Iparam[n]
         Wₜ = vectypewidth(Iₙ)::Int
-        W = W == 1 ? Wₜ : (W == Wₜ ? W : throw("W₁ ≠ W₂, but all vectors should be of the same width."))
+        W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
             iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
@@ -1057,10 +1067,55 @@ function sparse_strided_ptr_index(Iparam, N)
         end
     end
     indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
-    W, Expr(:call, :gep, :ptr, indexpr)
+    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+end
+@generated function vload(ptr::SparseStridedPointer{T,N}, i::I) where {T,N,I<:Tuple}
+    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+    end
+end
+@generated function vload(ptr::SparseStridedPointer{T,N}, i::I, mask::Unsigned) where {T,N,I<:Tuple}
+    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+    end
+end
+@generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T,N,I<:Tuple}
+    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    end
+end
+@generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T,N,I<:Tuple}
+    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    end
 end
 
-function static_strided_ptr_index(Iparam, Xparam)
+using VectorizationBase: StaticStridedPointer, AbstractStaticStridedPointer
+@generated function VectorizationBase.gep(ptr::AbstractStaticStridedPointer{T,X}, i::NTuple{W,Core.VecElement{I}}) where {T,X,W,I<:Integer}
+    s = first(X.parameters)::Int
+    if s == 1
+        Expr(:block, Expr(:meta, :inline), Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), :i))
+    else
+        Expr(:block, Expr(:meta, :inline), Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :vmul, Expr(:call,:vbroadcast, Expr(:call,Expr(:curly,:Val,W)), s), :i)))
+    end
+end
+function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
     N = length(Iparam)
     @assert Ni == length(Xparam)
     Iₙ = Iparam[1]
@@ -1072,7 +1127,7 @@ function static_strided_ptr_index(Iparam, Xparam)
         Iₙ = Iparam[n]
         Xₙ = (Xparam)::Int
         Wₜ = vectypewidth(Iₙ)::Int
-        W = W == 1 ? Wₜ : (W == Wₜ ? W : throw("W₁ ≠ W₂, but all vectors should be of the same width."))
+        W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
             iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
@@ -1088,6 +1143,38 @@ function static_strided_ptr_index(Iparam, Xparam)
         end
     end
     indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
-    W, Expr(:call, :gep, :ptr, indexpr)
+    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+end
+@generated function vload(ptr::StaticStridedPointer{T,X}, i::I) where {T,X,I<:Tuple}
+    W, gepcall = static_strided_ptr_index(I.parameters, X.parameters, T)
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+    end
+end
+@generated function vload(ptr::StaticStridedPointer{T,X}, i::I, mask::Unsigned) where {T,X,I<:Tuple}
+    W, gepcall = static_strided_ptr_index(I.parameters, X.parameters, T)
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+    end
+end
+@generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T,X,I<:Tuple}
+    W, gepcall = static_strided_ptr_index(I.parameters, X.parameters, T)
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    end
+end
+@generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T,X,I<:Tuple}
+    W, gepcall = static_strided_ptr_index(I.parameters, X.parameters, T)
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__),  Expr(:call, :firstval, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    end
 end
 
