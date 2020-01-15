@@ -820,12 +820,34 @@ end
 #     end
 # end
 
-@generated function vrange(::Val{W}) where {W}
-    quote
-        $(Expr(:meta,:inline))
-        $(Expr(:tuple, [Core.VecElement(w) for w ∈ 0:W-1]...))
+function tuple_range_vector_expr(W)
+    t = Expr(:tuple)
+    for w ∈ zero(W):W-one(W)
+        push!(t.args, Expr(:call, Expr(:(.), :Core, QuoteNode(:VecElement)), w))
+    end
+    t
+end
+function intrangetuple(::Type{T}) where {T}
+    if sizeof(T) == 8
+        tuple_range_vector_expr(Int(W))
+    elseif sizeof(T) == 4
+        tuple_range_vector_expr(Int32(W))
+    elseif sizeof(T) == 2
+        tuple_range_vector_expr(Int16(W))
+    elseif sizeof(T) == 1
+        tuple_range_vector_expr(Int8(W))
+    else
+        tuple_range_vector_expr(Int(W))
     end
 end
+@generated function vrange(::Val{W}, ::Type{T}) where {W, T}
+    Expr(:block, Expr(:meta,:inline), intrangetuple(T))
+end
+@generated function svrange(::Val{W}, ::Type{T}) where {W, T}
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, intrangetuple(T)))
+end
+@inline vrange(::Val{W}) where {W} = vrange(Val{W}(), Float64)
+@inline svrange(::Val{W}) where {W} = svrange(Val{W}(), Float64)
 
 @inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i) where {W,T} = vload(Vec{W,T}, gep(ptr, i))
 @inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i, U::Unsigned) where {W,T} = vload(Vec{W,T}, gep(ptr, i), U)
@@ -932,5 +954,140 @@ end
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, U::Unsigned) where {W,T}
     scatter!(gep(ptr.ptr, vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), U, Val{false}())
+end
+
+using VectorizationBase: _MM, AbstractZeroInitializedPointer
+# _MM support
+# zero initialized
+# scalar if only and Int
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{Int}) where {W,T} = zero(T)
+# if a Vec of some kind, broadcast the zero
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{_MM{W},Vararg}) where {W,T} = vbroadcast(Val{W}(), zero(T))
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{V,Vararg}) where {W,T,I<:Integer,V<:AbstractSIMDVector{W,I}} = vbroadcast(Val{W}(), zero(T))
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,V,Vararg}) where {W,T,I<:Integer,V<:AbstractSIMDVector{W,I}} = vbroadcast(Val{W}, zero(T))
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,_MM{W},Vararg}) where {W,T} = vbroadcast(Val{W}, zero(T))
+# peel off indices
+@inline vload(ptr::AbstractZeroInitializedPointer{T}, i::Tuple{<:Integer,<:Integer,Vararg}) where {W,T} = vload(ptr, Base.tail(i))
+
+vectypewidth(::Type{V}) where {W, V<:AbstractSIMDVector{W}} = W::Int
+vectypewidth(::Type{MM}) where {W, MM <: _MM{W}} = W::Int
+vectypewidth(::Any) = 1
+# returns expr for gep call, and bool-tuple (scalar,contiguous)
+function packed_strided_ptr_index(Iparam, N)
+    Ni = length(Iparam)
+    @assert Ni == N+1
+    Iₙ = Iparam[1]
+    W::Int = vectypewidth(Iₙ)::Int
+    indexpr = Expr(:ref, :i, 1)
+    # check remaining indices.
+    for n ∈ 2:Ni
+        Iₙ = Iparam[n]
+        Wₜ = vectypewidth(Iₙ)::Int
+        W = W == 1 ? Wₜ : (W == Wₜ ? W : throw("W₁ ≠ W₂, but all vectors should be of the same width."))
+        iexpr = Expr(:ref, :i, n)
+        if Iₙ <: _MM
+            iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+        end
+        indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n-1), indexpr)
+    end
+    indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
+    W, Expr(:call, :gep, :ptr, indexpr)
+end
+
+
+@generated function vload(ptr::PackedStridedPointer{T,N}, i::I) where {T,N,I<:Tuple}
+    Iparam = I.parameters
+    W, gepcall = packed_strided_ptr_index(Iparam, N)
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+    end
+end
+@generated function vload(ptr::PackedStridedPointer{T,N}, i::I, mask::Unsigned) where {T,N,I<:Tuple}
+    Iparam = I.parameters
+    W, gepcall = packed_strided_ptr_index(Iparam, N)
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+    end
+end
+@generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T,N,I<:Tuple}
+    Iparam = I.parameters
+    W, gepcall = packed_strided_ptr_index(Iparam, N)
+    @assert W == W1
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :first, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    end
+end
+@generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T,N,I<:Tuple}
+    Iparam = I.parameters
+    W, gepcall = packed_strided_ptr_index(Iparam, N)
+    @assert W == W1
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :first, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    end
+end
+
+function sparse_strided_ptr_index(Iparam, N)
+    Ni = length(Iparam)
+    @assert Ni == N
+    Iₙ = Iparam[1]
+    W::Int = vectypewidth(Iₙ)::Int
+    # indexpr = Expr(:ref, :i, 1)
+    local indexpr::Expr
+    # check remaining indices.
+    for n ∈ 1:N
+        Iₙ = Iparam[n]
+        Wₜ = vectypewidth(Iₙ)::Int
+        W = W == 1 ? Wₜ : (W == Wₜ ? W : throw("W₁ ≠ W₂, but all vectors should be of the same width."))
+        iexpr = Expr(:ref, :i, n)
+        if Iₙ <: _MM
+            iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+        end
+        indexpr = if n == 1
+            Expr(:call, :*, iexpr, Expr(:ref, :s, n))
+        else
+            Expr(:call, :muladd, iexpr, Expr(:ref, :s, n), indexpr)
+        end
+    end
+    indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
+    W, Expr(:call, :gep, :ptr, indexpr)
+end
+
+function static_strided_ptr_index(Iparam, Xparam)
+    N = length(Iparam)
+    @assert Ni == length(Xparam)
+    Iₙ = Iparam[1]
+    W::Int = vectypewidth(Iₙ)::Int
+    # indexpr = Expr(:ref, :i, 1)
+    local indexpr::Expr
+    # check remaining indices.
+    for n ∈ 1:N
+        Iₙ = Iparam[n]
+        Xₙ = (Xparam)::Int
+        Wₜ = vectypewidth(Iₙ)::Int
+        W = W == 1 ? Wₜ : (W == Wₜ ? W : throw("W₁ ≠ W₂, but all vectors should be of the same width."))
+        iexpr = Expr(:ref, :i, n)
+        if Iₙ <: _MM
+            iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+        end
+        indexpr = if n == 1
+            Xₙ == 1 ? iexpr : Expr(:call, :*, iexpr, Xₙ)
+        else
+            if Xₙ == 1
+                Expr(:call, :+, iexpr, indexpr)
+            else
+                Expr(:call, :muladd, iexpr, Xₙ, indexpr)
+            end
+        end
+    end
+    indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
+    W, Expr(:call, :gep, :ptr, indexpr)
 end
 
