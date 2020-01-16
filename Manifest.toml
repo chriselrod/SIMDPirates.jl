@@ -11,9 +11,9 @@ version = "0.2.2"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "f784254f428fb8fd7ac15982e5862a38a44523d3"
+git-tree-sha1 = "b7720de347734f4716d1815b00ce5664ed6bbfd4"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.17.7"
+version = "0.17.9"
 
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -65,8 +65,8 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[VectorizationBase]]
 deps = ["CpuId", "LinearAlgebra"]
-git-tree-sha1 = "62473ed63c7d88dce06b228448f3cccff0c8ae2c"
+git-tree-sha1 = "a2576763aa20968ffb5668e2e15d45ae8e364d05"
 repo-rev = "master"
 repo-url = "https://github.com/chriselrod/VectorizationBase.jl"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.1.6"
+version = "0.1.9"
