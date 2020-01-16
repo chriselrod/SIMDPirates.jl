@@ -249,6 +249,16 @@ end
     SVec(vifelse(extract_data(c), extract_data(v1), vbroadcast(Vec{N,T}, s2)))
 end
 
+@inline evadd(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vadd(v1, v2)
+@inline evadd(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vadd(v1, vbroadcast(Vec{W,T}(), v2))
+@inline evadd(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vadd(vbroadcast(Vec{W,T}(), v1), v2)
+@inline evsub(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vsub(v1, v2)
+@inline evsub(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vsub(v1, vbroadcast(Vec{W,T}(), v2))
+@inline evsub(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vsub(vbroadcast(Vec{W,T}(), v1), v2)
+@inline evmul(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vmul(v1, v2)
+@inline evmul(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vmul(v1, vbroadcast(Vec{W,T}(), v2))
+@inline evmul(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vmul(vbroadcast(Vec{W,T}(), v1), v2)
+
 
 # @inline function vifelse(c::Vec{N,Bool}, s1::IntegerTypes, v2::Vec{N,T}) where {N,T<:IntegerTypes}
 #     vifelse(c, vbroadcast(Vec{N,T}, s1), v2)

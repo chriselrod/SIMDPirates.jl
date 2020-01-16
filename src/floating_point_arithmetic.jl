@@ -684,3 +684,9 @@ end
 
 @inline vnmul(x,y) = vsub(vmul(x, y))
 @inline vnsub(x,y) = vsub(y, x)
+@inline vmul2(x) = vadd(x,x)
+@inline vmul3(x::T) where {T <: Number} = Base.FastMath.mul_fast(T(3), x)
+@inline vmul3(v::V) where {W, T, V <: AbstractSIMDVector{W,T}} = vmul(vbroadcast(V, T(3)), v)
+@inline vadd1(x::T) where {T <: Number} = Base.FastMath.add_fast(x, one(x))
+@inline vadd1(v::V) where {W, T, V <: AbstractSIMDVector{W,T}} = vadd(vbroadcast(V, one(T)), v)
+
