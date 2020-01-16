@@ -840,6 +840,13 @@ function intrangetuple(W, ::Type{T}) where {T}
         tuple_range_vector_expr(Int(W))
     end
 end
+
+using VectorizationBase: _MM, AbstractZeroInitializedPointer
+@inline Base.:(+)(i::_MM{W}, j::AbstractSIMDVector{W,T}) where {W,T} = vadd(vadd(vrange(Val{W}(), T), i.i), j)
+@inline Base.:(+)(i::AbstractSIMDVector{W,T}, j::_MM{W}) where {W,T} = vadd(i, vadd(vrange(Val{W}(), T), j.i))
+@inline Base.:(*)(i::_MM{W}, j::AbstractSIMDVector{W,T}) where {W,T} = vmul(vadd(vrange(Val{W}(), T), i.i), j)
+@inline Base.:(*)(i::AbstractSIMDVector{W,T}, j::_MM{W}) where {W,T} = vmul(i, vadd(vrange(Val{W}(), T), j.i))
+
 @generated function vrange(::Val{W}, ::Type{T}) where {W, T}
     Expr(:block, Expr(:meta,:inline), intrangetuple(W, T))
 end
@@ -849,10 +856,16 @@ end
 @inline vrange(::Val{W}) where {W} = vrange(Val{W}(), Float64)
 @inline svrange(::Val{W}) where {W} = svrange(Val{W}(), Float64)
 
+@inline vrange(i::_MM{W}, ::Type{Float64}) where {W} = vadd(vrange(Val{W}(), Float64), i.i)
+@inline vrange(i::_MM{W}, ::Type{Float32}) where {W} = vadd(vrange(Val{W}(), Float32), Base.unsafe_trunc(Int32, i.i))
+@inline vrange(i::_MM{W}, ::Type{Float16}) where {W} = vadd(vrange(Val{W}(), Float16), Base.unsafe_trunc(Int16, i.i))
+@inline vrange(i::_MM{W}, ::Type{I}) where {W,I<:Integer} = vadd(vrange(Val{W}(), I), Base.unsafe_trunc(I, i.i))
+@inline svrange(i::_MM, ::Type{T}) where {T} = SVec(vrange(i, T))
+
 @inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i) where {W,T} = vload(Vec{W,T}, gep(ptr, i))
 @inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i, U::Unsigned) where {W,T} = vload(Vec{W,T}, gep(ptr, i), U)
-@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i) where {T} = vstore!(gep(ptr, i), v)
-@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::T, i, U::Unsigned) where {T} = vstore!(gep(ptr, i), v, U)
+@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::Vec{W,T}, i) where {W,T} = vstore!(gep(ptr, i), v)
+@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::Vec{W,T}, i, U::Unsigned) where {W,T} = vstore!(gep(ptr, i), v, U)
 
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractSIMDVector{W,T2}, args...) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), args...)
 using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdot
@@ -961,11 +974,6 @@ end
     scatter!(gep(ptr.ptr, vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), U, Val{false}())
 end
 
-using VectorizationBase: _MM, AbstractZeroInitializedPointer
-@inline Base.:(+)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vadd(i.i, j)
-@inline Base.:(+)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vadd(i, j.i)
-@inline Base.:(*)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vmul(i.i, j)
-@inline Base.:(*)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vmul(i, j.i)
 
 # _MM support
 # zero initialized
@@ -989,6 +997,8 @@ function packed_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
     Iₙ = Iparam[1]
     W::Int = vectypewidth(Iₙ)::Int
     indexpr = Expr(:ref, :i, 1)
+    # if Iₙ <: _MM
+    # end
     # check remaining indices.
     for n ∈ 2:Ni
         Iₙ = Iparam[n]
@@ -996,7 +1006,8 @@ function packed_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
-            iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+            # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), Expr(:(.), iexpr, :i))
+            iexpr = Expr(:call, :svrange, iexpr, T)
         end
         indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n-1), indexpr)
     end
@@ -1058,7 +1069,8 @@ function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
-            iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+            # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+            iexpr = Expr(:call, :svrange, iexpr, T)
         end
         indexpr = if n == 1
             Expr(:call, :*, iexpr, Expr(:ref, :s, n))
@@ -1125,12 +1137,13 @@ function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
     # check remaining indices.
     for n ∈ 1:N
         Iₙ = Iparam[n]
-        Xₙ = (Xparam)::Int
+        Xₙ = (Xparam[n])::Int
         Wₜ = vectypewidth(Iₙ)::Int
         W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
-        if Iₙ <: _MM
-            iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+        if Xₙ == 1 && Iₙ <: _MM
+            # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
+            iexpr = Expr(:call, :svrange, iexpr, T)
         end
         indexpr = if n == 1
             Xₙ == 1 ? iexpr : Expr(:call, :*, iexpr, Xₙ)

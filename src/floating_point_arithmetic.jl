@@ -664,12 +664,17 @@ end
 @inline reduced_prod(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
 # @inline reduced_prod(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmul(v1, v2)
 
-@inline reduced_add(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.add_fast(s, concert(T2,vsum(v)))
+@inline reduced_add(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
 @inline reduced_add(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
 @inline reduced_add(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vadd(v1, v2)
 @inline reduced_prod(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
 @inline reduced_prod(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
 @inline reduced_prod(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmul(v1, v2)
+
+@inline reduce_to_add(v::AbstractSIMDVector{W,T}, ::T) where {W,T} = vsum(v)
+@inline reduce_to_prod(v::AbstractSIMDVector{W,T}, ::T) where {W,T} = vprod(v)
+@inline reduce_to_add(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W}) where {W,T} = v
+@inline reduce_to_prod(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W}) where {W,T} = v
 
 @inline vnmul(x,y) = vsub(vmul(x, y))
 @inline vnsub(x,y) = vsub(y, x)
