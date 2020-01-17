@@ -1053,6 +1053,69 @@ end
     end
 end
 
+
+using VectorizationBase: RowMajorStridedPointer, AbstractRowMajorStridedPointer
+function rowmajor_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
+    Ni = length(Iparam)
+    @assert Ni == N+1
+    Iₙ = Iparam[1]
+    W::Int = vectypewidth(Iₙ)::Int
+    indexpr = Expr(:ref, :i, Ni)
+    # check remaining indices.
+    for n ∈ 1:N
+        Iₙ = Iparam[n]
+        Wₜ = vectypewidth(Iₙ)::Int
+        W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
+        iexpr = Expr(:ref, :i, Ni = n)
+        if Iₙ <: _MM
+            # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), Expr(:(.), iexpr, :i))
+            iexpr = Expr(:call, :svrange, iexpr, T)
+        end
+        indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n), indexpr)
+    end
+    indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
+    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+end
+
+
+@generated function vload(ptr::RowMajorStridedPointer{T,N}, i::I) where {T,N,I<:Tuple}
+    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+    end
+end
+@generated function vload(ptr::RowMajorStridedPointer{T,N}, i::I, mask::Unsigned) where {T,N,I<:Tuple}
+    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+    end
+end
+@generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T,N,I<:Tuple}
+    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    end
+end
+@generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T,N,I<:Tuple}
+    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    if W1 == 1
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+    else
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    end
+end
+
+
 using VectorizationBase: SparseStridedPointer, AbstractSparseStridedPointer
 @inline VectorizationBase.gep(ptr::AbstractSparseStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, vmul(i,vbroadcast(Val{W}(), first(ptr.strides))))
 function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
