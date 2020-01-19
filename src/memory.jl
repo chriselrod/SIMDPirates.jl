@@ -1,4 +1,6 @@
 
+
+
 """
 I'm not sure on the details, but I think this function can only allocate up to
 
@@ -1018,7 +1020,6 @@ function packed_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
     W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
 end
 
-
 @generated function vload(ptr::PackedStridedPointer{T,N}, i::I) where {T,N,I<:Tuple}
     W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
@@ -1312,4 +1313,109 @@ end
 # Ignore masks
 @inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = vmuladd(svrange(Val{W}(), T), step(r), @inbounds r[i[1].i + 1])
 @inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = vadd(svrange(Val{W}(), T), @inbounds r[i[1].i + 1])
+
+function transposeshuffle0(split, W)
+    tup = Expr(:tuple)
+    w = 0
+    S = 1 << split
+    while w < W
+        for s ∈ 0:S-1
+            push!(tup.args, w + s)
+        end
+        for s ∈ 0:S-1
+            # push!(tup.args, w + S + W + s)
+            push!(tup.args, w + W + s)
+        end
+        w += 2S
+    end
+    Expr(:call, Expr(:curly, :Val, tup))
+end
+function transposeshuffle1(split, W)
+    tup = Expr(:tuple)
+    w = 0
+    S = 1 << split
+    while w < W
+        for s ∈ 0:S-1
+            push!(tup.args, w+S + s)
+        end
+        for s ∈ 0:S-1
+            # push!(tup.args, w + W + s)
+            push!(tup.args, w + S + W + s)
+        end
+        w += 2S
+    end
+    Expr(:call, Expr(:curly, :Val, tup))
+end
+
+@generated function vhaddstore!(ptr::AbstractPointer{T}, v::NTuple{N,V}, i::NTuple{D,I}) where {T,N,W,V<:AbstractSIMDVector{W,T},D,I<:Integer}
+    q = Expr(:block, Expr(:meta, :inline), Expr(:(=), :bptr, Expr(:call, :gep, :ptr, :i)))
+    if N > 1 && ispow2(N) && ispow2(W)
+        extractblock = Expr(:block)
+        vectors = [Symbol(:v_, n) for n ∈ 0:N-1]
+        for n ∈ 1:N
+            push!(extractblock.args, Expr(:(=), vectors[n], Expr(:ref, :v, n)))
+        end
+        push!(q.args, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), extractblock))
+        ncomp = 0
+        minWN = min(W,N)
+        while ncomp < N
+            Nt = minWN;
+            Wt = W
+            splits = 0
+            while Nt > 1
+                Nt >>>= 1
+                shuffle0 = transposeshuffle0(splits, Wt)
+                shuffle1 = transposeshuffle1(splits, Wt)
+                splits += 1
+                for nh ∈ 1:Nt
+                    n1 = 2nh
+                    n0 = n1 - 1
+                    v0 = vectors[n0 + ncomp]; v1 = vectors[n1 + ncomp]; vh = vectors[nh + ncomp];
+                    # combine n0 and n1
+                    push!(q.args, Expr(
+                        :(=), vh, Expr(
+                            :call, :vadd,
+                            Expr(:call, :shufflevector, v0, v1, shuffle0),
+                            Expr(:call, :shufflevector, v0, v1, shuffle1))
+                    )
+                          )
+                end
+            end
+            # v0 is now the only vector
+            v0 = vectors[ncomp + 1]
+            while Wt > minWN
+                Wh = Wt >>> 1
+                push!(q.args, Expr(
+                    :(=), v0, Expr(
+                        :call, :vadd,
+                        Expr(:call, :shufflevector, v0, Expr(:call, Expr(:curly, :Val, Expr(:tuple, [w for w ∈ 0:Wh-1]...)))),
+                        Expr(:call, :shufflevector, v0, Expr(:call, Expr(:curly, :Val, Expr(:tuple, [w for w ∈ Wh:Wt-1]...)))))
+                )
+                      )
+                Wt = Wh
+            end
+            push!(q.args, Expr(:call, :vstore!, :bptr, v0))
+            ncomp += minWN
+        end
+    else
+        for n ∈ 1:N
+            push!(
+                q.args,
+                Expr(
+                    :call, :store!,
+                    Expr(:call, :gep, :bptr, Expr(:tuple, n-1)),
+                    Expr(
+                        :call, :vsum,
+                        Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:ref, :v, n))
+                    )
+                )
+            )
+        end
+    end
+    q
+end
+
+
+
+
 
