@@ -174,6 +174,7 @@ end
 @inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:FloatingTypes,T2<:IntegerTypes} = vconvert(SVec{W,T1}, v)
 @inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:IntegerTypes,T2<:FloatingTypes} = vconvert(SVec{W,T1}, v)
 @inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1, T2 <: FloatingTypes} = vbroadcast(Vec{W,T1}, convert(T1, s))
+@inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: FloatingTypes, T2 <: Integer} = vbroadcast(Vec{W,T1}, convert(T1, s))
 @inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: Integer, T2 <: Integer} = vbroadcast(Vec{W,T1}, Base.unsafe_trunc(T1, s))
 @inline vconvert(::Type{Vec{W,T1}}, s::T1) where {W, T1 <: Integer} = vbroadcast(Vec{W,T1}, s)
 
