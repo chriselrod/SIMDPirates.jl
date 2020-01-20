@@ -7,61 +7,121 @@ function check_negative(x)
     return (a === :(-) || a == :(Base.FastMath.sub_fast))
 end
 
+function mulexpr(mulexargs)
+    a = (mulexargs[1])::Union{Symbol,Expr}
+    b = if length(mulexargs) == 2 # two arg mul
+        (mulexargs[2])::Union{Symbol,Expr}
+    else
+        Expr(:call, :vmul, @view(mulexargs[2:end])...)::Expr
+    end
+    a, b
+end
+function append_args_skip!(call, args, i)
+    for j ∈ eachindex(args)
+        j == i && continue
+        push!(call.args, args[j])
+    end
+    call
+end
+
+
+
+function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = false)
+    length(argv) < 2 && return length(call.args) == 4, cnmul, csub
+    fun = first(argv)
+    isadd = fun === :+ || fun === :vadd || fun == :(Base.FastMath.add_fast)
+    issub = fun === :- || fun === :vsub || fun == :(Base.FastMath.sub_fast)
+    (isadd | issub) || return length(call.args) == 4, cnmul, csub
+    exargs = @view(argv[2:end])
+    issub && @assert length(exargs) == 2
+    for (i,ex) ∈ enumerate(exargs)
+        if ex isa Expr && ex.head === :call
+            exa = ex.args
+            f = first(exa)
+            exav = @view(exa[2:end])
+            if f === :* || f === :vmul || f == :(Base.FastMath.mul_fast)
+                # isnmul = any(check_negative, exav)
+                a, b = mulexpr(exav)
+                call.args[2] = a
+                call.args[3] = b
+                if length(exargs) == 2
+                    push!(call.args, exargs[3 -  i])
+                else
+                    push!(call.args, append_args_skip!(Expr(:call, :+), exargs, i))
+                end
+                if issub
+                    csub = i == 1
+                    cnmul = !csub
+                end
+                return true, cnmul, csub
+            elseif isadd
+                found, cnmul, csub = recursive_mul_search!(call, exa)
+                if found
+                    if csub
+                        call.args[4] = if length(exargs) == 2
+                            Expr(:call, :-, exargs[3 - i], call.args[4])
+                        else
+                            Expr(:call, :-, append_args_skip!(Expr(:call, :+), exargs, i), call.args[4])
+                        end
+                    else
+                        call.args[4] = append_args_skip!(Expr(:call, :+, call.args[4]), exargs, i)
+                    end
+                    return true, cnmul, false
+                end
+            elseif issub
+                found, cnmul, csub = recursive_mul_search!(call, exa)
+                if found
+                    if i == 1
+                        if csub
+                            call.args[4] = Expr(:call, :+, call.args[4], exargs[3 - i])
+                        else
+                            call.args[4] = Expr(:call, :-, call.args[4], exargs[3 - i])
+                        end
+                    else
+                        cnmul = !cnmul
+                        if csub
+                            call.args[4] = Expr(:call, :+, exargs[3 - i], call.args[4])
+                        else
+                            call.args[4] = Expr(:call, :-, exargs[3 - i], call.args[4])
+                        end
+                        csub = false
+                    end
+                    return true, cnmul, csub
+                end                
+            end
+        end
+    end
+    length(call.args) == 4, cnmul, csub
+end
+                          
 function capture_muladd(ex::Expr, mod)
-    # These are guaranteed by calling contract_pass
-    # ex isa Expr || return ex
-    # ex.head === :call || return ex
-    args = ex.args
-    f = first(args)::Union{Symbol,Expr}
-    fplus = (f === :+)::Bool | (f == :(Base.FastMath.add_fast))
-    fminus = (f === :-)::Bool | (f == :(Base.FastMath.sub_fast))
-    (fplus | fminus) || return ex
-    Nargs = length(args)
-    Nargs > 2 || return ex
-    j = 2
-    while j ≤ Nargs
-        argsⱼ = args[j]
-        if argsⱼ isa Expr && (first(argsⱼ.args) === :* || first(argsⱼ.args) == :(Base.FastMath.mul_fast))
-            break
-        end
-        j += 1
-    end
-    j > Nargs && return ex
-    mulexpr::Expr = args[j]
-    if Nargs == 3
-        c = args[j == 2 ? 3 : 2]
-    else
-        c = Expr(:call, :vadd)
-        for i ∈ 2:Nargs
-            i == j || push!(c.args, args[i])
-        end
-    end
-    isnmul = any(check_negative, @view(mulexpr.args[2:end]))
-    a = mulexpr.args[2]
-    b = if length(mulexpr.args) == 3 # two arg mul
-        mulexpr.args[3]
-    else
-        Expr(:call, :vmul, @view(mulexpr.args[3:end])...)
-    end
-    cf = if fplus
-        if isnmul
+    call = Expr(:call, Symbol(""), Symbol(""), Symbol(""))
+    found, nmul, sub = recursive_mul_search!(call, ex.args)
+    found || return ex
+    if mod === nothing
+        call.args[1] = if nmul && sub
+            :vfnmsub_fast
+        elseif nmul
             :vfnmadd_fast
+        elseif sub
+            :vfmsub_fast
         else
             :vfmadd_fast
         end
     else
-        if isnmul
-            :vfnmsub_fast
+        call.args[1] = if nmul && sub
+            Expr(:(.), mod, QuoteNote(:vfnmsub_fast))
+        elseif nmul
+            Expr(:(.), mod, QuoteNote(:vfnmadd_fast))
+        elseif sub
+            Expr(:(.), mod, QuoteNote(:vfmsub_fast))
         else
-            :vfmsub_fast
+            Expr(:(.), mod, QuoteNote(:vfmadd_fast))
         end
     end
-    if mod === nothing
-        Expr(:call, cf, a, b, c)
-    else
-        Expr(:call, Expr(:(.), mod, QuoteNode(cf)), a, b, c)
-    end
+    call
 end
+
 
 contract_pass(x) = x # x will probably be a symbol
 function contract_pass(expr::Expr, mod = nothing)::Expr
@@ -93,28 +153,5 @@ function contract_pass(expr::Expr, mod = nothing)::Expr
         end
     end
 end
-
-#         elseif @capture(ex, f_(c_, g_(a_, b_))) || @capture(ex, f_(g_(a_,b_), c_))
-#             if (f === :(+) || f == :(Base.FastMath.add_fast)) && (g === :(*) || g == :(Base.FastMath.mul_fast)) 
-#                 if a isa Expr && a.head === :call && (first(a.args) === :(-) || first(a.args) == :(Base.FastMath.sub_fast))
-#                     Expr(:call, :vfnmadd, a, b, c)
-#                 else
-#                     Expr(:call, :vmuladd, a, b, c) #Expr(:call, :vfmadd, a, b, c)
-#                 end
-#             elseif (f === :(-) || f == :(Base.FastMath.sub_fast)) && (g === :(*) || g == :(Base.FastMath.mul_fast)) 
-#                 if a isa Expr && a.head === :call && (first(a.args) === :(-) || first(a.args) == :(Base.FastMath.sub_fast))
-#                     Expr(:call, :vfnmsub, a, b, c)
-#                 else
-#                     Expr(:call, :vfmsub, a, b, c)
-#                 end
-#             else
-#                 ex
-#             end
-#         else
-#             ex
-#         end
-#     end
-# end
-
 
 
