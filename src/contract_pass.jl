@@ -45,15 +45,15 @@ function capture_muladd(ex::Expr, mod)
     end
     cf = if fplus
         if isnmul
-            :vfnmadd
+            :vfnmadd_fast
         else
-            :vfmadd
+            :vfmadd_fast
         end
     else
         if isnmul
-            :vfnmsub
+            :vfnmsub_fast
         else
-            :vfmsub
+            :vfmsub_fast
         end
     end
     if mod === nothing
