@@ -47,13 +47,13 @@ function capture_muladd(ex::Expr, mod)
         if isnmul
             :vfnmadd
         else
-            :vmuladd
+            :vfmadd
         end
     else
         if isnmul
             :vfnmsub
         else
-            :vfnmadd
+            :vfmsub
         end
     end
     if mod === nothing
