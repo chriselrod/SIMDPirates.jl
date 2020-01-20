@@ -111,25 +111,6 @@ end
 # end
 
 
-@generated function vfmsub(v1::AbstractSIMDVector{N,T},v2::AbstractSIMDVector{N,T},v3::AbstractSIMDVector{N,T}) where {N,T}
-    quote
-        $(Expr(:meta,:inline))
-        vsub(vmul(v1,v2),v3)
-    end
-end
-@generated function vfnmsub(v1::AbstractSIMDVector{N,T},v2::AbstractSIMDVector{N,T},v3::AbstractSIMDVector{N,T}) where {N,T}
-    quote
-        $(Expr(:meta,:inline))
-        vsub(vsub(v3), vmul(v1,v2))
-    end
-end
-@generated function vfnmadd(v1::AbstractSIMDVector{N,T},v2::AbstractSIMDVector{N,T},v3::AbstractSIMDVector{N,T}) where {N,T}
-    quote
-        $(Expr(:meta,:inline))
-        vsub(v3, vmul(v1,v2))
-    end
-end
-
 
 
 @inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
@@ -567,6 +548,7 @@ end
 end
 vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 @vpromote vfmadd(a, b, c)
+@inline vfmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
 @inline vfnmadd(a, b, c) = vfmadd(vsub(a), b, c)
 @inline vfmsub(a, b, c) = vfmadd(a, b, vsub(c))
 @inline vfnmsub(a, b, c) = vsub(vfmadd(a, b, c))
@@ -588,6 +570,7 @@ vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 end
 vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
 @vpromote vfmadd_fast(a, b, c)
+@inline vfmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
 @inline vfnmadd_fast(a, b, c) = vfmadd_fast(vsub(a), b, c)
 @inline vfmsub_fast(a, b, c) = vfmadd_fast(a, b, vsub(c))
 @inline vfnmsub_fast(a, b, c) = vsub(vfmadd_fast(a, b, c))
