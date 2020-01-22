@@ -409,6 +409,42 @@ end
             )
         end
     end
+    @generated function reduced_add(v::Vec{N,T}, s::T) where {N,T<:FloatingTypes}
+        decls = String[]
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$N x $typ>"
+        bits = 8sizeof(T)
+        ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(N)f$(bits)"
+        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$N,$T},$T}, v, s
+            )
+        end
+    end
+    @generated function reduced_prod(v::Vec{N,T}, s::T) where {N,T<:FloatingTypes}
+        decls = String[]
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$N x $typ>"
+        bits = 8sizeof(T)
+        ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(N)f$(bits)"
+        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$N,$T},$T}, v, s
+            )
+        end
+    end
     @generated function vsum(v::Vec{N,T}) where {N,T<:IntegerTypes}
         decls = String[]
         instrs = String[]
@@ -416,8 +452,8 @@ end
         vtyp = "<$N x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.add.v$(N)i$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
-        push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
+        push!(decls, "declare $(typ) $(ins)($(vtyp))")
+        push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
@@ -434,8 +470,8 @@ end
         vtyp = "<$N x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.mul.v$(N)i$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
-        push!(instrs, "%res = call fast $typ $ins($typ 1.0, $vtyp %0)")
+        push!(decls, "declare $(typ) $(ins)($(vtyp))")
+        push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
