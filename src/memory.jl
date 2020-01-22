@@ -1070,7 +1070,7 @@ function rowmajor_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         Iₙ = Iparam[n]
         Wₜ = vectypewidth(Iₙ)::Int
         W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
-        iexpr = Expr(:ref, :i, Ni = n)
+        iexpr = Expr(:ref, :i, Ni - n)
         if Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), Expr(:(.), iexpr, :i))
             iexpr = Expr(:call, :svrange, iexpr, T)
