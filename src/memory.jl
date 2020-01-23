@@ -524,7 +524,7 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Vec{$N,$T}, Vec{$N,Ptr{$T}}, $U}, v, ptr, mask)
+            Cvoid, Tuple{Vec{$N,$T}, Vec{$N,Ptr{$T}}}, v, ptr)
     end
 end
 @generated function scatter!(
