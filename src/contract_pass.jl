@@ -100,23 +100,23 @@ function capture_muladd(ex::Expr, mod)
     found || return ex
     if mod === nothing
         call.args[1] = if nmul && sub
-            :vfnmsub_fast
+            :vfnmsub#_fast
         elseif nmul
-            :vfnmadd_fast
+            :vfnmadd#_fast
         elseif sub
-            :vfmsub_fast
+            :vfmsub#_fast
         else
-            :vfmadd_fast
+            :vfmadd#_fast
         end
     else
         call.args[1] = if nmul && sub
-            Expr(:(.), mod, QuoteNote(:vfnmsub_fast))
+            Expr(:(.), mod, QuoteNote(:vfnmsub))#_fast))
         elseif nmul
-            Expr(:(.), mod, QuoteNote(:vfnmadd_fast))
+            Expr(:(.), mod, QuoteNote(:vfnmadd))#_fast))
         elseif sub
-            Expr(:(.), mod, QuoteNote(:vfmsub_fast))
+            Expr(:(.), mod, QuoteNote(:vfmsub))#_fast))
         else
-            Expr(:(.), mod, QuoteNote(:vfmadd_fast))
+            Expr(:(.), mod, QuoteNote(:vfmadd))#_fast))
         end
     end
     call
