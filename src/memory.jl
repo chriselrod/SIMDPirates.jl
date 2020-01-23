@@ -507,8 +507,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$N x $typ>"
     vptrtyp = "<$N x $typ*>"
-    mtyp_input = llvmtype(U)
-    mtyp_trunc = "i$N"
     decls = String[]
     instrs = String[]
     if Aligned
