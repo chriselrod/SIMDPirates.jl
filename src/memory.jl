@@ -993,7 +993,7 @@ vectypewidth(::Any) = 1
 # returns expr for gep call, and bool-tuple (scalar,contiguous)
 function packed_indexpr(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
-    @assert Ni == N+1
+    Ni = min(Ni, N+1)
     Iₙ = Iparam[1]
     W::Int = vectypewidth(Iₙ)::Int
     indexpr = Expr(:ref, :i, 1)
@@ -1059,16 +1059,16 @@ end
 using VectorizationBase: RowMajorStridedPointer, AbstractRowMajorStridedPointer
 function rowmajor_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
-    @assert Ni == N+1
+    N = min(Ni - 1, N)
     Iₙ = Iparam[1]
     W::Int = vectypewidth(Iₙ)::Int
-    indexpr = Expr(:ref, :i, Ni)
+    indexpr = Expr(:ref, :i, N + 1)
     # check remaining indices.
     for n ∈ 1:N
         Iₙ = Iparam[n]
         Wₜ = vectypewidth(Iₙ)::Int
         W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
-        iexpr = Expr(:ref, :i, Ni - n)
+        iexpr = Expr(:ref, :i, N + 1 - n)
         if Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), Expr(:(.), iexpr, :i))
             iexpr = Expr(:call, :svrange, iexpr, T)
@@ -1122,7 +1122,7 @@ using VectorizationBase: SparseStridedPointer, AbstractSparseStridedPointer
 @inline VectorizationBase.gep(ptr::AbstractSparseStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, vmul(i,vbroadcast(Val{W}(), first(ptr.strides))))
 function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
-    @assert Ni == N
+    Ni = N = min(Ni, N)
     Iₙ = Iparam[1]
     W::Int = vectypewidth(Iₙ)::Int
     # indexpr = Expr(:ref, :i, 1)
@@ -1193,8 +1193,7 @@ using VectorizationBase: StaticStridedPointer, AbstractStaticStridedPointer
     end
 end
 function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
-    N = length(Iparam)
-    @assert Ni == length(Xparam)
+    N = min(length(Iparam), length(Xparam))
     Iₙ = Iparam[1]
     W::Int = vectypewidth(Iₙ)::Int
     # indexpr = Expr(:ref, :i, 1)
