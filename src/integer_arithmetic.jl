@@ -11,9 +11,9 @@ for op ∈ (:(~), :(+), :(-))
     end
 end
 # @inline vnot(s1::Bool) = !s1
-@inline vnot(v1::Vec{N,Bool}) where {N} = vbitwise_not(v1)
-@inline vnot(v1::AbstractStructVec{N,Bool}) where {N} = SVec(vbitwise_not(extract_data(v1)))
-@inline Base.:!(v1::AbstractStructVec{N,Bool}) where {N} = SVec(vbitwise_not(extract_data(v1)))
+# @inline vnot(v1::Vec{N,Bool}) where {N} = vbitwise_not(v1)
+# @inline vnot(v1::AbstractStructVec{N,Bool}) where {N} = SVec(vbitwise_not(extract_data(v1)))
+# @inline Base.:!(v1::AbstractStructVec{N,Bool}) where {N} = SVec(vbitwise_not(extract_data(v1)))
 
 @inline vabs(s1::IntTypes) = abs(s1)
 @inline function vabs(v1::Vec{N,T}) where {N,T<:IntTypes}
@@ -204,10 +204,10 @@ for op ∈ (
     @eval begin
         @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1, s2)
 
-        @vectordef $rename function Base.$op(s1::Integer, v2) where {N, T <: Union{Bool,IntegerTypes}}
+        @vectordef $rename function Base.$op(s1::IntegerTypes, v2) where {N, T <: IntegerTypes}
             $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2))
         end
-        @vectordef $rename function Base.$op(v1, s2::Integer) where {N, T <: Union{Bool,IntegerTypes}}
+        @vectordef $rename function Base.$op(v1, s2::IntegerTypes) where {N, T <: IntegerTypes}
             $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
         end
 

@@ -2,7 +2,7 @@
 const BoolTypes = Union{Bool}
 const IntTypes = Union{Int8, Int16, Int32, Int64, Int128}
 const UIntTypes = Union{UInt8, UInt16, UInt32, UInt64, UInt128}
-const IntegerTypes = Union{BoolTypes, IntTypes, UIntTypes, Ptr}
+const IntegerTypes = Union{IntTypes, UIntTypes, Ptr}
 const FloatingTypes = Union{Float16, Float32, Float64}
 const ScalarTypes = Union{IntegerTypes, FloatingTypes}
 

@@ -3,12 +3,13 @@
 
 for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
     rename = VECTOR_SYMBOLS[op]
-    rename_mask = Symbol(rename, :_mask)
+    # rename_mask = Symbol(rename, :_mask)
+    rename_bool = Symbol(rename, :_boolvec)
     @eval begin
         # scalar versions handled in floating_point_arithmetic.jl
         # @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1,s2)
         @vectordef $rename function Base.$op(v1, v2) where {N,T}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), Bool)
+            llvmwrap_bitmask(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
         @vectordef $rename function Base.$op(v1, v2::T) where {N,T}
             $rename(extract_data(v1), v2)
@@ -16,35 +17,44 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
         @vectordef $rename function Base.$op(v1::T, v2) where {N,T}
             $rename(extract_data(v1), v2)
         end
-        @evectordef $rename_mask function Base.$op(v1, v2) where {N,T}
-            llvmwrap_bitmask(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
+        @evectordef $rename_bool function Base.$op(v1, v2) where {N,T}
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), Bool)
         end
-        @evectordef $rename_mask function Base.$op(v1, v2::T) where {N,T}
+        @evectordef $rename_bool function Base.$op(v1, v2::T) where {N,T}
             $rename(extract_data(v1), v2)
         end
-        @evectordef $rename_mask function Base.$op(v1::T, v2) where {N,T}
+        @evectordef $rename_bool function Base.$op(v1::T, v2) where {N,T}
             $rename(extract_data(v1), v2)
         end
+        # @evectordef $rename_mask function Base.$op(v1, v2) where {N,T}
+        #     llvmwrap_bitmask(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
+        # end
+        # @evectordef $rename_mask function Base.$op(v1, v2::T) where {N,T}
+        #     $rename(extract_data(v1), v2)
+        # end
+        # @evectordef $rename_mask function Base.$op(v1::T, v2) where {N,T}
+        #     $rename(extract_data(v1), v2)
+        # end
     end
 end
 @inline visfinite(s::ScalarTypes) = isfinite(s)
 @inline function visfinite(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
     em = vbroadcast(Vec{N,U}, exponent_mask(T))
-    iv = pirate_reinterpret(Vec{N,U}, v1)
+    iv = vreinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, em), em)
 end
 @inline visfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
 @inline Base.isfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
 
-@inline visfinite_mask(s::ScalarTypes) = isfinite(s)
-@inline function visfinite_mask(v1::Vec{N,T}) where {N,T<:FloatingTypes}
+@inline visfinite_boolvec(s::ScalarTypes) = isfinite(s)
+@inline function visfinite_boolvec(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
     em = vbroadcast(Vec{N,U}, exponent_mask(T))
-    iv = pirate_reinterpret(Vec{N,U}, v1)
-    vnot_equal_mask(vand(iv, em), em)
+    iv = vreinterpret(Vec{N,U}, v1)
+    vnot_equal_boolvec(vand(iv, em), em)
 end
-@inline visfinite_mask(v1::AbstractStructVec) = SVec(visfinite_mask(extract_data(v1)))
+@inline visfinite_boolvec(v1::AbstractStructVec) = SVec(visfinite_boolvec(extract_data(v1)))
 
 
 @inline visinf(s1::ScalarTypes) = isinf(s1)
@@ -62,7 +72,7 @@ end
     U = uint_type(T)
     em = vbroadcast(Vec{N,U}, exponent_mask(T))
     sm = vbroadcast(Vec{N,U}, significand_mask(T))
-    iv = pirate_reinterpret(Vec{N,U}, v1)
+    iv = vreinterpret(Vec{N,U}, v1)
     vand(visequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
 end
 @inline vissubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
@@ -73,7 +83,7 @@ end
 @inline function vsignbit(v1::Vec{N,T}) where {N,T<:FloatingTypes}
     U = uint_type(T)
     sm = vbroadcast(Vec{N,U}, sign_mask(T))
-    iv = pirate_reinterpret(Vec{N,U}, v1)
+    iv = vreinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0))
 end
 @inline function vsignbit(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
@@ -156,7 +166,7 @@ end
 @inline vifelse(U::Unsigned, v2::Vec{W,T}, s::Union{T,Int}) where {W,T} = vifelse(U, v2, vbroadcast(Vec{W,T}, s))
 @inline vifelse(U::Unsigned, v2::AbstractSIMDVector{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
 @inline vifelse(U::Unsigned, s::Union{T,Int}, v2::Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
-@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractSIMDVector{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s)), extract_data(v2))
+@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractSIMDVector{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s), extract_data(v2)))
 
 @vectordef visodd function Base.isodd(v) where {N,T<:Integer}
     visequal(vand(v, one(T)), one(T))
