@@ -165,7 +165,10 @@ for op ∈ (:(<<), :(>>), :(>>>))
             llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
         @vectordef $rename function Base.$op(x1::T, v2) where {N,T<:IntegerTypes}
-            $rename(vbroadcast(Vec{N,T}, x1), extract_data(v2))
+            $rename(vbroadcast(Vec{N,I}, x1), extract_data(v2))
+        end
+        @vectordef $rename function Base.$op(x1::I, v2) where {N,I<:Integer,T<:IntegerTypes}
+            $rename(vbroadcast(Vec{N,I}, x1), vconvert(Vec{N,I},extract_data(v2)))
         end
 
 

@@ -618,7 +618,7 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 # in this manner.
 
 @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
-@inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vbroadcast(Vec{W,T}, a) * vconvert(Vec{W,T}, extract_data(b)))
+@inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
 
 @generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
