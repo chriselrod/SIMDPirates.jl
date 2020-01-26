@@ -207,10 +207,24 @@ for op ∈ (
             $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
         end
         
-        # @inline $rename(s1::ScalarTypes, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     $rename(vbroadcast(Vec{N,T}, s1), v2)
-        # @inline $rename(v1::Vec{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes} =
-        #     $rename(v1, vbroadcast(Vec{N,T}, s2))
+        @inline function Base.$op(s1::T2, v2::SVec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(vbroadcast(Vec{N,T2}, s1), extract_data(v2)))
+        end
+        @inline function Base.$op(v1::SVec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(extract_data(v1), vbroadcast(Vec{N,T2}, s2)))
+        end
+        @inline function $rename(s1::T2, v2::SVec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(vbroadcast(Vec{N,T2}, s1), extract_data(v2)))
+        end
+        @inline function $rename(v1::SVec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(extract_data(v1), vbroadcast(Vec{N,T2}, s2)))
+        end
+        @inline function $rename(s1::T2, v2::Vec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
+            $rename(vbroadcast(Vec{N,T2}, s1), v2)
+        end
+        @inline function $rename(v1::Vec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
+            $rename(v1, vbroadcast(Vec{N,T2}, s2))
+        end
     end
 end
 for op ∈ (

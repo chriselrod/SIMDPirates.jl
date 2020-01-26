@@ -820,52 +820,12 @@ end
 #     end
 # end
 
-function tuple_range_vector_expr(W)
-    t = Expr(:tuple)
-    for w ∈ zero(W):W-one(W)
-        push!(t.args, Expr(:call, Expr(:(.), :Core, QuoteNode(:VecElement)), w))
-    end
-    t
-end
-function intrangetuple(W, ::Type{T}) where {T}
-    if sizeof(T) == 8
-        tuple_range_vector_expr(Int(W))
-    elseif sizeof(T) == 4
-        tuple_range_vector_expr(Int32(W))
-    elseif sizeof(T) == 2
-        tuple_range_vector_expr(Int16(W))
-    elseif sizeof(T) == 1
-        tuple_range_vector_expr(Int8(W))
-    else
-        tuple_range_vector_expr(Int(W))
-    end
-end
-
-using VectorizationBase: _MM, AbstractZeroInitializedPointer
-@inline Base.:(+)(i::_MM{W}, j::AbstractSIMDVector{W,T}) where {W,T} = vadd(vadd(vrange(Val{W}(), T), i.i), j)
-@inline Base.:(+)(i::AbstractSIMDVector{W,T}, j::_MM{W}) where {W,T} = vadd(i, vadd(vrange(Val{W}(), T), j.i))
-@inline Base.:(*)(i::_MM{W}, j::AbstractSIMDVector{W,T}) where {W,T} = vmul(vadd(vrange(Val{W}(), T), i.i), j)
-@inline Base.:(*)(i::AbstractSIMDVector{W,T}, j::_MM{W}) where {W,T} = vmul(i, vadd(vrange(Val{W}(), T), j.i))
-
-@generated function vrange(::Val{W}, ::Type{T}) where {W, T}
-    Expr(:block, Expr(:meta,:inline), intrangetuple(W, T))
-end
-@generated function svrange(::Val{W}, ::Type{T}) where {W, T}
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, intrangetuple(W, T)))
-end
-@inline vrange(::Val{W}) where {W} = vrange(Val{W}(), Float64)
-@inline svrange(::Val{W}) where {W} = svrange(Val{W}(), Float64)
-
-@inline vrange(i::_MM{W}, ::Type{Float64}) where {W} = vadd(vrange(Val{W}(), Float64), i.i)
-@inline vrange(i::_MM{W}, ::Type{Float32}) where {W} = vadd(vrange(Val{W}(), Float32), Base.unsafe_trunc(Int32, i.i))
-@inline vrange(i::_MM{W}, ::Type{Float16}) where {W} = vadd(vrange(Val{W}(), Float16), Base.unsafe_trunc(Int16, i.i))
-@inline vrange(i::_MM{W}, ::Type{I}) where {W,I<:Integer} = vadd(vrange(Val{W}(), I), Base.unsafe_trunc(I, i.i))
-@inline svrange(i::_MM, ::Type{T}) where {T} = SVec(vrange(i, T))
 
 @inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i) where {W,T} = vload(Vec{W,T}, gep(ptr, i))
 @inline vload(::Type{Vec{W,T}}, ptr::VectorizationBase.AbstractInitializedStridedPointer, i, U::Unsigned) where {W,T} = vload(Vec{W,T}, gep(ptr, i), U)
 @inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::Vec{W,T}, i) where {W,T} = vstore!(gep(ptr, i), v)
 @inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::Vec{W,T}, i, U::Unsigned) where {W,T} = vstore!(gep(ptr, i), v, U)
+@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::AbstractSIMDVector{W,T}, i, b::Bool) where {W,T} = (b && vstore!(ptr, v, i))
 
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractSIMDVector{W,T2}, args...) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), args...)
 using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdot
