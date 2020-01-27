@@ -225,7 +225,7 @@ for v ∈ (:Vec, :SVec, :Val)
     end
 end
 
-@inline vload(::Type{Vec{W,T}}, ::VectorizationBase.AbstractZeroInitializedPointer, args...) where {W,T} = vbroadcast(Vec{W,T}, zero(T))
+@inline vload(::Type{Vec{W,T}}, ::VectorizationBase.AbstractZeroInitializedPointer, args...) where {W,T} = vzero(Vec{W,T})
 
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T},
@@ -898,7 +898,8 @@ end
 using VectorizationBase: stride1
 for v ∈ (:Vec, :SVec, :Val)
     vargs = Union{Symbol,Expr}[v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}}), :(ptr::VectorizationBase.SparseStridedPointer{T})]
-    vcall = :(vmul(stride1(ptr), vrange(Val{W}())))
+    # vcall = :(vmul(stride1(ptr), vrange(Val{W}())))
+    vcall = :(vrangemul(Val{W}(), stride1(ptr), Val{0}()))
     for index ∈ (true,false)
         icall = copy(vcall)
         if index
@@ -922,16 +923,16 @@ for v ∈ (:Vec, :SVec, :Val)
     end
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, i) where {W,T}
-    scatter!(gep(gep(ptr, i), vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), Val{false}())
+    scatter!(gep(gep(ptr, i), vrangemul(Val{W}(), stride1(ptr), Val{0}())), extract_data(v), Val{false}())
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, i, U::Unsigned) where {W,T}
-    scatter!(gep(gep(ptr, i), vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), U, Val{false}())
+    scatter!(gep(gep(ptr, i), vrangemul(Val{W}(), stride1(ptr), Val{0}())), extract_data(v), U, Val{false}())
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}) where {W,T}
-    scatter!(gep(ptr.ptr, vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), Val{false}())
+    scatter!(gep(ptr.ptr, vrangemul(Val{W}(), stride1(ptr), Val{0}())), extract_data(v), Val{false}())
 end
 @inline function vstore!(ptr::VectorizationBase.AbstractSparseStridedPointer{T}, v::AbstractSIMDVector{W,T}, U::Unsigned) where {W,T}
-    scatter!(gep(ptr.ptr, vmul(stride1(ptr), vrange(Val{W}()))), extract_data(v), U, Val{false}())
+    scatter!(gep(ptr.ptr, vrangemul(Val{W}(), stride1(ptr), Val{0}())), extract_data(v), U, Val{false}())
 end
 
 
@@ -940,10 +941,10 @@ end
 # scalar if only and Int
 @inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{Int}) where {W,T} = zero(T)
 # if a Vec of some kind, broadcast the zero
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{_MM{W},Vararg}) where {W,T} = vbroadcast(Val{W}(), zero(T))
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{V,Vararg}) where {W,T,I<:Integer,V<:AbstractSIMDVector{W,I}} = vbroadcast(Val{W}(), zero(T))
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,V,Vararg}) where {W,T,I<:Integer,V<:AbstractSIMDVector{W,I}} = vbroadcast(Val{W}, zero(T))
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,_MM{W},Vararg}) where {W,T} = vbroadcast(Val{W}, zero(T))
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{_MM{W},Vararg}) where {W,T} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{V,Vararg}) where {W,T,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,V,Vararg}) where {W,T,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,_MM{W},Vararg}) where {W,T} = vzero(SVec{W,T})
 # peel off indices
 @inline vload(ptr::AbstractZeroInitializedPointer{T}, i::Tuple{<:Integer,<:Integer,Vararg}) where {W,T} = vload(ptr, Base.tail(i))
 
@@ -967,7 +968,7 @@ function packed_indexpr(Iparam, N, ::Type{T}) where {T}
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), Expr(:(.), iexpr, :i))
-            iexpr = Expr(:call, :svrange, iexpr, T)
+            iexpr = Expr(:call, :svrange, iexpr)
         end
         indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n-1), indexpr)
     end
@@ -1031,7 +1032,7 @@ function rowmajor_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         iexpr = Expr(:ref, :i, N + 1 - n)
         if Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), Expr(:(.), iexpr, :i))
-            iexpr = Expr(:call, :svrange, iexpr, T)
+            iexpr = Expr(:call, :svrange, iexpr)
         end
         indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n), indexpr)
     end
@@ -1095,7 +1096,7 @@ function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         iexpr = Expr(:ref, :i, n)
         if Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
-            iexpr = Expr(:call, :svrange, iexpr, T)
+            iexpr = Expr(:call, :svrange, iexpr)
         end
         indexpr = if n == 1
             Expr(:call, :*, iexpr, Expr(:ref, :s, n))
@@ -1167,7 +1168,7 @@ function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
         iexpr = Expr(:ref, :i, n)
         if Xₙ == 1 && Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
-            iexpr = Expr(:call, :svrange, iexpr, T)
+            iexpr = Expr(:call, :svrange, iexpr)
         end
         indexpr = if n == 1
             Xₙ == 1 ? iexpr : Expr(:call, :*, iexpr, Xₙ)
@@ -1266,10 +1267,12 @@ end
 end
 
 @inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = vmuladd(svrange(Val{W}(), T), step(r), @inbounds r[i[1].i + 1])
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = vadd(svrange(Val{W}(), T), @inbounds r[i[1].i + 1])
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = svrangeincr(Val{W}(), @inbounds(r[i[1].i + 1]), Val{0}())
 # Ignore masks
 @inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = vmuladd(svrange(Val{W}(), T), step(r), @inbounds r[i[1].i + 1])
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = vadd(svrange(Val{W}(), T), @inbounds r[i[1].i + 1])
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = svrangeincr(Val{W}(), @inbounds(r[i[1].i + 1]), Val{0}())
+
+
 
 function transposeshuffle0(split, W)
     tup = Expr(:tuple)

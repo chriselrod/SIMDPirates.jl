@@ -2,7 +2,7 @@ module SIMDPirates
 
 using VectorizationBase
 using VectorizationBase:
-    llvmtype, AbstractSIMDVector, AbstractStructVec, vbroadcast,
+    llvmtype, AbstractSIMDVector, AbstractStructVec, vbroadcast, vzero, vone,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType
 using MacroTools: prewalk, postwalk
     
@@ -120,6 +120,7 @@ include("shufflevector.jl")
 include("special.jl")
 include("contract_pass.jl")
 include("pirate.jl")
+include("arithmeticwithconsts.jl")
 include("precompile.jl")
 _precompile_()
 

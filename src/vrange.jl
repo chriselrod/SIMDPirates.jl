@@ -45,6 +45,8 @@ end
         )
     end
 end
+@inline svrangeincr(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangeincr(Val{W}(), i, Val{O}()))
+@inline svrangemul(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangemul(Val{W}(), i, Val{O}()))
 function intrangetuple(W, ::Type{T}) where {T}
     ret::Expr = if sizeof(T) == 8
         tuple_range_vector_expr(Int(W))
