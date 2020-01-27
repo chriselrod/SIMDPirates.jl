@@ -164,10 +164,30 @@ end
         Base.llvmcall($instrs, Vec{$W,$I1}, Tuple{Vec{$W,$I2}}, v)
     end
 end
+@generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W, T1 <: FloatingTypes, T2 <: FloatingTypes}
+    typ1 = llvmtype(T1)
+    typ2 = llvmtype(T2)
+    b1 = 8sizeof(T1)
+    b2 = 8sizeof(T2)
+    op = if b1 < b2
+        "fptrunc"
+    elseif b1 > b2
+        "fpext"
+    end
+    instrs = """
+    %res = $op <$W x $typ2> %0 to <$W x $typ1>
+    ret <$W x $typ1> %res
+    """
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+    end
+end
 @inline vconvert(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T<:Integer} = v # specific definition
 @inline vconvert(::Type{Vec{W,T}}, v::SVec) where {W,T} = vconvert(Vec{W,T}, extract_data(v))
 @inline vconvert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))
 @inline vconvert(::Type{T}, v::T) where {T} = v
+@inline vconvert(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T<:FloatingTypes} = v
 @inline vconvert(::Type{Vec{W,T}}, v::Vec{W,T}) where {W,T} = v
 @inline vconvert(::Type{SVec{W,T}}, v::SVec{W,T}) where {W,T} = v
 @inline Base.convert(::Type{SVec{W,T}}, v) where {W,T} = SVec(vconvert(Vec{W,T}, extract_data(v)))

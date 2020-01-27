@@ -120,7 +120,7 @@ include("shufflevector.jl")
 include("special.jl")
 include("contract_pass.jl")
 include("pirate.jl")
-include("arithmeticwithconsts.jl")
+# include("arithmeticwithconsts.jl")
 include("precompile.jl")
 _precompile_()
 
