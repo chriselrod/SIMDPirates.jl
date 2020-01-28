@@ -635,32 +635,32 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 @inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
 
-@generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
-    if VectorizationBase.REGISTER_SIZE == 64
-        return quote
-            $(Expr(:meta,:inline))
-            Base.llvmcall(
-            """ %rs = call <16 x float> asm "vrsqrt14ps \$1, \$0", "=x,x"(<16 x float> %0)
-                ret <16 x float> %rs""",
-            NTuple{16,Core.VecElement{Float32}}, Tuple{NTuple{16,Core.VecElement{Float32}}}, x)
-        end
-    else
-        return quote
-            vinv(vsqrt(x))
-        end
-    end
-end
-@inline function rsqrt(x::NTuple{16,Core.VecElement{Float32}})
-    r = rsqrt_fast(x)
-    # Performs a Newton step to increase accuracy.
-    # ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
-    # vmul(r, ns)
-    ns = vfma(vmul(r,r), x, -3.0f0)
-    vmul(vmul(-0.5f0, r), ns)
-end
+# @generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
+#     if VectorizationBase.REGISTER_SIZE == 64
+#         return quote
+#             $(Expr(:meta,:inline))
+#             Base.llvmcall(
+#             """ %rs = call <16 x float> asm "vrsqrt14ps \$1, \$0", "=x,x"(<16 x float> %0)
+#                 ret <16 x float> %rs""",
+#             NTuple{16,Core.VecElement{Float32}}, Tuple{NTuple{16,Core.VecElement{Float32}}}, x)
+#         end
+#     else
+#         return quote
+#             vinv(vsqrt(x))
+#         end
+#     end
+# end
+# @inline function rsqrt(x::NTuple{16,Core.VecElement{Float32}})
+#     r = rsqrt_fast(x)
+#     # Performs a Newton step to increase accuracy.
+#     # ns = vmuladd(vmul(-0.5f0, x), vmul(r, r), 1.5f0)
+#     # vmul(r, ns)
+#     ns = vfma(vmul(r,r), x, -3.0f0)
+#     vmul(vmul(-0.5f0, r), ns)
+# end
+@inline rsqrt_fast(v) = vinv(vsqrt(v))
 @inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
 @inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
-@inline rsqrt_fast(x) = vinv(vsqrt(x))
 @inline rsqrt(x) = vinv(vsqrt(x))
 @inline vinv(x::IntegerTypes) = vinv(float(x))
 @inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt64,Int64}} = vinv(pirate_convert(Vec{W,Float64}, v))
