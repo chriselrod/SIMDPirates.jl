@@ -26,7 +26,7 @@ end
             v1, v2))
     end
 end
-@inline function shufflevector(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}, ::Val{I}) where {N,T,I}
+@inline function shufflevector(v1::SVec{N,T}, v2::SVec{N,T}, ::Val{I}) where {N,T,I}
     SVec(shufflevector(extract_data(v1), extract_data(v2), Val(I)))
 end
 
@@ -34,14 +34,15 @@ end
     M, decls, instrs = shufflevector_instrs(N, T, I, false)
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$M,T},
-            Tuple{Vec{$N,T}},
-            v1)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$M,T}, Tuple{Vec{$N,T}}, v1
+        )
     end
 end
-@inline function shufflevector(v1::AbstractStructVec{N,T}, ::Val{I}) where {N,T,I}
+@inline function shufflevector(v1::SVec{N,T}, ::Val{I}) where {N,T,I}
     SVec(shufflevector(extract_data(v1), Val(I)))
 end
 
-@inline rotate_vector_left(v::AbstractSIMDVector{N}) where {N} = shufflevector(v, Val(ntuple(i -> i, Val(N))))
+@inline rotate_vector_left(v::AbstractSIMDVector{N}) where {N} = shufflevector(v, Val(ntuple(i -> (i % N), Val(N))))
+

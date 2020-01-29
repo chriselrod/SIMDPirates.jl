@@ -2,7 +2,7 @@ module SIMDPirates
 
 using VectorizationBase
 using VectorizationBase:
-    llvmtype, AbstractSIMDVector, AbstractStructVec, vbroadcast, vzero, vone,
+    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType
 using MacroTools: prewalk, postwalk
     
@@ -27,7 +27,7 @@ export  Vec, SVec, VE,
 
 vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]
 abstractarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{N,T})    : arg for arg ∈ args]
-structvecarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractStructVec{N,T})     : arg for arg ∈ args]
+structvecarguments(args) = [isa(arg, Symbol) ? :($arg::SVec{N,T})     : arg for arg ∈ args]
 function vector_args(args)
     vecargs = vecarguments(args)
     abstractargs = abstractarguments(args)

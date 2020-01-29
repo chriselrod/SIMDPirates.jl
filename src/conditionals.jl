@@ -44,8 +44,8 @@ end
     iv = vreinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, em), em)
 end
-@inline visfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
-@inline Base.isfinite(v1::AbstractStructVec) = SVec(visfinite(extract_data(v1)))
+@inline visfinite(v1::SVec) = SVec(visfinite(extract_data(v1)))
+@inline Base.isfinite(v1::SVec) = SVec(visfinite(extract_data(v1)))
 
 @inline visfinite_boolvec(s::ScalarTypes) = isfinite(s)
 @inline function visfinite_boolvec(v1::Vec{N,T}) where {N,T<:FloatingTypes}
@@ -54,18 +54,18 @@ end
     iv = vreinterpret(Vec{N,U}, v1)
     vnot_equal_boolvec(vand(iv, em), em)
 end
-@inline visfinite_boolvec(v1::AbstractStructVec) = SVec(visfinite_boolvec(extract_data(v1)))
+@inline visfinite_boolvec(v1::SVec) = SVec(visfinite_boolvec(extract_data(v1)))
 
 
 @inline visinf(s1::ScalarTypes) = isinf(s1)
 @inline visinf(v1::Vec{N,T}) where {N,T<:FloatingTypes} = visequal(vabs(v1), vbroadcast(Vec{N,T},Inf))
-@inline visinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
-@inline Base.isinf(v1::AbstractStructVec) = SVec(visinf(extract_data(v1)))
+@inline visinf(v1::SVec) = SVec(visinf(extract_data(v1)))
+@inline Base.isinf(v1::SVec) = SVec(visinf(extract_data(v1)))
 
 @inline visnan(s1::ScalarTypes) = isnan(s1)
 @inline visnan(v1::Vec{N,T}) where {N,T<:FloatingTypes} = vnot_equal(v1, v1)
-@inline visnan(v1::AbstractStructVec) = SVec(visnan(extract_data(v1)))
-@inline Base.isnan(v1::AbstractStructVec) = SVec(visnan(extract_data(v1)))
+@inline visnan(v1::SVec) = SVec(visnan(extract_data(v1)))
+@inline Base.isnan(v1::SVec) = SVec(visnan(extract_data(v1)))
 
 @inline vissubnormal(s1::ScalarTypes) = issubnormal(s1)
 @inline function vissubnormal(v1::Vec{N,T}) where {N,T<:FloatingTypes}
@@ -75,8 +75,8 @@ end
     iv = vreinterpret(Vec{N,U}, v1)
     vand(visequal(vand(iv, em), vbroadcast(Vec{N,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0)))
 end
-@inline vissubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
-@inline Base.issubnormal(v1::AbstractStructVec) = SVec(vissubnormal(extract_data(v1)))
+@inline vissubnormal(v1::SVec) = SVec(vissubnormal(extract_data(v1)))
+@inline Base.issubnormal(v1::SVec) = SVec(vissubnormal(extract_data(v1)))
 
 
 @inline signbit(s1::ScalarTypes) = signbit(s1)
@@ -86,10 +86,10 @@ end
     iv = vreinterpret(Vec{N,U}, v1)
     vnot_equal(vand(iv, sm), vbroadcast(Vec{N,U}, 0))
 end
-@inline function vsignbit(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+@inline function vsignbit(v1::SVec{N,T}) where {N,T<:FloatingTypes}
     SVec(vsignbit(extract_data(v1)))
 end
-@inline function Base.signbit(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+@inline function Base.signbit(v1::SVec{N,T}) where {N,T<:FloatingTypes}
     SVec(vsignbit(extract_data(v1)))
 end
 
@@ -124,8 +124,8 @@ end
 #         v2::VecOrProd{N,T}, v3::VecOrProd{N,T}) where {N,T}
 #     vifelse(extract_data(v1), extract_data(v2), extract_data(v3))
 # end
-# @inline function Base.ifelse(v1::AbstractStructVec{N,Bool},
-#         v2::AbstractStructVec{N,T}, v3::AbstractStructVec{N,T}) where {N,T}
+# @inline function Base.ifelse(v1::SVec{N,Bool},
+#         v2::SVec{N,T}, v3::SVec{N,T}) where {N,T}
 #     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
 # end
 

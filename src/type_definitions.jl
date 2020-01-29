@@ -48,43 +48,12 @@ end
     end
 end
 
-@inline Base.setindex(v::AbstractStructVec{N,T}, x::Number, i) where {N,T} = setindex(v, x, i)
-@inline Base.setindex(v::AbstractStructVec{N,T}, x::Number, i::Integer) where {N,T} = setindex(v, x, Int(i))
+@inline Base.setindex(v::SVec{N,T}, x::Number, i) where {N,T} = setindex(v, x, i)
+@inline Base.setindex(v::SVec{N,T}, x::Number, i::Integer) where {N,T} = setindex(v, x, Int(i))
 
 
 @inline getvalindex(v::AbstractSIMDVector{N,T}, ::Val{I}) where {N,T,I} = extract_data(v)[I].value
-
-
-
-
-@inline Vec{N,T}(v::Vararg{T,N}) where {T,N} = ntuple(n -> VE(v[n]), Val(N))
-
 @inline Base.convert(::Type{SVec{W,T}}, v::Vec{W,T}) where {W,T} = SVec(v)
-@generated function Base.convert(::Type{SVec{N,T}}, xs::NTuple{N,T}) where {N,T}
-    svecq = Expr(:call, :SVec, Expr(:tuple, [:(VE(xs[$n])) for n ∈ 1:N]...))
-    quote
-        $(Expr(:meta,:inline))
-        @inbounds $svecq
-    end
-end
-@generated function Base.convert(::Type{SVec{N,T2}}, xs::NTuple{N,T1}) where {N,T1,T2}
-    quote
-        $(Expr(:meta,:inline))
-        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE(convert(T2,xs[n]))))
-    end
-end
-@generated function Base.convert(::Type{SVec{N,T2}}, xs::Vec{N,T1}) where {N,T1,T2}
-    quote
-        $(Expr(:meta,:inline))
-        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE(convert(T2,xs[n].value))))
-    end
-end
-@generated function Base.convert(::Type{SVec{N,T1}}, xs::SVec{N,T2}) where {N,T1,T2}
-    quote
-        $(Expr(:meta,:inline))
-        @inbounds SVec((Base.Cartesian.@ntuple $N n -> VE{T1}(xs[n])))
-    end
-end
 @inline Base.convert(::Type{SVec{N,T}}, x::SVec{N,T}) where {N,T} = x
 
 @generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W,T1 <: FloatingTypes, T2 <: Signed}
@@ -228,8 +197,6 @@ end
 end
 
 
-# @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))
-# @inline similar(s::T, ::Vec{N,T}, ::Vec{N,T}) = ntuple(i -> VE{T}(s), Val(N))
 
 # Floating point formats
 

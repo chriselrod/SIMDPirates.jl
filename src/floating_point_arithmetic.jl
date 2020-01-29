@@ -19,9 +19,9 @@ for op ∈ (
 
         # @inline $rename(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     llvmwrap(Val{$(QuoteNode(op))}(), v1)
-        # @inline $rename(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+        # @inline $rename(v1::SVec{N,T}) where {N,T<:FloatingTypes} =
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
-        # @inline Base.$op(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+        # @inline Base.$op(v1::SVec{N,T}) where {N,T<:FloatingTypes} =
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
     end
 end
@@ -38,10 +38,10 @@ end
         copysign(vbroadcast(Vec{N,T}, one(T)), extract_data(v1))
     )
 end
-# @inline function vsign(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+# @inline function vsign(v1::SVec{N,T}) where {N,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
 # end
-# @inline function Base.sign(v1::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+# @inline function Base.sign(v1::SVec{N,T}) where {N,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
 # end
 
@@ -65,7 +65,7 @@ for op ∈ (
             llvmwrap_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
-        @inline function Base.$op(v1::AbstractStructVec{W,T1}, v2::AbstractStructVec{W,T2}) where {W,T1,T2}
+        @inline function Base.$op(v1::SVec{W,T1}, v2::SVec{W,T2}) where {W,T1,T2}
             T = promote_type(T1, T2)
             $op(vconvert(SVec{W,T}, v1), vconvert(SVec{W,T}, v2))
         end
@@ -105,7 +105,7 @@ end
 #             VecProduct(extract_data(v1), extract_data(v2))
 #         @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
 #             SVecProduct(extract_data(v1), extract_data(v2))
-#         @inline Base.$op(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+#         @inline Base.$op(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T<:FloatingTypes} =
 #             SVecProduct(extract_data(v1), extract_data(v2))
 #     end
 # end
@@ -120,10 +120,10 @@ end
 # @inline function vpow(v1::Vec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
 #     llvmwrap(Val{:powi}, v1, Int(x2))
 # end
-# @inline function vpow(v1::AbstractStructVec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
+# @inline function vpow(v1::SVec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
 #     SVec(llvmwrap(Val{:powi}, extract_data(v1), Int(x2)))
 # end
-# @inline function Base.:^(v1::AbstractStructVec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
+# @inline function Base.:^(v1::SVec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
 #     SVec(llvmwrap(Val{:powi}, extract_data(v1), Int(x2)))
 # end
 
@@ -137,7 +137,7 @@ end
 #     vifelse(vsignbit(v2), -v1, v1)
 # @inline vflipsign(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
 #     SVec(vifelse(vsignbit(v2), -v1, v1))
-# @inline Base.flipsign(v1::AbstractStructVec{N,T}, v2::AbstractStructVec{N,T}) where {N,T<:FloatingTypes} =
+# @inline Base.flipsign(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T<:FloatingTypes} =
 #     SVec(vifelse(vsignbit(v2), -v1, v1))
 
 for op ∈ (:fma, :muladd)
@@ -179,8 +179,8 @@ for op ∈ (:fma, :muladd)
         #         v2::AbstractSIMDVector{N,T}, v3::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
         # end
-        # @inline function Base.$op(v1::AbstractStructVec{N,T},
-        #         v2::AbstractStructVec{N,T}, v3::AbstractStructVec{N,T}) where {N,T<:FloatingTypes}
+        # @inline function Base.$op(v1::SVec{N,T},
+        #         v2::SVec{N,T}, v3::SVec{N,T}) where {N,T<:FloatingTypes}
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
         # end
     end
@@ -521,7 +521,7 @@ for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
     @eval begin
         @inline $rename(v::AbstractSIMDVector{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
-        @inline $name(v::AbstractStructVec{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        @inline $name(v::SVec{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
     end
 end
 
@@ -631,8 +631,8 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 # vfnmadd, vfmsub, and vfnmsub
 # in this manner.
 
-@inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
-@inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
+# @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
+# @inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
 
 # @generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
@@ -659,8 +659,8 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 #     vmul(vmul(-0.5f0, r), ns)
 # end
 @inline rsqrt_fast(v) = vinv(vsqrt(v))
-@inline rsqrt_fast(x::AbstractStructVec) = SVec(rsqrt_fast(extract_data(x)))
-@inline rsqrt(x::AbstractStructVec) = SVec(rsqrt(extract_data(x)))
+@inline rsqrt_fast(x::SVec) = SVec(rsqrt_fast(extract_data(x)))
+@inline rsqrt(x::SVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt(x) = vinv(vsqrt(x))
 @inline vinv(x::IntegerTypes) = vinv(float(x))
 @inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt64,Int64}} = vinv(pirate_convert(Vec{W,Float64}, v))

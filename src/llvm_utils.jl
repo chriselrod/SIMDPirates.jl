@@ -304,12 +304,14 @@ end
             Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
     end
 end
-@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::AbstractStructVec{N1,T1}) where {N,R,N1,T1}
+@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::SVec{N1,T1}) where {N,R,N1,T1}
     SVec(vreinterpret(Vec{N,R}, extract_data(v1)))
 end
-@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::AbstractStructVec{N1,UInt128}) where {N,R,N1}
+@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::SVec{N1,UInt128}) where {N,R,N1}
     SVec(vreinterpret(Vec{N,R}, extract_data(v1)))
 end
+@inline vrem(v::Vec{W,I}, ::Type{Vec{W,U}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(Vec{W,U}, v), Vec{W,U})
+@inline vrem(v::Vec{W,U}, ::Type{Vec{W,I}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(Vec{W,I}, v), Vec{W,I})
 
 # Doesn't seem to do anything, eg
 # assume(N < 10)
