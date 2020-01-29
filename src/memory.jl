@@ -137,7 +137,7 @@ end
         "declare $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp*, i32, <$N x i1>, $vtyp)"
     )
     push!(instrs,
-        "%res = call $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp* %ptr, i32 $align, <$N x i1> %mask, $vtyp $(llvmconst(N, T, 0)))"
+        "%res = call $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp* %ptr, i32 $align, <$N x i1> %mask, $vtyp zeroinitializer)"
     )
     push!(instrs, "ret $vtyp %res")
     quote
@@ -174,7 +174,7 @@ end
         "declare $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp*, i32, <$N x i1>, $vtyp)"
     )
     push!(instrs,
-        "%res = call $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp* %ptr, i32 $align, <$N x i1> %mask, $vtyp $(llvmconst(N, T, 0)))"
+        "%res = call $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp* %ptr, i32 $align, <$N x i1> %mask, $vtyp zeroinitializer)"
     )
     push!(instrs, "ret $vtyp %res")
     quote
@@ -445,10 +445,8 @@ end
     end
     mask = join((", i1 true" for i ∈ 2:N))
     push!(instrs, "%ptr = inttoptr $vptyp %0 to $vptrtyp")
-    push!(decls,
-        "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
-    push!(instrs,
-        "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>, $vtyp undef)")#$(llvmconst(N, T, 0)))")
+    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
+    push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>, $vtyp undef)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
@@ -485,10 +483,8 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
     end
-    push!(decls,
-        "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
-    push!(instrs,
-        "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> %mask, $vtyp $(llvmconst(N, T, 0)))")
+    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
+    push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> %mask, $vtyp zeroinitializer)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
@@ -767,7 +763,7 @@ end
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
     end
     push!(decls, "declare $vtyp @llvm.masked.expandload.$(suffix(N,T))($typ*, <$N x i1>, $vtyp)")
-    push!(instrs, "%res = call $vtyp @llvm.masked.expandload.$(suffix(N,T))($typ* %ptr, <$N x i1> %mask, $vtyp $(llvmconst(N, T, 0)))")
+    push!(instrs, "%res = call $vtyp @llvm.masked.expandload.$(suffix(N,T))($typ* %ptr, <$N x i1> %mask, $vtyp zeroinitializer)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))

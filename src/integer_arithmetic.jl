@@ -294,3 +294,28 @@ end
 #     end
 # end
 
+@generated function vpmaddwd(a::NTuple{W,Core.VecElement{Int16}}, b::NTuple{W,Core.VecElement{Int16}}) where {W}
+    Wh = W >>> 1
+    @assert 2Wh == W
+    @assert (REGISTER_SIZE >> 1) ≥ W
+    S = W * 16
+    # decl = "@llvm.x86.avx512.pmaddw.d.512"
+    instr = "@llvm.x86.avx512.pmaddw.d.$S"
+    decl = "declare <$Wh x i32> $instr(<32 x i16>, <32 x i16>)"
+    instrs = String[
+        "%res = call <$Wh x i32> $instr(<$W x i16> %0, <$W x i16> %1)",
+        "ret <$Wh x i32> %res"
+    ]
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $((decl,join(instrs,"\n"))),
+            NTuple{$Wh,Core.VecElement{Int32}},
+            Tuple{NTuple{$W,Core.VecElement{Int16}},NTuple{$W,Core.VecElement{Int16}}},
+            a, b
+        )
+    end
+end
+
+
+

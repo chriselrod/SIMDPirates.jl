@@ -307,8 +307,7 @@ end
         push!(instrs, "%res = $ins $vtyp %0, $count")
         push!(instrs, "ret $vtyp %res")
     else
-        zero = llvmconst(N, T, 0)
-        push!(instrs, "return $vtyp $zero")
+        push!(instrs, "return $vtyp zeroinitializer")
     end
     quote
         $(Expr(:meta, :inline))
@@ -335,8 +334,7 @@ end
         push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
         push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp %limit")
     else
-        zero = llvmconst(N, T, 0)
-        push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp $zero")
+        push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
     end
     push!(instrs, "ret $vtyp %res")
     quote
@@ -391,9 +389,8 @@ end
         push!(instrs,
             "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
     else
-        zero = llvmconst(N, T, 0)
         push!(instrs,
-            "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp $zero")
+            "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
     end
     push!(instrs, "ret $vtyp %res")
     quote
