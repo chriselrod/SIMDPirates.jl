@@ -133,6 +133,8 @@ end
     vifelse(vsignbit(extract_data(v2)), vsub(extract_data(v1)), extract_data(v1))
 end
 
+@inline vcopysign(v1::Vec{W,T}, v2::Vec{W,U}) where {W,T,U<:Unsigned} = vcopysign(v1, vreinterpret(Vec{W,T}, v2))
+
 # @inline vflipsign(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
 #     vifelse(vsignbit(v2), -v1, v1)
 # @inline vflipsign(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
