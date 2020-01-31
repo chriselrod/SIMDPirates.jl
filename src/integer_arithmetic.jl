@@ -105,9 +105,9 @@ end
 
 @inline vmax(s1::IntegerTypes, s2::IntegerTypes) = vmax(s1, s2)
 @inline vmax(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:IntegerTypes} =
-    vifelse(v1>=v2, v1, v2)
+    vifelse(vless(v2, v1), v2, v1)
 @inline vmin(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:IntegerTypes} =
-    vifelse(v1>=v2, v2, v1)
+    vifelse(vless(v1, v2), v1, v2)
 
 vmuladd(s1::ScalarTypes, s2::ScalarTypes, s3::ScalarTypes) = muladd(s1,s2,s3)
 @inline function vmuladd(v1::Vec{N,T}, v2::Vec{N,T}, v3::Vec{N,T}) where {N,T<:IntegerTypes}

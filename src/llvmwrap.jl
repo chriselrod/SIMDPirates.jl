@@ -363,9 +363,7 @@ end
     ValNegOp = Val{NegOp}()
     quote
         $(Expr(:meta, :inline))
-        ifelse(x2 >= 0,
-               llvmwrapshift($ValOp, v1, unsigned(x2)),
-               llvmwrapshift($ValNegOp, v1, unsigned(-x2)))
+        x2 < 0 ? llvmwrapshift($ValNegOp, v1, unsigned(-x2)) : llvmwrapshift($ValOp, v1, unsigned(x2))
     end
 end
 

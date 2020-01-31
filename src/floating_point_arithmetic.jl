@@ -719,6 +719,29 @@ end
 @inline reduce_to_prod(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W}) where {W,T} = v
 @inline reduce_to_prod(s::T, ::T) where {T<:Number} = v
 
+
+# @inline reduced_all(u1::Unsigned, u1::Unsigned) where {W,T} = vall(v) & s
+# @inline reduced_any(u::Unsigned, b::Bool) where {W,T} = b || vany(v)
+# @inline reduced_all(v::AbstractSIMDVector, s::T) where {W,T} = vall(v) & s
+# @inline reduced_any(v::AbstractSIMDVector, s::T) where {W,T} = s || vany(v)
+@inline reduced_max(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = max(vmaximum(v), s)
+@inline reduced_min(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = min(vminimum(v), s)
+@inline reduced_max(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmax(v1, v2)
+@inline reduced_min(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmin(v1, v2)
+@inline reduce_to_max(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = vmaximum(v)
+@inline reduce_to_min(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = vminimum(v)
+@inline reduce_to_max(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W,T}) where {W,T} = v
+@inline reduce_to_min(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W,T}) where {W,T} = v
+
+@inline reduced_max(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = max(convert(T2,vmaximum(v)), s)
+@inline reduced_min(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = min(convert(T2,vminimum(v)), s)
+@inline reduced_max(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmax(vconvert(Vec{W,T2},v1), v2)
+@inline reduced_min(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmin(vconvert(Vec{W,T2},v1), v2)
+@inline reduce_to_max(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = convert(T2,vmaximum(v))
+@inline reduce_to_min(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = convert(T2,vminimum(v))
+@inline reduce_to_max(v::AbstractSIMDVector{W,T1}, ::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vconvert(Vec{W,T2}, v)
+@inline reduce_to_min(v::AbstractSIMDVector{W,T1}, ::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vconvert(Vec{W,T2}, v)
+
 @inline vnmul(x,y) = vsub(vmul(x, y))
 @inline vnsub(x,y) = vsub(y, x)
 @inline vmul2(x) = vadd(x,x)
