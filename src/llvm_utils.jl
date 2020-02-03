@@ -6,8 +6,8 @@ function fastflags(@nospecialize(T))
     elseif T <: UIntTypes
         s = "nuw"
     else#if T <: FloatingTypes
-        # s = "fast"
-        s = "nnan ninf nsz arcp contract reassoc"
+        s = "fast"
+        # s = "nnan ninf nsz arcp contract reassoc"
     end
     return s
 end
