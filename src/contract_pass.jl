@@ -122,35 +122,34 @@ function capture_muladd(ex::Expr, mod)
     call
 end
 
-
-contract_pass(x) = x # x will probably be a symbol
-function contract_pass(expr::Expr, mod = nothing)::Expr
-    prewalk(expr) do ex
-        if !(ex isa Expr)
-            return ex
-        elseif ex.head !== :call
-            if ex.head === :(+=)
-                call = Expr(:call, :(+))
-                append!(call.args, ex.args)
-                Expr(:(=), first(ex.args), call)
-            elseif ex.head === :(-=)
-                call = Expr(:call, :(-))
-                append!(call.args, ex.args)
-                Expr(:(=), first(ex.args), call)
-            elseif ex.head === :(*=)
-                call = Expr(:call, :(*))
-                append!(call.args, ex.args)
-                Expr(:(=), first(ex.args), call)
-            elseif ex.head === :(/=)
-                call = Expr(:call, :(/))
-                append!(call.args, ex.args)
-                Expr(:(=), first(ex.args), call)
-            else
-                ex
-            end
-        else # ex.head === :call
-            return capture_muladd(ex, mod)
-        end
+contract_pass!(::Any, ::Any) = nothing
+function contract!(expr::Expr, ex::Expr, i::Int, mod = nothing)
+    if ex.head === :call
+        expr.args[i] = capture_muladd(ex, mod)
+    elseif ex.head === :(+=)
+        call = Expr(:call, :(+))
+        append!(call.args, ex.args)
+        expr.args[i] = Expr(:(=), first(ex.args), call)
+    elseif ex.head === :(-=)
+        call = Expr(:call, :(-))
+        append!(call.args, ex.args)
+        expr.args[i] = Expr(:(=), first(ex.args), call)
+    elseif ex.head === :(*=)
+        call = Expr(:call, :(*))
+        append!(call.args, ex.args)
+        expr.args[i] = Expr(:(=), first(ex.args), call)
+    elseif ex.head === :(/=)
+        call = Expr(:call, :(/))
+        append!(call.args, ex.args)
+        expr.args[i] = Expr(:(=), first(ex.args), call)
+    end
+    contract_pass!(expr.args[i], mod)
+end
+# contract_pass(x) = x # x will probably be a symbol
+function contract_pass!(expr::Expr, mod = nothing)
+    for (i,ex) ∈ enumerate(expr.args)
+        ex isa Expr || continue
+        contract!(expr, ex, i, mod)
     end
 end
 

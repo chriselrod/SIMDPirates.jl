@@ -4,10 +4,8 @@ authors = ["Chris Elrod <elrodc@gmail.com>"]
 version = "0.3.3"
 
 [deps]
-MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 VectorizationBase = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
 
 [compat]
-MacroTools = "0"
 VectorizationBase = "0.2, 0.3, 0.4"
 julia = "1"

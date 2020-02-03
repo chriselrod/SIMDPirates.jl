@@ -4,7 +4,7 @@ using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType
-using MacroTools: prewalk, postwalk
+# using MacroTools: prewalk, postwalk
     
 export  Vec, SVec, VE,
     @pirate,

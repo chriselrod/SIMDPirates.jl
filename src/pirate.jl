@@ -7,40 +7,44 @@ function horner(x, pu...)
     Expr(:block, :($t = $x), ex)
 end
 
-function _pirate(ex)
-    postwalk(contract_pass(ex, :SIMDPirates)) do x
-        if x isa Symbol
-            f = get(VECTOR_SYMBOLS, x, x)
-            if f === x
-                return x
-            else
-                return Expr(:(.), :SIMDPirates, QuoteNode(f))
-            end
-        end
-        x isa Expr || return x
-        xexpr::Expr = x
-        xexpr.head === :call || return x
-        f = first(xexpr.args)
-        if f == :(Base.FastMath.add_fast)
-            vf = :vadd
-        elseif f == :(Base.FastMath.sub_fast)
-            vf = :vsub
-        elseif f == :(Base.FastMath.mul_fast)
-            vf = :vmul
-        elseif f == :(Base.FastMath.div_fast)
-            vf = :vfdiv
-        elseif f == :(Base.FastMath.sqrt)
-            vf = :vsqrt
-        elseif f == :(Base.Math.muladd)
-            vf = :vmuladd
-        else
-            return xexpr
-        end
-    end |> esc
+spfunc(f) = Expr(:(.), :SIMDPirates, QuoteNode(f))
+function ret_pirate(ex::Expr, x::Symbol, i::Int)
+    f = get(VECTOR_SYMBOLS, x, x)
+    f === x || (ex.args[i] = spfunc(f))
+    nothing
+end
+ret_pirate!(::Expr, ::Any, ::Int) = nothing
+function ret_pirate!(ex::Expr, x::Expr, i::Int)
+    length(x.args) == 0 && return
+    f = first(x.args)
+    x.args[1] = if f == :(Base.FastMath.add_fast)
+        spfunc(:vadd)
+    elseif f == :(Base.FastMath.sub_fast)
+        spfunc(:vsub)
+    elseif f == :(Base.FastMath.mul_fast)
+        spfunc(:vmul)
+    elseif f == :(Base.FastMath.div_fast)
+        spfunc(:vfdiv)
+    elseif f == :(Base.FastMath.sqrt)
+        spfunc(:vsqrt)
+    elseif f == :(Base.Math.muladd)
+        spfunc(:vmuladd)
+    else
+        f
+    end
+    _pirate!(expr, mod)
+    nothing
+end
+    
+
+function _pirate!(expr, mod)
+    for (i,ex) ∈ enumerate(expr.args)
+        ret_pirate!(expr, ex, i)
+    end
+    esc(expr)
 end
 
-
-macro pirate(ex) _pirate(ex) end
+macro pirate(ex) _pirate!(contract_pass!(ex, Expr(:(.), mod, QuoteNode(:SIMDPirates))), Symbol(__module__)) end
 
 
 # struct vBitArray
