@@ -65,47 +65,21 @@ macro evectordef(rename, expr)
     esc(q)
 end
 
-macro vpromote(expr)
-    f = first(expr.args)::Symbol
-    args = convert(Vector{Symbol}, @view(expr.args[2:end]))
-    # vecargs = [isa(arg, Symbol) ? :($arg::Union{T,Vec{W,T}})    : arg for arg ∈ args]
-    mixargs = [isa(arg, Symbol) ? :($arg::Union{T,AbstractSIMDVector{W,T}})    : arg for arg ∈ args]
-    svecargs = [isa(arg, Symbol) ? :($arg::SVec{W,T})    : arg for arg ∈ args]
-    pt = [Symbol(:T_,i) for i ∈ eachindex(args)]
-    promoteargs = [isa(args[i], Symbol) ? :($(args[i])::Union{$(pt[i]),AbstractSIMDVector{W,$(pt[i])}}) : args[i] for i ∈ eachindex(args)]
+macro vpromote(f, N)
+    argnames = [Symbol(:v_, n) for n ∈ 1:N]
+    types = [Symbol(:V, n) for n ∈ 1:N]
+    args = [Expr(:(::), a, t) for (a,t) ∈ zip(argnames, types)]
+    svecargs = [Expr(:(::), a, Expr(:curly, :SVec, :W, :T)) for a ∈ argnames]
     q = quote
-        @inline $f($(svecargs...)) where {W,T} = $(Expr(:call, :SVec, Expr(:call, f, [ Expr(:call, :extract_data, arg) for arg ∈ args  ]... ) ))
-        # @inline $f($(mixargs...)) where {W,T} = $(Expr(:call, f, [ Expr(:call, :vbroadcast, Expr(:curly,:SVec,:W,:T), arg) for arg ∈ args  ]... ))
-        @inline function $f($(promoteargs...)) where {W,$(pt...)}
-            T = $(Expr(:call, :promote_type, pt...))
-            $(Expr(:call, f, [ Expr(:call, :vconvert, Expr(:curly,:SVec,:W,:T), arg) for arg ∈ args  ]... ))
+        @inline function $f($(args...)) where {$(types...)}
+            V = promote_vtype($(types...))
+            $(Expr(:call, f, [ Expr(:call, :vconvert, :V, arg) for arg ∈ argnames  ]... ))
+        end
+        @inline function $f($(svecargs...)) where {W,T}
+            SVec($(Expr(:call, f, [ Expr(:call, :extract_data, arg) for arg ∈ argnames  ]... )))
         end
     end
     esc(q)
-#     esc(Expr(
-#         :block,
-#         Expr(:macrocall,# create all SVec definition
-#              Symbol("@inline"), LineNumberNode(@__LINE__, @__FILE__),
-#              Expr(:(=),
-#                   Expr(:where, Expr(:call, f, svecargs...), :W, :T),
-#                   Expr(:block,Expr(:call, :SVec, Expr(:call, f, [ Expr(:call, :extract_data, arg) for arg ∈ args  ]... ) ))
-#                   )
-#              ),
-#         # Expr(:macrocall,# call all-Vec definition, promoting scalars
-#              # Symbol("@inline"), LineNumberNode(@__LINE__, @__FILE__),
-#              # Expr(:(=),
-#                   # Expr(:where, Expr(:call, f, vecargs...), :W, :T),
-#                   # Expr(:block,Expr(:call, f, [ Expr(:call, :vbroadcast, Expr(:curly,:Vec,:W,:T), arg) for arg ∈ args  ]... ))
-#                   # )
-#              # ),
-#         Expr(:macrocall,# call all-SVec definition, promoting scalars and Vecs
-#              Symbol("@inline"), LineNumberNode(@__LINE__, @__FILE__),
-#              Expr(:(=),
-#                   Expr(:where, Expr(:call, f, mixargs...), :W, :T),
-#                   Expr(:block,Expr(:call, f, [ Expr(:call, :vbroadcast, Expr(:curly,:SVec,:W,:T), arg) for arg ∈ args  ]... ))
-#                   )
-#              )
-#     ))
 end
 
 include("type_definitions.jl")

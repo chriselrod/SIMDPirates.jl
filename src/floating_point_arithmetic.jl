@@ -73,7 +73,10 @@ for op ∈ (
             V = promote_vtype(V1, V2)
             $rename(vconvert(V, v1), vconvert(V, v2))
         end
-        
+        # @inline function $rename(v1::V1, v2::V2) where {V1,V2}
+            # V = vpromote(V1, V2)
+            # $rename(vconvert(V, v1), vconvert(V, v2))
+        # end
         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
         #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2)
         # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
@@ -84,12 +87,12 @@ for op ∈ (
 end
 @inline vfdiv(v1::Vec{W,Int32}, v2::Vec{W,Int32}) where {W} = vfdiv(vconvert(Vec{W,Float32}, v1), vconvert(Vec{W,Float32}, v2))
 @inline vfdiv(v1::Vec{W,Int64}, v2::Vec{W,Int64}) where {W} = vfdiv(vconvert(Vec{W,Float64}, v1), vconvert(Vec{W,Float64}, v2))
-@vpromote vfdiv(x,y)
-@inline vmax(x, y) = max(x,y)
+# @vpromote vfdiv 2
+@inline vmax(x::Number, y::Number) = Base.FastMath.max_fast(x,y)
 @vectordef vmax function Base.max(v1, v2) where {N,T<:FloatingTypes}
     vifelse(vgreater(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
 end
-@inline vmin(x, y) = min(x,y)
+@inline vmin(x::Number, y::Number) = Base.FastMath.min_fast(x,y)
 @vectordef vmin function Base.min(v1, v2) where {N,T<:FloatingTypes}
     vifelse(vless(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
 end
@@ -227,6 +230,7 @@ for op ∈ (
         @inline function $rename(v1::Vec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
             $rename(v1, vbroadcast(Vec{N,T2}, s2))
         end
+        @vpromote $rename 2
     end
 end
 for op ∈ (
@@ -576,8 +580,8 @@ end
 # @inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)
 
 # TODO: Handle cases with vectors of different lengths correctly!
-@inline vmul(x, y) = Base.FastMath.mul_fast(x, y)
-@inline vadd(x, y) = Base.FastMath.add_fast(x, y)
+@inline vmul(x::Number, y::Number) = Base.FastMath.mul_fast(x, y)
+@inline vadd(x::Number, y::Number) = Base.FastMath.add_fast(x, y)
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
 @inline vmuladd(a, b, c) = vadd(vmul( a, b), c)
@@ -599,7 +603,7 @@ end
     end
 end
 vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
-@vpromote vfmadd(a, b, c)
+@vpromote vfmadd 3
 @inline vfmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
 @inline vfnmadd(a, b, c) = vfmadd(vsub(a), b, c)
 @inline vfmsub(a, b, c) = vfmadd(a, b, vsub(c))
@@ -621,7 +625,7 @@ vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
     end
 end
 vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
-@vpromote vfmadd_fast(a, b, c)
+@vpromote vfmadd_fast 3
 @inline vfmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
 @inline vfnmadd_fast(a, b, c) = vfmadd_fast(vsub(a), b, c)
 @inline vfmsub_fast(a, b, c) = vfmadd_fast(a, b, vsub(c))

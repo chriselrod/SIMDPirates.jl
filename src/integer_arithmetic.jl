@@ -81,9 +81,9 @@ Base.:%(v::SVec{W,I1}, ::Type{I2}) where {W,I1,I2} =  SVec(vconvert(Vec{W,I2}, e
 @inline vcopysign(s1::IntegerTypes, s2::IntegerTypes) = copysign(s1, s2)
 @inline vcopysign(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:IntTypes} =
     vifelse(vsignbit(v2), -abs(v1), abs(v1))
-@inline function vcopysign(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T}
-    SVec(vcopysign(extract_data(v1), extract_data(v2)))
-end
+# @inline function vcopysign(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T}
+    # SVec(vcopysign(extract_data(v1), extract_data(v2)))
+# end
 @inline function Base.copysign(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T}
     SVec(vcopysign(extract_data(v1), extract_data(v2)))
 end

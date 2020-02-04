@@ -184,6 +184,25 @@ end
     T = promote_type(T1, T2)
     SVec{W,T}
 end
+# @inline promote_vtype(::Type{V}, ::Type{T}) where {W,T,V <: AbstractSIMDVector{W,T}} = V
+@inline function promote_vtype(::Type{Vec{W,T1}}, ::Type{T2}) where {W,T1,T2<:Number}
+    T = promote_type(T1,T2)
+    Vec{W,T}
+end
+@inline function promote_vtype(::Type{SVec{W,T1}}, ::Type{T2}) where {W,T1,T2<:Number}
+    T = promote_type(T1,T2)
+    SVec{W,T}
+end
+@inline function promote_vtype(::Type{T2}, ::Type{Vec{W,T1}}) where {W,T1,T2<:Number}
+    T = promote_type(T1,T2)
+    Vec{W,T}
+end
+@inline function promote_vtype(::Type{T2}, ::Type{SVec{W,T1}}) where {W,T1,T2<:Number}
+    T = promote_type(T1,T2)
+    SVec{W,T}
+end
+@inline promote_vtype(::Type{T1}, ::Type{T2}, ::Type{T3}) where {T1,T2,T3} = promote_vtype(promote_vtype(T1, T2), T3)
+@inline promote_vtype(::Type{T}, ::Type{T}, ::Type{T}) where {T} = T
 
 @generated function zeropad(v::Vec{W,T}) where {W,T}
     typ = llvmtype(T)
