@@ -174,7 +174,7 @@ for op ∈ (:fma, :muladd)
         @vectordef $rename function Base.$op(v1, s2::T, s3::T) where {N,T<:FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
         end
-
+        @vpromote $rename 3
         # scalar default already set in integer_arithmetic.jl
         # @inline function $rename(v1::Vec{N,T},
         #         v2::Vec{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes}
@@ -250,84 +250,13 @@ for op ∈ (
     end
 end
 
-# @vectordef vifelse function Base.ifelse(c::AbstractSIMDVector{N,Bool}, s1::ScalarTypes, v2) where {N,T<:FloatingTypes}
-#     vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2))
-# end
-# @vectordef vifelse function Base.ifelse(c::AbstractSIMDVector{N,Bool}, v1, s2::ScalarTypes) where {N,T<:FloatingTypes}
-#     vifelse(extract_data(c), extract_data(v1), vbroadcast(Vec{N,T}, s2))
-# end
-# @inline function vifelse(c::VecOrProd{N,Bool}, s1::ScalarTypes, v2::VecOrProd{N,T}) where {N,T<:FloatingTypes}
-#     vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2))
-# end
-# @inline function vifelse(c::VecOrProd{N,Bool}, v1::VecOrProd{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
-#     vifelse(extract_data(c), v1, vbroadcast(Vec{N,T}, extract_data(s2)))
-# end
 @inline function vifelse(c::AbstractSIMDVector{N,Bool}, s1::ScalarTypes, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
     SVec(vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2)))
 end
 @inline function vifelse(c::AbstractSIMDVector{N,Bool}, v1::AbstractSIMDVector{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
     SVec(vifelse(extract_data(c), extract_data(v1), vbroadcast(Vec{N,T}, s2)))
 end
-# @inline vifelse(c::Vec{N,Bool}, s1::ScalarTypes,
-#         v2::Vec{N,T}) where {N,T<:FloatingTypes} =
-#     vifelse(c, vbroadcast(Vec{N,T}, s1), v2)
-# @inline vifelse(c::Vec{N,Bool}, v1::Vec{N,T},
-#         s2::ScalarTypes) where {N,T<:FloatingTypes} =
-# vifelse(c, v1, vbroadcast(Vec{N,T}, s2))
-
-for op ∈ (:fma, :muladd)
-# let op = :fma
-    rename = VECTOR_SYMBOLS[op]
-    @eval begin
-        @vectordef $rename function Base.$op(s1::ScalarTypes, v2, v3) where {N,T}
-            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
-        end
-        @vectordef $rename function Base.$op(v1, s2::ScalarTypes, v3) where {N,T}
-            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
-        end
-        @vectordef $rename function Base.$op(v1, v2, s3::ScalarTypes) where {N,T}
-            $rename(extract_data(v1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
-        end
-
-
-        @vectordef $rename function Base.$op(s1::ScalarTypes, s2::ScalarTypes, v3) where {N,T}
-            $rename(vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
-        end
-        @vectordef $rename function Base.$op(s1::ScalarTypes, v2, s3::ScalarTypes) where {N,T}
-            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
-        end
-        @vectordef $rename function Base.$op(v1, s2::ScalarTypes, s3::ScalarTypes) where {N,T}
-            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
-        end
-    end
-end
-
-for op ∈ (:fmadd, :fmsub, :fnmadd, :fnmsub)
-    rename = VECTOR_SYMBOLS[op]
-    @eval begin
-        @vectordef $rename function $op(s1::ScalarTypes, v2, v3) where {N,T}
-            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
-        end
-        @vectordef $rename function $op(v1, s2::ScalarTypes, v3) where {N,T}
-            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
-        end
-        @vectordef $rename function $op(v1, v2, s3::ScalarTypes) where {N,T}
-            $rename(extract_data(v1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
-        end
-
-
-        @vectordef $rename function $op(s1::ScalarTypes, s2::ScalarTypes, v3) where {N,T}
-            $rename(vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
-        end
-        @vectordef $rename function $op(s1::ScalarTypes, v2, s3::ScalarTypes) where {N,T}
-            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
-        end
-        @vectordef $rename function $op(v1, s2::ScalarTypes, s3::ScalarTypes) where {N,T}
-            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
-        end
-    end
-end
-
+ 
 # Reduction operations
 
 # TODO: map, mapreduce
@@ -584,7 +513,7 @@ end
 @inline vadd(x::Number, y::Number) = Base.FastMath.add_fast(x, y)
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
-@inline vmuladd(a, b, c) = vadd(vmul( a, b), c)
+@inline vmuladd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 # These intrinsics are not FastMath.
 
 @generated function vfmadd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
@@ -603,11 +532,14 @@ end
     end
 end
 vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
-@vpromote vfmadd 3
 @inline vfmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
-@inline vfnmadd(a, b, c) = vfmadd(vsub(a), b, c)
-@inline vfmsub(a, b, c) = vfmadd(a, b, vsub(c))
-@inline vfnmsub(a, b, c) = vsub(vfmadd(a, b, c))
+@inline vfnmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd(vsub(a), b, c)
+@inline vfmsub(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd(a, b, vsub(c))
+@inline vfnmsub(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vsub(vfmadd(a, b, c))
+@vpromote vfmadd 3
+@vpromote vfnmadd 3
+@vpromote vfmsub 3
+@vpromote vfnmsub 3
 
 @generated function vfmadd_fast(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
     typ = llvmtype(T)
@@ -625,11 +557,14 @@ vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
     end
 end
 vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
-@vpromote vfmadd_fast 3
 @inline vfmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
-@inline vfnmadd_fast(a, b, c) = vfmadd_fast(vsub(a), b, c)
-@inline vfmsub_fast(a, b, c) = vfmadd_fast(a, b, vsub(c))
-@inline vfnmsub_fast(a, b, c) = vsub(vfmadd_fast(a, b, c))
+@inline vfnmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(vsub(a), b, c)
+@inline vfmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(a, b, vsub(c))
+@inline vfnmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vsub(vfmadd_fast(a, b, c))
+@vpromote vfmadd_fast 3
+@vpromote vfnmadd_fast 3
+@vpromote vfmsub_fast 3
+@vpromote vfnmsub_fast 3
 
 # Lowers to same split mul-add llvm as the 
 # @inline vfmadd(a, b, c) = vadd(vmul( a, b), c)

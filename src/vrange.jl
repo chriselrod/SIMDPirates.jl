@@ -45,6 +45,24 @@ end
         )
     end
 end
+@generated function vrangemul(::Val{W}, i::T, ::Val{O}) where {W,T<:FloatingTypes,O}
+    bytes = min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W))
+    bits = 8bytes
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    rangevec = join(("$typ $(w+O).0" for w ∈ 0:W-1), ", ")
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp undef, $typ %0, i32 0")
+    push!(instrs, "%v = shufflevector $vtyp %ie, $vtyp undef, <$W x i32> zeroinitializer")
+    push!(instrs, "%res = fmul fast $vtyp %v, <$rangevec>")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $(join(instrs,"\n")), Vec{$W,$T}, Tuple{$T}, i
+        )
+    end
+end
 @inline svrangeincr(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangeincr(Val{W}(), i, Val{O}()))
 @inline svrangemul(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangemul(Val{W}(), i, Val{O}()))
 function intrangetuple(W, ::Type{T}) where {T}

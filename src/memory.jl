@@ -1336,11 +1336,14 @@ end
     end
 end
 
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = vmuladd(svrange(Val{W}(), T), step(r), @inbounds r[i[1].i + 1])
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = svrangeincr(Val{W}(), @inbounds(r[i[1].i + 1]), Val{0}())
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
+#vmuladd(svrange(Val{W}(), T), step(r), @inbounds r[i[1].i + 1])
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
+# @inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = svrangeincr(Val{W}(), @inbounds(r[i[1].i + 1]), Val{0}())
 # Ignore masks
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = vmuladd(svrange(Val{W}(), T), step(r), @inbounds r[i[1].i + 1])
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = svrangeincr(Val{W}(), @inbounds(r[i[1].i + 1]), Val{0}())
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
+# @inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = svrangeincr(Val{W}(), @inbounds(r[i[1].i + 1]), Val{0}())
 
 
 
