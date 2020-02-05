@@ -106,4 +106,9 @@ using VectorizationBase: _MM, AbstractZeroInitializedPointer
 @inline svrange(i::_MM, ::Type{T}) where {T} = SVec(vrange(i, T))
 
 
+@inline Base.:(<<)(i::_MM, j::Integer) = svrange(i) << j
+@inline Base.:(>>)(i::_MM, j::Integer) = svrange(i) >> j
+@inline Base.:(>>>)(i::_MM, j::Integer) = svrange(i) >>> j
+
+
           
