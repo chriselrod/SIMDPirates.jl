@@ -12,6 +12,40 @@ type_size(::Type{Vec{N,T}}) where {N,T} = (N,)
 type_size(::Type{Vec{N,T}}, n::Integer) where {N,T} = (N,)[n]
 
 
+for T1 ∈ (Float16,Int16,UInt16)
+    @eval @inline sizeequivalentfloat(::Type{$T1}) = Float16
+    @eval @inline sizeequivalentint(::Type{$T1}) = Int16
+    @eval @inline sizeequivalentuint(::Type{$T1}) = UInt16
+end
+for T1 ∈ (Float32,Int32,UInt32)
+    @eval @inline sizeequivalentfloat(::Type{$T1}) = Float32
+    @eval @inline sizeequivalentint(::Type{$T1}) = Int32
+    @eval @inline sizeequivalentuint(::Type{$T1}) = UInt32
+end
+for T1 ∈ (Float64,Int64,UInt64)
+    @eval @inline sizeequivalentfloat(::Type{$T1}) = Float64
+    @eval @inline sizeequivalentint(::Type{$T1}) = Int64
+    @eval @inline sizeequivalentuint(::Type{$T1}) = UInt64
+end
+@inline sizeequivalentfloat(::Type{T}, x::T) where {T<:FloatingTypes} = x
+@inline sizeequivalentint(::Type{T}, x::T) where {T<:Signed} = x
+@inline sizeequivalentuint(::Type{T}, x::T) where {T<:Unsigned} = x
+@inline function sizeequivalentfloat(::Type{T}, x) where {T}
+    convert(sizeequivalentfloat(T), x)
+end
+@inline function sizeequivalentint(::Type{T}, x) where {T}
+    convert(sizeequivalentint(T), x)
+end
+@inline function sizeequivalentint(::Type{T}, x::Integer) where {T}
+    x % sizeequivalentint(T)
+end
+@inline function sizeequivalentuint(::Type{T}, x) where {T}
+    convert(sizeequivalentint(T), x)
+end
+@inline function sizeequivalentuint(::Type{T}, x::Integer) where {T}
+    x % sizeequivalentuint(T)
+end
+
 # Element-wise access
 
 @generated function vsetindex(v::AbstractSIMDVector{N,T}, x::Number, ::Val{I}) where {N,T,I}
@@ -166,6 +200,8 @@ end
 @inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: FloatingTypes, T2 <: Integer} = vbroadcast(Vec{W,T1}, convert(T1, s))
 @inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: Integer, T2 <: Integer} = vbroadcast(Vec{W,T1}, Base.unsafe_trunc(T1, s))
 @inline vconvert(::Type{Vec{W,T1}}, s::T1) where {W, T1 <: Integer} = vbroadcast(Vec{W,T1}, s)
+@inline vconvert(::Type{T}, s::Number) where {T <: Number} = convert(T, s)
+@inline vconvert(::Type{T}, s::Integer) where {T <: Integer} = s % T
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
 @inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}

@@ -87,6 +87,10 @@ for op ∈ (
 end
 @inline vfdiv(v1::Vec{W,Int32}, v2::Vec{W,Int32}) where {W} = vfdiv(vconvert(Vec{W,Float32}, v1), vconvert(Vec{W,Float32}, v2))
 @inline vfdiv(v1::Vec{W,Int64}, v2::Vec{W,Int64}) where {W} = vfdiv(vconvert(Vec{W,Float64}, v1), vconvert(Vec{W,Float64}, v2))
+@inline function Base.:(/)(v1::SVec{W,I},v2::SVec{W,I}) where {W,I<:Integer}
+    T = sizeequivalentfloat(I)
+    SVec(vfdiv(vconvert(Vec{W,T}, v1), vconvert(Vec{W,T}, v2)))
+end
 # @vpromote vfdiv 2
 @inline vmax(x::Number, y::Number) = Base.FastMath.max_fast(x,y)
 @vectordef vmax function Base.max(v1, v2) where {N,T<:FloatingTypes}
