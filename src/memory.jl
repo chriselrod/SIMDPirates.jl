@@ -1216,7 +1216,7 @@ function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
         Wₜ = vectypewidth(Iₙ)::Int
         W = W == 1 ? Wₜ : ((Wₜ == 1 || W == Wₜ) ? W : throw("$W ≠ $Wₜ but all vectors should be of the same width."))
         iexpr = Expr(:ref, :i, n)
-        if Xₙ == 1 && Iₙ <: _MM
+        if Xₙ > 1 && Iₙ <: _MM
             # iexpr = Expr(:call, :+, Expr(:call, :svrange, Expr(:call, Expr(:curly, :Val, W)), T), iexpr)
             iexpr = Expr(:call, :svrange, iexpr)
         end
@@ -1233,7 +1233,7 @@ function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
     W, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), indexpr)
 end
 function static_strided_ptr_gepcall(Iparam, Xparam, ::Type{T}) where {T}
-    W, indexpr = static_strided_ptr_gepcall(Iparam, Xparam, T)
+    W, indexpr = static_strided_ptr_index(Iparam, Xparam, T)
     W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
 end
 @generated function vload(ptr::StaticStridedPointer{T,X}, i::I) where {T<:Number,X,I<:Tuple}
