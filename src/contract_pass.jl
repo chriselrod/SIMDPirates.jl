@@ -8,9 +8,9 @@ function check_negative(x)
 end
 
 function mulexpr(mulexargs)
-    a = (mulexargs[1])::Union{Symbol,Expr}
+    a = (mulexargs[1])::Union{Symbol,Expr,Number}
     b = if length(mulexargs) == 2 # two arg mul
-        (mulexargs[2])::Union{Symbol,Expr}
+        (mulexargs[2])::Union{Symbol,Expr,Number}
     else
         Expr(:call, :vmul, @view(mulexargs[2:end])...)::Expr
     end
