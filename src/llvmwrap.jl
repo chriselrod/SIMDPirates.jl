@@ -40,8 +40,7 @@
 end
 
 # Functions taking one Bool argument
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,Bool},
-        ::Type{Bool} = Bool) where {Op,N}
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,Bool}, ::Type{Bool} = Bool) where {Op,N}
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
@@ -155,8 +154,7 @@ end
     end
 end
 # Functions taking two arguments, returning a bitmask
-@generated function llvmwrap_bitmask(::Val{Op}, v1::Vec{N,T1},
-        v2::Vec{N,T2}) where {Op,N,T1,T2}
+@generated function llvmwrap_bitmask(::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T2}) where {Op,N,T1,T2}
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
@@ -170,10 +168,14 @@ end
     ins = llvmins(Op, N, T1)
     decls = String[]
     instrs = String[]
+    # if T1 <: FloatingTypes && T2 <: FloatingTypes
+        # push!(instrs, "%res = $ins reassoc $vtyp1 %0, %1")
+    # else
     push!(instrs, "%res = $ins $vtyp1 %0, %1")
+    # end
     # push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
 
-    maskbits = max(8, VectorizationBase.nextpow2(N))
+    maskbits = VectorizationBase.nextpow2(N)
     bitcastname = maskbits == N ? "resu" : "resutrunc"
     push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
     if maskbits != N

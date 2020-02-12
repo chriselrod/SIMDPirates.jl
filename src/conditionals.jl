@@ -149,10 +149,12 @@ end
         push!(instrs, "%condtrunc = trunc $mtyp_input %0 to $mtyp_trunc")
         push!(instrs, "%cond = bitcast $mtyp_trunc %condtrunc to <$N x i1>")
     end
-
-
     # push!(instrs, "%cond = trunc $vbtyp %0 to <$N x i1>")
-    push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
+    if T <: FloatingTypes
+        push!(instrs, "%res = select fast <$N x i1> %cond, $vtyp %1, $vtyp %2")
+    else
+        push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
+    end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
