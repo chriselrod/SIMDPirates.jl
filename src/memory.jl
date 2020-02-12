@@ -7,6 +7,16 @@ I'm not sure on the details, but I think this function can only allocate up to
 524288 doubles
 
 that is it may not be able to allocate arrays with more than about half a million elements, or 4 megabytes.
+
+Another limitation is that LLVM will assume that each `alloca` within a function can be merged.
+Therefore,
+ptr1 = alloca(100)
+ptr2 = alloca(2_000)
+ptr3 = alloca(1_000)
+ptr4 = alloca(500)
+
+will result in allocating 2000 doubles, and ptr1 == ptr2 == ptr3 == ptr4.
+This is very likely not what someone writing the above intended, but I do not yet know a workaround.
 """
 @generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
     typ = llvmtype(T)
@@ -44,8 +54,8 @@ end
         )
     end
 end
-@inline function alloca(N::Int, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
-    alloca(Base.unsafe_trunc(Int32, N), T, Val{Align}())
+@inline function alloca(N::Integer, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
+    alloca(N % Int32, T, Val{Align}())
 end
 
 
