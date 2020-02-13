@@ -12,20 +12,23 @@ type_size(::Type{Vec{N,T}}) where {N,T} = (N,)
 type_size(::Type{Vec{N,T}}, n::Integer) where {N,T} = (N,)[n]
 
 
-for T1 ∈ (Float16,Int16,UInt16)
-    @eval @inline sizeequivalentfloat(::Type{$T1}) = Float16
-    @eval @inline sizeequivalentint(::Type{$T1}) = Int16
-    @eval @inline sizeequivalentuint(::Type{$T1}) = UInt16
+for T ∈ (:Float16,:Int16,:UInt16)
+    @eval @inline sizeequivalentfloat(::Type{$T}) = Float16
+    @eval @inline sizeequivalentint(::Type{$T}) = Int16
+    @eval @inline sizeequivalentuint(::Type{$T}) = UInt16
+    @eval @inline Base.$T(v::SVec{W}) where {W} = SVec(vconvert(Vec{W,$T}, extract_data(v)))
 end
-for T1 ∈ (Float32,Int32,UInt32)
-    @eval @inline sizeequivalentfloat(::Type{$T1}) = Float32
-    @eval @inline sizeequivalentint(::Type{$T1}) = Int32
-    @eval @inline sizeequivalentuint(::Type{$T1}) = UInt32
+for T ∈ (:Float32,:Int32,:UInt32)
+    @eval @inline sizeequivalentfloat(::Type{$T}) = Float32
+    @eval @inline sizeequivalentint(::Type{$T}) = Int32
+    @eval @inline sizeequivalentuint(::Type{$T}) = UInt32
+    @eval @inline Base.$T(v::SVec{W}) where {W} = SVec(vconvert(Vec{W,$T}, extract_data(v)))
 end
-for T1 ∈ (Float64,Int64,UInt64)
-    @eval @inline sizeequivalentfloat(::Type{$T1}) = Float64
-    @eval @inline sizeequivalentint(::Type{$T1}) = Int64
-    @eval @inline sizeequivalentuint(::Type{$T1}) = UInt64
+for T ∈ (:Float64,:Int64,:UInt64)
+    @eval @inline sizeequivalentfloat(::Type{$T}) = Float64
+    @eval @inline sizeequivalentint(::Type{$T}) = Int64
+    @eval @inline sizeequivalentuint(::Type{$T}) = UInt64
+    @eval @inline Base.$T(v::SVec{W}) where {W} = SVec(vconvert(Vec{W,$T}, extract_data(v)))
 end
 @inline sizeequivalentfloat(::Type{T}, x::T) where {T<:FloatingTypes} = x
 @inline sizeequivalentint(::Type{T}, x::T) where {T<:Signed} = x
@@ -198,7 +201,7 @@ end
 @inline VectorizationBase.SVec{W,T1}(v::SVec{W,T2}) where {W,T1<:IntegerTypes,T2<:FloatingTypes} = vconvert(SVec{W,T1}, v)
 @inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1, T2 <: FloatingTypes} = vbroadcast(Vec{W,T1}, convert(T1, s))
 @inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: FloatingTypes, T2 <: Integer} = vbroadcast(Vec{W,T1}, convert(T1, s))
-@inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: Integer, T2 <: Integer} = vbroadcast(Vec{W,T1}, Base.unsafe_trunc(T1, s))
+@inline vconvert(::Type{Vec{W,T1}}, s::T2) where {W, T1 <: Integer, T2 <: Integer} = vbroadcast(Vec{W,T1}, s % T1)
 @inline vconvert(::Type{Vec{W,T1}}, s::T1) where {W, T1 <: Integer} = vbroadcast(Vec{W,T1}, s)
 @inline vconvert(::Type{T}, s::Number) where {T <: Number} = convert(T, s)
 @inline vconvert(::Type{T}, s::Integer) where {T <: Integer} = s % T

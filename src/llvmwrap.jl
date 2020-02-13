@@ -175,7 +175,7 @@ end
     # end
     # push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
 
-    maskbits = VectorizationBase.nextpow2(N)
+    maskbits = max(8, VectorizationBase.nextpow2(N))
     bitcastname = maskbits == N ? "resu" : "resutrunc"
     push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
     if maskbits != N

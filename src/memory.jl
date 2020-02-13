@@ -848,30 +848,30 @@ using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdo
 
 
 @inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{Vec{W,I2},Any}) where {W,I1,I2}
-    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),first(b)) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+    @inbounds vmul(first(a) % I2,first(b)) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{SVec{W,I2},Any}) where {W,I1,I2}
-    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b))) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+    @inbounds vmul(first(a) % I2,extract_data(first(b))) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{Vec{W,I2}}) where {W,I1,I2}
-    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),first(b))
+    @inbounds vmul(first(a) % I2,first(b))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{SVec{W,I2}}) where {W,I1,I2}
-    @inbounds vmul(Base.unsafe_trunc(I2,first(a)),extract_data(first(b)))
+    @inbounds vmul(first(a) % I2,extract_data(first(b)))
 end
 
 
 @inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
-    @inbounds SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), Val{false}()))
+    @inbounds SVec(gather(gep(ptr.ptr, vmuladd(first(ptr.strides) % I2, last(i), first(i))), Val{false}()))
 end
 @inline function vload(::Val{W}, ptr::PackedStridedPointer{T}, i::Tuple{I1,Vec{W,I2}}, mask::Unsigned) where {W,T,I1,I2}
-    @inbounds SVec(gather(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), mask, Val{false}()))
+    @inbounds SVec(gather(gep(ptr.ptr, vmuladd(first(ptr.strides) % I2, last(i), first(i))), mask, Val{false}()))
 end
 @inline function vstore!(ptr::AbstractPackedStridedPointer{T}, v::Vec{W,T}, i::Tuple{I1,Vec{W,I2}}) where {W,T,I1,I2}
-    @inbounds scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, Val{false}())
+    @inbounds scatter!(gep(ptr.ptr, vmuladd(first(ptr.strides) % I2, last(i), first(i))), v, Val{false}())
 end
 @inline function vstore!(ptr::AbstractPackedStridedPointer{T}, v::Vec{W,T}, i::Tuple{I1,Vec{W,I2}}, mask::Unsigned) where {W,T,I1,I2}
-    @inbounds scatter!(gep(ptr.ptr, vmuladd(Base.unsafe_trunc(I2,first(ptr.strides)), last(i), first(i))), v, mask, Val{false}())
+    @inbounds scatter!(gep(ptr.ptr, vmuladd(first(ptr.strides) % I2, last(i), first(i))), v, mask, Val{false}())
 end
 
 @inline vload(::Type{Vec{W,T}}, ptr::Vec{W,Ptr{T}}, ::Val{Aligned}, ::Val{Temporal}) where {W,T,Aligned,Temporal} = gather(ptr, Val{Aligned}())
@@ -901,7 +901,7 @@ end
 @inline vstore!(ptr::AbstractSIMDVector{W,Ptr{T}}, v::AbstractSIMDVector{W,T}, mask::Unsigned) where {W,T} = scatter!(extract_data(ptr), extract_data(v), mask, Val{false}())
 
 
-using VectorizationBase: stride1
+using VectorizationBase.LinearAlgebra: stride1
 for v ∈ (:Vec, :SVec, :Val)
     vargs = Union{Symbol,Expr}[v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}}), :(ptr::VectorizationBase.SparseStridedPointer{T})]
     # vcall = :(vmul(stride1(ptr), vrange(Val{W}())))
@@ -1003,23 +1003,25 @@ end
         Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
     end
 end
+@generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,N,I<:Tuple}
+    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
+@generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
+    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,N,I<:Tuple}
     W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
-    end
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,N,I<:Tuple}
     W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
-    end
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, sc::T, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
     W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
@@ -1083,23 +1085,25 @@ end
         Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
     end
 end
+@generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,N,I<:Tuple}
+    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
+@generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
+    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,N,I<:Tuple}
     W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
-    end
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,N,I<:Tuple}
     W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
-    end
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, sc::T, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
     W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
@@ -1167,23 +1171,25 @@ end
         Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
     end
 end
+@generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,N,I<:Tuple}
+    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
+@generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
+    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,N,I<:Tuple}
     W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
-    end
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,N,I<:Tuple}
     W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
-    end
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, sc::T, i::I) where {T<:Number,N,I<:Tuple}
     W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
@@ -1262,21 +1268,21 @@ end
         Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
     end
 end
+@generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,X,I<:Tuple}
+    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
+end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,X,I<:Tuple}
     W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__), Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
-    end
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+end
+@generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,X,I<:Tuple}
+    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__),  Expr(:call, :firstval, :v))))
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,X,I<:Tuple}
     W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
-    if W1 == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, @__FILE__),  Expr(:call, :firstval, :v))))
-    else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
-    end
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, sc::T, i::I) where {T<:Number,X,I<:Tuple}
     W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)

@@ -110,5 +110,4 @@ using VectorizationBase: _MM, AbstractZeroInitializedPointer
 @inline Base.:(>>)(i::_MM, j::Integer) = svrange(i) >> j
 @inline Base.:(>>>)(i::_MM, j::Integer) = svrange(i) >>> j
 
-
-          
+Base.:(*)(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
