@@ -240,12 +240,12 @@ end
     T = promote_type(T1,T2)
     SVec{W,T}
 end
-@inline promote_vtype(::Type{_MM{W}}, ::Type{T}) where {T<:Number} = SVec{W,T}
-@inline promote_vtype(::Type{T}, ::Type{_MM{W}}) where {T<:Number} = SVec{W,T}
-@inline promote_vtype(::Type{_MM{W}}, ::Type{Vec{W,T}}) where {T<:Number} = Vec{W,T}
-@inline promote_vtype(::Type{Vec{W,T}}, ::Type{_MM{W}}) where {T<:Number} = Vec{W,T}
-@inline promote_vtype(::Type{_MM{W}}, ::Type{SVec{W,T}}) where {T<:Number} = SVec{W,T}
-@inline promote_vtype(::Type{SVec{W,T}}, ::Type{_MM{W}}) where {T<:Number} = SVec{W,T}
+@inline promote_vtype(::Type{_MM{W}}, ::Type{T}) where {W,T<:Number} = SVec{W,T}
+@inline promote_vtype(::Type{T}, ::Type{_MM{W}}) where {W,T<:Number} = SVec{W,T}
+@inline promote_vtype(::Type{_MM{W}}, ::Type{Vec{W,T}}) where {W,T<:Number} = Vec{W,T}
+@inline promote_vtype(::Type{Vec{W,T}}, ::Type{_MM{W}}) where {W,T<:Number} = Vec{W,T}
+@inline promote_vtype(::Type{_MM{W}}, ::Type{SVec{W,T}}) where {W,T<:Number} = SVec{W,T}
+@inline promote_vtype(::Type{SVec{W,T}}, ::Type{_MM{W}}) where {W,T<:Number} = SVec{W,T}
 @inline promote_vtype(::Type{T1}, ::Type{T2}, ::Type{T3}) where {T1,T2,T3} = promote_vtype(promote_vtype(T1, T2), T3)
 @inline promote_vtype(::Type{T}, ::Type{T}, ::Type{T}) where {T} = T
 
