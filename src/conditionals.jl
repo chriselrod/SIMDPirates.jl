@@ -150,7 +150,7 @@ end
         push!(instrs, "%cond = bitcast $mtyp_trunc %condtrunc to <$N x i1>")
     end
     # push!(instrs, "%cond = trunc $vbtyp %0 to <$N x i1>")
-    if T <: FloatingTypes
+    if T <: FloatingTypes && Base.libllvm_version >= v"9"
         push!(instrs, "%res = select fast <$N x i1> %cond, $vtyp %1, $vtyp %2")
     else
         push!(instrs, "%res = select <$N x i1> %cond, $vtyp %1, $vtyp %2")
