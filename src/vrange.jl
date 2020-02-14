@@ -74,7 +74,6 @@ end
 @inline svrangemul(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangemul(Val{W}(), i, Val{O}()))
 
 
-using VectorizationBase: _MM, AbstractZeroInitializedPointer
 @inline vrange(i::_MM{W}) where {W} = vrangeincr(Val{W}(), i.i, Val{0}())
 @inline svrange(i::_MM{W}) where {W} = SVec(vrangeincr(Val{W}(), i.i, Val{0}()))
 @inline Base.:(+)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vadd(vrange(i), j)
