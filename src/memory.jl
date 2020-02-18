@@ -1464,6 +1464,43 @@ end
     q
 end
 
+using VectorizationBase: MappedStridedPointer
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr)))
+end
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr, i)))
+end
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr, mask)))
+end
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr, i, mask)))
+end
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr))
+end
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i))
+end
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, mask))
+end
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i, mask))
+end
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr))
+end
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i))
+end
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, mask))
+end
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i, mask))
+end
 
 
 
