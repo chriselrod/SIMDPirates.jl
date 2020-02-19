@@ -29,9 +29,15 @@ end
 function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = false)
     length(argv) < 2 && return length(call.args) == 4, cnmul, csub
     fun = first(argv)
+    if fun === :ifelse
+        argv[1] = :vifelse
+        return length(call.args) == 4, cnmul, csub
+    end
     isadd = fun === :+ || fun === :vadd || fun == :(Base.FastMath.add_fast)
     issub = fun === :- || fun === :vsub || fun == :(Base.FastMath.sub_fast)
-    (isadd | issub) || return length(call.args) == 4, cnmul, csub
+    if !(isadd | issub)
+        return length(call.args) == 4, cnmul, csub
+    end
     exargs = @view(argv[2:end])
     issub && @assert length(exargs) == 2
     for (i,ex) ∈ enumerate(exargs)
