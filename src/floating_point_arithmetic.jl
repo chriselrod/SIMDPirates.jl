@@ -325,7 +325,7 @@ end
     end
 end
 
-@static if Base.libllvm_version >= v"9.0.0"
+@static if Base.libllvm_version >= v"8"
     @generated function vsum(v::Vec{N,T}) where {N,T<:FloatingTypes}
         decls = String[]
         instrs = String[]
