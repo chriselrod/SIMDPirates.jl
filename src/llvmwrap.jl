@@ -12,7 +12,7 @@
     decls = String[]
     instrs = String[]
     flags = [""]
-    if Op in FASTOPS
+    if Op in FASTOPS# && T1 <: FloatingTypes
         push!(flags, fastflags(promote_type(T1,R)))
     end
     if ins[1] == '@'
@@ -74,8 +74,9 @@ end
     decls = String[]
     instrs = String[]
     flags = [""]
-    if Op in FASTOPS
-        push!(flags, fastflags(promote_type(T1,T2,R)))
+    T = promote_type(T1,T2,R)
+    if Op in FASTOPS# && T <: FloatingTypes
+        push!(flags, fastflags(T))
     end    
     if ins[1] == '@'
         push!(decls, "declare $vtypr $ins($vtyp1, $vtyp2)")
@@ -380,18 +381,19 @@ end
     ins = llvmins(Op, N, T)
     decls = String[]
     instrs = String[]
-    push!(instrs, "%tmp = $ins $vtyp %0, %1")
-    nbits = llvmconst(N, T, 8*sizeof(T))
-    push!(instrs, "%inbounds = icmp ult $vtyp %1, $nbits")
-    if Op === :>> && T <: IntTypes
-        nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
-        push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
-        push!(instrs,
-            "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
-    else
-        push!(instrs,
-            "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
-    end
+    push!(instrs, "%res = $ins $vtyp %0, %1")
+    # push!(instrs, "%tmp = $ins $vtyp %0, %1")
+    # nbits = llvmconst(N, T, 8*sizeof(T))
+    # push!(instrs, "%inbounds = icmp ult $vtyp %1, $nbits")
+    # if Op === :>> && T <: IntTypes
+    #     nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+    #     push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
+    #     push!(instrs,
+    #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
+    # else
+    #     push!(instrs,
+    #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
+    # end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))

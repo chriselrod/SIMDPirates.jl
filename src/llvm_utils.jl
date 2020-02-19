@@ -333,7 +333,7 @@ end
 #     Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
 # end
 
-const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :muladd, :fma, :sqrt, :pow, :sin, :cos, :inv))
+const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos, :inv))#, :muladd, :fma
 
 const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :(==) => :visequal,
