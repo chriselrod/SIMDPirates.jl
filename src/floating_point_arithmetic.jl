@@ -693,3 +693,31 @@ end
 @inline vadd1(x::T) where {T <: Number} = Base.FastMath.add_fast(x, one(x))
 @inline vadd1(v::V) where {W, T, V <: AbstractSIMDVector{W,T}} = vadd(vbroadcast(V, one(T)), v)
 
+@generated function addscalar(v::Vec{W,T}, s::T) where {W, T <: Integer}
+    typ = "i$(8sizeof(T))"
+    vtyp = "<$W x $typ>"
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp zeroinitializer, $typ %1, i32 0")
+    push!(instrs, "%v = add $vtyp %0, %ie")
+    push!(instrs, "ret $vtyp %v")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+    end
+end
+@generated function addscalar(v::Vec{W,T}, s::T) where {W, T <: Union{Float16,Float32,Float64}}
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp zeroinitializer, $typ %1, i32 0")
+    push!(instrs, "%v = fadd fast $vtyp %0, %ie")
+    push!(instrs, "ret $vtyp %v")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+    end
+end
+@inline addscalar(v::SVec, s) = addscalar(extract_data(v), s)
+@inline addscalar(s::T, v::Union{Vec{W,T},SVec{W,T}}) where {W,T} = addscalar(v, s)
+@inline addscalar(a, b) = vadd(a, b)
+

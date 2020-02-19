@@ -22,7 +22,8 @@ export  Vec, SVec, VE,
     vnmul, vnsub,
     vfmadd, vfnmadd, vfmsub, vfnmsub,
     vfmadd_fast, vfnmadd_fast, vfmsub_fast, vfnmsub_fast,
-    gather, scatter!
+    gather, scatter!,
+    addscalar
 
 
 vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]
