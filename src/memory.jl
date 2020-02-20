@@ -681,20 +681,20 @@ end
     end
 end
 
-@inline function lifetime_start!(ptr::Pointer{T}) where {T}
+@inline function lifetime_start!(ptr::AbstractPointer{T}) where {T}
     lifetime_start!(pointer(ptr), Val{1}())
 end
-@inline function lifetime_start!(ptr::Pointer{T}, ::Val{L}) where {T,L}
+@inline function lifetime_start!(ptr::AbstractPointer{T}, ::Val{L}) where {T,L}
     lifetime_start!(pointer(ptr), Val{L}())
 end
 @inline function lifetime_start!(ptr::Ptr{T}) where {T}
     lifetime_start!(ptr, Val{1}())
 end
 
-@inline function lifetime_end!(ptr::Pointer{T}) where {T}
-    lifetime_end!(pointer(ptr), Val{1}())
+@inline function lifetime_end!(ptr::AbstractPointer{T}) where {T}
+   lifetime_end!(pointer(ptr), Val{1}())
 end
-@inline function lifetime_end!(ptr::Pointer{T}, ::Val{L}) where {T,L}
+@inline function lifetime_end!(ptr::AbstractPointer{T}, ::Val{L}) where {T,L}
     lifetime_end!(pointer(ptr), Val{L}())
 end
 @inline function lifetime_end!(ptr::Ptr{T}) where {T}
