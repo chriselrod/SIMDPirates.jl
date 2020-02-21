@@ -1,8 +1,7 @@
 # Generic function wrappers
 
 # Functions taking one argument
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
-        ::Type{R} = T1) where {Op,N,T1,R}
+@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1}, ::Type{R} = T1) where {Op,N,T1,R}
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
     vtyp1 = "<$N x $typ1>"

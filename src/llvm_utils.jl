@@ -30,33 +30,33 @@ end
 
 # Type-dependent LLVM constants
 function llvmconst(T, val)
-    T(val) === T(0) && return "zeroinitializer"
+    iszero(val) && return "zeroinitializer"
     typ = llvmtype(T)
     "$typ $val"
 end
 function llvmconst(::Type{Bool}, val)
-    Bool(val) === false && return "zeroinitializer"
+    Bool(val) || return "zeroinitializer"
     typ = "i1"
     "$typ $(Int(val))"
 end
 function llvmconst(N::Integer, T, val)
-    T(val) === T(0) && return "zeroinitializer"
+    iszero(val) && return "zeroinitializer"
     typ = llvmtype(T)
     "<" * join(["$typ $val" for i in 1:N], ", ") * ">"
 end
 function llvmconst(N::Integer, ::Type{Bool}, val)
-    Bool(val) === false && return "zeroinitializer"
+    Bool(val) || return "zeroinitializer"
     typ = "i1"
     "<" * join(["$typ $(Int(val))" for i in 1:N], ", ") * ">"
 end
 function llvmtypedconst(T, val)
     typ = llvmtype(T)
-    T(val) === T(0) && return "$typ zeroinitializer"
+    iszero(val) && return "$typ zeroinitializer"
     "$typ $val"
 end
 function llvmtypedconst(::Type{Bool}, val)
     typ = "i1"
-    Bool(val) === false && return "$typ zeroinitializer"
+    Bool(val) || return "$typ zeroinitializer"
     "$typ $(Int(val))"
 end
 

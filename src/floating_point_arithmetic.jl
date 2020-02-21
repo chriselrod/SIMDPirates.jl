@@ -4,8 +4,7 @@
 for op ∈ (
     :(+), #:(-),
     :abs, :floor, :ceil, :round,
-    :sin, :cos,
-    :exp2, :inv, :log10, :log2,
+    :inv,# :log10, :log2, :exp2, :sin, :cos,
     :sqrt, :trunc
     # :exp, :log
     )
@@ -25,10 +24,10 @@ for op ∈ (
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
     end
 end
-@inline vexp10(s1::FloatingTypes) = exp10(s1)
-@vectordef vexp10 function Base.exp10(v1) where {N,T <: FloatingTypes}
-    vpow(vbroadcast(Vec{N,T}, 10), extract_data(v1))
-end
+# @inline vexp10(s1::FloatingTypes) = exp10(s1)
+# @vectordef vexp10 function Base.exp10(v1) where {N,T <: FloatingTypes}
+    # vpow(vbroadcast(Vec{N,T}, 10), extract_data(v1))
+# end
 # @inline vexp10(v1::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} = vpow(vbroadcast(Vec{N,T}, 10), v1)
 @inline vsign(s1::FloatingTypes) = sign(s1)
 @vectordef vsign function Base.sign(v1) where {N,T<:FloatingTypes}
@@ -46,7 +45,7 @@ end
 # end
 
 for op ∈ (
-        :(+), :(-), :(*), :(/), :(%), :(^),
+        :(+), :(-), :(*), :(/), :(%),# :(^),
         :copysign#, :max, :min
     )
     rename = VECTOR_SYMBOLS[op]
@@ -120,10 +119,10 @@ end
 
 
 
-@inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
-@vectordef vpow function Base.:^(v1, x2::Integer) where {N,T<:FloatingTypes}
-    llvmwrap(Val{:powi}, extract_data(v1), Int(x2))
-end
+# @inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
+# @vectordef vpow function Base.:^(v1, x2::Integer) where {N,T<:FloatingTypes}
+    # llvmwrap(Val{:powi}, extract_data(v1), Int(x2))
+# end
 # @inline function vpow(v1::Vec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
 #     llvmwrap(Val{:powi}, v1, Int(x2))
 # end
@@ -204,7 +203,7 @@ end
 
 for op ∈ (
         :(==), :(!=), :(<), :(<=), :(>), :(>=),
-        :+, :-, :*, :/, :^,
+        :+, :-, :*, :/,# :^,
         :copysign, :flipsign, :max, :min, :%
     )
     rename = VECTOR_SYMBOLS[op]
@@ -217,10 +216,10 @@ for op ∈ (
         end
         
         @inline function Base.$op(s1::T2, v2::SVec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
-            SVec($rename(vbroadcast(Vec{N,T2}, s1), extract_data(v2)))
+            SVec($rename(vbroadcast(Vec{N,T2}, s1), vconvert(Vec{N,T2}, extract_data(v2))))
         end
         @inline function Base.$op(v1::SVec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
-            SVec($rename(extract_data(v1), vbroadcast(Vec{N,T2}, s2)))
+            SVec($rename(vconvert(Vec{N,T2}, extract_data(v1)), vbroadcast(Vec{N,T2}, s2)))
         end
         @inline function $rename(s1::T2, v2::SVec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
             SVec($rename(vbroadcast(Vec{N,T2}, s1), extract_data(v2)))
@@ -238,7 +237,7 @@ for op ∈ (
     end
 end
 for op ∈ (
-        :(+), :(-), :(*), :(/), :(%), :(^),
+        :(+), :(-), :(*), :(/), :(%),# :(^),
         :copysign#, :max, :min
     )
     # exact / explicit version
@@ -446,6 +445,17 @@ end
     Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
     vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
 else
+    # @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
+    #     typ = llvmtype(T)
+    #     vtyp = "<$W x $typ>"
+    #     instrs = "%res = fsub fast $vtyp zeroinitializer, %0\nret $vtyp %res"
+    #     quote
+    #         $(Expr(:meta, :inline))
+    #         Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
+    #     end
+    # end
+    # Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+    # vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
     rename = VECTOR_SYMBOLS[:-]
     @eval begin
         @vectordef $rename function Base.:(-)(v1) where {N,T<:FloatingTypes}
@@ -629,6 +639,7 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
     end
     Expr(:block, Expr(:meta, :inline), Expr(:call, :vadd, v1e, v2e))
 end
+@inline Base.:(+)(x::AbstractStructVec{W1,T}, y::AbstractStructVec{W2,T}) where {W1,W2,T} = SVec(vadd(extract_data(x), extract_data(y)))
 
 @inline Base.abs2(v::SVec) = vmul(v,v)
 @inline vabs2(v) = vmul(v,v)

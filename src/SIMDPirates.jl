@@ -3,7 +3,7 @@ module SIMDPirates
 using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, AbstractZeroInitializedPointer,
-    AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType
+    AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
 # using MacroTools: prewalk, postwalk
     
 export  Vec, SVec, VE,
@@ -28,12 +28,36 @@ export  Vec, SVec, VE,
 
 vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]
 abstractarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{N,T})    : arg for arg ∈ args]
-structvecarguments(args) = [isa(arg, Symbol) ? :($arg::SVec{N,T})     : arg for arg ∈ args]
+function structvecarguments(args)
+    asa = Expr[]
+    sva = Expr[]
+    rna = Expr[]
+    for arg ∈ args
+        if isa(arg, Symbol)
+            rarg = gensym(arg)
+            push!(asa, Expr(:(::), rarg, :(AbstractStructVec{N,T})))
+            push!(sva, Expr(:(::), rarg, :(SVec{N,T})))
+            push!(rna, Expr(:(=), arg, Expr(:call, :extract_data, rarg)))
+        elseif length(arg.args) == 2
+            arg = copy(arg)
+            narg = arg.args[1]
+            rarg = gensym(narg)
+            arg.args[1] = rarg
+            push!(asa, arg)
+            push!(sva, arg)
+            push!(rna, Expr(:(=), narg, Expr(:call, :vconvert, :(Vec{N,T}), rarg)))
+        else
+            push!(asa, arg)
+            push!(sva, arg)
+        end
+    end
+    asa, sva, rna
+end
 function vector_args(args)
     vecargs = vecarguments(args)
     abstractargs = abstractarguments(args)
-    structargs = structvecarguments(args)
-    vecargs, abstractargs, structargs
+    asargs, structargs, renamedargs = structvecarguments(args)
+    vecargs, abstractargs, asargs, structargs, renamedargs
 end
 
 function parse_func_decl(expr::Expr)
@@ -48,11 +72,17 @@ function parse_func_decl(expr::Expr)
 end
 macro vectordef(rename, expr)
     f, args, R, body = parse_func_decl(expr)
-    vecargs, abstractargs, structargs = vector_args(args)
+    vecargs, abstractargs, asargs, structargs, renamedargs = vector_args(args)
+    push!(renamedargs, Expr(:call, :SVec, body))
     q = quote
         @inline $rename($(vecargs...)) where {$(R...)} = $body
         @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
-        @inline $f($(structargs...)) where {$(R...)} = SVec($body)
+        @inline function $f($(asargs...)) where {$(R...)}
+            $(renamedargs...)
+        end
+        @inline function $f($(structargs...)) where {$(R...)}
+            $(renamedargs...)
+        end
     end
     esc(q)
 end
