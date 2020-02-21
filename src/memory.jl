@@ -97,9 +97,7 @@ end
 # end
 
 @generated function vload(
-    ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T},
-    ::Val{Aligned}, ::Val{Nontemporal}
-    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -108,7 +106,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -125,7 +123,36 @@ end
     end
 end
 @generated function vload(
-    ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, i::I, ::Val{Aligned}, ::Val{Nontemporal}
+) where {N,T,Aligned, Nontemporal, I<:Integer}
+    @assert isa(Aligned, Bool)
+    ityp = llvmtype(I)
+    ptyp = JuliaPointerType
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    flags = [""]
+    align > 0 && push!(flags, "align $align")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %1")
+    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Ptr{$T},$I}, ptr, i)
+    end
+end
+@generated function vload(
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -136,7 +163,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -157,7 +184,7 @@ end
     end
 end
 @generated function vload(
-    ::Union{Type{Vec{N,T}},Val{N}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}# = Val{false}()
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= N
@@ -169,7 +196,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -193,17 +220,56 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
     end
 end
+@generated function vload(
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, i::I, mask::U, ::Val{Aligned}
+) where {N,T,I<:Integer,U<:Unsigned,Aligned}
+    ityp = llvmtype(I)
+    ptyp = JuliaPointerType
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$N"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %1")
+    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
+        push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
+    end
+    push!(decls,
+        "declare $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp*, i32, <$N x i1>, $vtyp)"
+    )
+    push!(instrs,
+        "%res = call $vtyp @llvm.masked.load.$(suffix(N,T))($vtyp* %ptr, i32 $align, <$N x i1> %mask, $vtyp zeroinitializer)"#undef)"# 
+    )
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Ptr{$T}, $I, $U}, ptr, i, mask)
+    end
+end
 
 for v ∈ (:Vec, :SVec, :Val)
     vargs = Union{Symbol,Expr}[v === :Val ? :(::Val{W}) : :(::Type{$v{W,T}})]
-    for ptr ∈ (:Ptr, :AbstractInitializedPointer)
+    # for ptr ∈ (:Ptr, :AbstractInitializedPointer)
+    let ptr = :Ptr
         pargs = push!(copy(vargs), :(ptr::$ptr{T}))
         for index ∈ (true,false)
             if index
-                icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :(ptr + i) : Expr(:call, :gep, :ptr, :i)]
+                icall = Union{Symbol,Expr}[:(Vec{W,T}), :ptr, :i]#Expr(:call, :gep, :ptr, :i)]
                 iargs = push!(copy(pargs), :i)
             else
-                icall = Union{Symbol,Expr}[:(Vec{W,T}), ptr == :Ptr ? :ptr : :(ptr.ptr)]
+                icall = Union{Symbol,Expr}[:(Vec{W,T}), :ptr]
                 iargs = pargs
             end
             for mask ∈ (true,false)
@@ -240,7 +306,6 @@ end
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T},
     ::Val{Aligned}, ::Val{Nontemporal}
-    # ::Val{Aligned} = Val{false}(), ::Val{Nontemporal} = Val{false}()
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -249,7 +314,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned# || Nontemporal
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -267,6 +332,38 @@ end
         )
     end
 end
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T}, i::I,
+    ::Val{Aligned}, ::Val{Nontemporal}
+) where {N,T,I,Aligned, Nontemporal}
+    @assert isa(Aligned, Bool)
+    ityp = llvmtype(I)
+    ptyp = JuliaPointerType
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    decls = String[]
+    instrs = String[]
+    if Aligned# || Nontemporal
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    flags = [""]
+    align > 0 && push!(flags, "align $align")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, $I}, ptr, v, i
+        )
+    end
+end
 
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
@@ -280,7 +377,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -310,7 +407,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -335,16 +432,57 @@ end
             ptr, v, mask)
     end
 end
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T}, i::I, mask::U, ::Val{Aligned}# = Val{false}()
+) where {N,T,Aligned,U<:Unsigned,I<:Integer}
+    @assert isa(Aligned, Bool)
+    ityp = llvmtype(I)
+    ptyp = JuliaPointerType
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$N"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%mask = bitcast $mtyp_input %3 to <$N x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
+        push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
+    end
+    push!(decls,
+        "declare void @llvm.masked.store.$(suffix(N,T))($vtyp, $vtyp*, i32, <$N x i1>)"
+    )
+    push!(instrs,
+        "call void @llvm.masked.store.$(suffix(N,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$N x i1> %mask)"
+    )
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, $I, $U},
+            ptr, v, i, mask)
+    end
+end
 
 
-for ptr ∈ (:Ptr, :AbstractPointer)#, :AbstractZeroInitializedPointer)
+# for ptr ∈ (:Ptr, :AbstractPointer)#, :AbstractZeroInitializedPointer)
+let ptr = :Ptr#, :AbstractZeroInitializedPointer)
     pargs = Union{Symbol,Expr}[:(ptr::$ptr{T}), :(v::AbstractSIMDVector{W,T})]
     for index ∈ (true,false)
         if index
-            icall = Union{Symbol,Expr}[ptr == :Ptr ? :(ptr + i) : Expr(:call, :gep, :ptr, :i), :(extract_data(v))]
+            icall = Union{Symbol,Expr}[:ptr, :(extract_data(v)), :i]
             iargs = push!(copy(pargs), :i)
         else
-            icall = Union{Symbol,Expr}[ptr == :Ptr ? :ptr : :(ptr.ptr), :(extract_data(v))]
+            icall = Union{Symbol,Expr}[:ptr, :(extract_data(v))]
             iargs = pargs
         end
         for mask ∈ (true,false)
@@ -385,7 +523,7 @@ end
 #     # decls = String[]
 #     instrs = String[]
 #     if Aligned
-#         align = N * sizeof(T)
+#         align = Base.datatype_alignment(Vec{N,T})
 #     else
 #         align = sizeof(T)   # This is overly optimistic
 #     end
@@ -416,7 +554,7 @@ end
 #     # decls = String[]
 #     instrs = String[]
 #     if Aligned# || Nontemporal
-#         align = N * sizeof(T)
+#         align = Base.datatype_alignment(Vec{N,T})
 #     else
 #         align = sizeof(T)   # This is overly optimistic
 #     end
@@ -449,7 +587,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -482,7 +620,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -504,6 +642,79 @@ end
         )
     end
 end
+@generated function vload(
+   ::Type{Vec{N,T}}, ptr::Ptr{T}, i::Vec{N,I}, ::Val{Aligned} = Val{false}()
+) where {N,T,I<:Integer,Aligned}
+    @assert isa(Aligned, Bool)
+    ptyp = JuliaPointerType
+    vptyp = "<$N x $ptyp>"
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    vptrtyp = "<$N x $typ*>"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    ityp = llvmtype(I)
+    vityp = "<$N x $ityp>"
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
+    mask = join((", i1 true" for i ∈ 2:N))
+    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
+    push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>, $vtyp undef)")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Ptr{$T},Vec{$N,$I}}, ptr, i
+        )
+    end
+end
+
+@generated function vload(
+    ::Type{Vec{N,T}}, ptr::Ptr{T}, i::Vec{N,I}, mask::U, ::Val{Aligned} = Val{false}()
+) where {N,T,I<:Integer,Aligned,U<:Unsigned}
+    @assert isa(Aligned, Bool)
+    @assert 8sizeof(U) >= N
+    ptyp = JuliaPointerType
+    vptyp = "<$N x $ptyp>"
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    vptrtyp = "<$N x $typ*>"
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$N"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    ityp = llvmtype(I)
+    vityp = "<$N x $ityp>"
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%mask = bitcast $mtyp_input %2 to <$N x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
+        push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
+    end
+    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp, i32, <$N x i1>, $vtyp)")
+    push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vptrtyp %ptr, i32 $align, <$N x i1> %mask, $vtyp zeroinitializer)")#undef)")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$N,$T}, Tuple{Ptr{$T},Vec{$N,$I},$U}, ptr, i, mask
+        )
+    end
+end
 @generated function scatter!(
     ptr::Vec{N,Ptr{T}}, v::Vec{N,T}, ::Val{Aligned} = Val{false}()
 ) where {N,T,Aligned}
@@ -516,7 +727,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -548,7 +759,7 @@ end
     decls = String[]
     instrs = String[]
     if Aligned
-        align = N * sizeof(T)
+        align = Base.datatype_alignment(Vec{N,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
@@ -571,6 +782,82 @@ end
         Base.llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$N,$T}, Vec{$N,Ptr{$T}}, $U}, v, ptr, mask
+        )
+    end
+end
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T}, i::Vec{N,I}, ::Val{Aligned} = Val{false}()
+) where {N,T,Aligned, I<:Integer}
+    @assert isa(Aligned, Bool)
+    ptyp = JuliaPointerType
+    vptyp = "<$N x $ptyp>"
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    vptrtyp = "<$N x $typ*>"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    ityp = llvmtype(I)
+    vityp = "<$N x $ityp>"
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    mask = join((", i1 true" for i ∈ 2:N))
+    # push!(decls, "declare void @llvm.masked.scatter.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vtyp, $vptrtyp, i32, <$N x i1>)")
+    # push!(instrs, "call void @llvm.masked.scatter.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>)")
+    push!(decls, "declare void @llvm.masked.scatter.$(suffix(N,T))($vtyp, $vptrtyp, i32, <$N x i1>)")
+    push!(instrs, "call void @llvm.masked.scatter.$(suffix(N,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$N x i1> <i1 true$(mask)>)")
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, Vec{$N,$I}}, ptr, v, i)
+    end
+end
+@generated function vstore!(
+    ptr::Ptr{T}, v::Vec{N,T}, i::Vec{N,I}, mask::U, ::Val{Aligned} = Val{false}()
+) where {N,T,Aligned,U<:Unsigned,I<:Integer}
+    @assert isa(Aligned, Bool)
+    @assert 8sizeof(U) >= N
+    ptyp = JuliaPointerType
+    vptyp = "<$N x $ptyp>"
+    typ = llvmtype(T)
+    vtyp = "<$N x $typ>"
+    vptrtyp = "<$N x $typ*>"
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$N"
+    decls = String[]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{N,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    ityp = llvmtype(I)
+    vityp = "<$N x $ityp>"
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%mask = bitcast $mtyp_input %3 to <$N x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
+        push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$N x i1>")
+    end
+    # push!(decls,
+        # "declare void @llvm.masked.scatter.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vtyp, $vptrtyp, i32, <$N x i1>)")
+    # push!(instrs,
+        # "call void @llvm.masked.scatter.$(suffix(N,T)).$(suffix(N,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$N x i1> %mask)")
+    push!(decls, "declare void @llvm.masked.scatter.$(suffix(N,T))($vtyp, $vptrtyp, i32, <$N x i1>)")
+    push!(instrs, "call void @llvm.masked.scatter.$(suffix(N,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$N x i1> %mask)")
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, Vec{$N,$I}, $U}, ptr, v, i, mask
         )
     end
 end
@@ -978,73 +1265,82 @@ function packed_indexpr(Iparam, N, ::Type{T}) where {T}
         end
         indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n-1), indexpr)
     end
-    W, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), indexpr)
+    W, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :extract_data, indexpr))
 end
-function packed_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
-    W, indexpr = packed_indexpr(Iparam, N, T)
-    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
-end
+# function packed_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
+    # W, indexpr = packed_indexpr(Iparam, N, T)
+    # W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+# end
 
 @generated function vload(ptr::PackedStridedPointer{T,N}, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    # W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr)))
     end
 end
 @generated function vload(ptr::PackedStridedPointer{T,N}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr, :mask)))
     end
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr))
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr, :mask))
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, sc::T, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), indexpr, :mask))
     end
 end
 @generated function vstore!(ptr::AbstractPackedStridedPointer{T,N}, sc::T, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = packed_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = packed_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc)))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), indexpr))
     end
 end
 
 
 using VectorizationBase: RowMajorStridedPointer, AbstractRowMajorStridedPointer
-function rowmajor_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
+function rowmajor_indexpr(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
     N = min(Ni - 1, N)
     Iₙ = Iparam[1]
@@ -1062,72 +1358,81 @@ function rowmajor_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         end
         indexpr = Expr(:call, :muladd, iexpr, Expr(:ref, :s, n), indexpr)
     end
-    indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), indexpr)
-    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+    indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :extract_data, indexpr))
+    # W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+    W, indexpr
 end
 
 
 @generated function vload(ptr::RowMajorStridedPointer{T,N}, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr)))
     end
 end
 @generated function vload(ptr::RowMajorStridedPointer{T,N}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr, :mask)))
     end
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr))
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr, :mask))
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, sc::T, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), indexpr, :mask))
     end
 end
 @generated function vstore!(ptr::AbstractRowMajorStridedPointer{T,N}, sc::T, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = rowmajor_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = rowmajor_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc)))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc, indexpr)))
     end
 end
 
 
 using VectorizationBase: SparseStridedPointer, AbstractSparseStridedPointer
 @inline VectorizationBase.gep(ptr::AbstractSparseStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, vmul(i,vbroadcast(Val{W}(), first(ptr.strides))))
-function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
+function sparse_indexpr(Iparam, N, ::Type{T}) where {T}
     Ni = length(Iparam)
     Ni = N = min(Ni, N)
     Iₙ = Iparam[1]
@@ -1151,62 +1456,71 @@ function sparse_strided_ptr_index(Iparam, N, ::Type{T}) where {T}
         end
     end
     indexpr = Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), indexpr)
-    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+    # W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+    W, Expr(:call, :extract_data, indexpr)
 end
 @generated function vload(ptr::SparseStridedPointer{T,N}, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr)))
     end
 end
 @generated function vload(ptr::SparseStridedPointer{T,N}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr, :mask)))
     end
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr))
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
-    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr, :mask))
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, sc::T, i::I) where {T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc)))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), indexpr))
     end
 end
 @generated function vstore!(ptr::AbstractSparseStridedPointer{T,N}, sc::T, i::I, mask::Unsigned) where {T<:Number,N,I<:Tuple}
-    W, gepcall = sparse_strided_ptr_index(I.parameters, N, T)
+    W, indexpr = sparse_indexpr(I.parameters, N, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     sexpr = Expr(:(=), :s, Expr(:(.), :ptr, QuoteNode(:strides)))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), :mask))
+        Expr(:block, Expr(:meta,:inline), sexpr, Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), indexpr, :mask))
     end
 end
 
@@ -1216,7 +1530,7 @@ using VectorizationBase: StaticStridedPointer, AbstractStaticStridedPointer
     if s == 1
         Expr(:block, Expr(:meta, :inline), Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), :i))
     else
-        Expr(:block, Expr(:meta, :inline), Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :vmul, Expr(:call,:vbroadcast, Expr(:call,Expr(:curly,:Val,W)), s), :i)))
+        Expr(:block, Expr(:meta, :inline), Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :vmul, Expr(:call,:vbroadcast, Expr(:call,:Vec,W,T), s), :i)))
     end
 end
 function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
@@ -1246,58 +1560,67 @@ function static_strided_ptr_index(Iparam, Xparam, ::Type{T}) where {T}
             end
         end
     end
-    W, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), indexpr)
+    # W, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), indexpr)
+    W, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :extract_data, indexpr))
 end
-function static_strided_ptr_gepcall(Iparam, Xparam, ::Type{T}) where {T}
-    W, indexpr = static_strided_ptr_index(Iparam, Xparam, T)
-    W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
-end
+# function static_strided_ptr_gepcall(Iparam, Xparam, ::Type{T}) where {T}
+    # W, indexpr = static_strided_ptr_index(Iparam, Xparam, T)
+    # W, Expr(:call, :gep, Expr(:(.), :ptr, QuoteNode(:ptr)), Expr(:call, :extract_data, indexpr))
+# end
 @generated function vload(ptr::StaticStridedPointer{T,X}, i::I) where {T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr)))
     end
 end
 @generated function vload(ptr::StaticStridedPointer{T,X}, i::I, mask::Unsigned) where {T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, gepcall))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :load, bptr, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vload, Expr(:call, Expr(:curly, :Val, W)), gepcall, :mask))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :SVec, Expr(:call, :vload, Expr(:curly, :Vec, W, T), bptr, indexpr, :mask)))
     end
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{1,T}, i::I) where {T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v))))
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)), Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{W1,T}, i::I) where {W1,T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v)))
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr))
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{1,T}, i::I, mask::Unsigned) where {T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)),  Expr(:call, :firstval, :v))))
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, bptr, Expr(:macrocall, Symbol("@inbounds"), LineNumberNode(@__LINE__, Symbol(@__FILE__)),  Expr(:call, :firstval, :v)), indexpr))
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, v::AbstractSIMDVector{W1,T}, i::I, mask::Unsigned) where {W1,T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
-    Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :extract_data, :v), :mask))
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
+    Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, bptr, Expr(:call, :extract_data, :v), indexpr, :mask))
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, sc::T, i::I) where {T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc)))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc, indexpr)))
     end
 end
 @generated function vstore!(ptr::AbstractStaticStridedPointer{T,X}, sc::T, i::I, mask::Unsigned) where {T<:Number,X,I<:Tuple}
-    W, gepcall = static_strided_ptr_gepcall(I.parameters, X.parameters, T)
+    W, indexpr = static_strided_ptr_index(I.parameters, X.parameters, T)
+    bptr = Expr(:(.), :ptr, QuoteNode(:ptr))
     if W == 1
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, gepcall, :sc))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :store!, bptr, :sc, indexpr))
     else
-        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, gepcall, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), :mask))
+        Expr(:block, Expr(:meta,:inline), Expr(:call, :vstore!, bptr, Expr(:call, :vbroadcast, Expr(:curly, :Vec, W, T), :sc), indexpr, :mask))
     end
 end
 
