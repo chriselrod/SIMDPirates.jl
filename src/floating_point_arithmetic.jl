@@ -533,6 +533,7 @@ end
 @generated function vfmadd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
+    # ins = "@llvm.fma.v$(W)f$(8*sizeof(T))"
     ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
     decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
     instrs = "%res = call $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
@@ -589,6 +590,32 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 # @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
 # @inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
+# const Vec{W,T} = NTuple{W,Core.VecElement{T}}
+@inline function vfmadd231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
+    Base.llvmcall(
+        """%res = call <8 x double> asm "vfmadd231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+    ret <8 x double> %res""",
+        Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
+end
+# @inline vfmadd(a::Vec{8,Float64}, b::Vec{8,Float64}, c::Vec{8,Float64}) = vfmadd231pd(a, b, c)
+@inline function vfnmadd231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
+    Base.llvmcall(
+        """%res = call <8 x double> asm "vfnmadd231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+    ret <8 x double> %res""",
+        Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
+end
+@inline function vfmsub231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
+    Base.llvmcall(
+        """%res = call <8 x double> asm "vfmsub231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+    ret <8 x double> %res""",
+        Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
+end
+@inline function vfnmsub231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
+    Base.llvmcall(
+        """%res = call <8 x double> asm "vfnmsub231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+    ret <8 x double> %res""",
+        Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
+end
 
 # @generated function rsqrt_fast(x::NTuple{16,Core.VecElement{Float32}})
 #     if VectorizationBase.REGISTER_SIZE == 64
