@@ -95,7 +95,7 @@ end
 #         $ex + 1
 #     end
 # end
-@generated function load(
+@generated function vload(
     ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
@@ -121,7 +121,7 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}}, ptr)
     end
 end
-@generated function load(
+@generated function vload(
     ptr::Ptr{T}, i::_MM{W}, ::Val{Aligned}, ::Val{Nontemporal}
 ) where {W,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
@@ -149,10 +149,10 @@ end
             Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, i.i))
     end
 end
-# @inline function load(::Type{Vec{W,T}}, ptr::Ptr{T}, i::Integer, ::Val{Aligned}, ::Val{Nontemporal}) where {W,T,Aligned,Nontemporal}
-    # extract_data(load(ptr, _MM{W}(i % Int), Val{Aligned}(), Val{Nontemporal}()))
+# @inline function vload(::Type{Vec{W,T}}, ptr::Ptr{T}, i::Integer, ::Val{Aligned}, ::Val{Nontemporal}) where {W,T,Aligned,Nontemporal}
+    # extract_data(vload(ptr, _MM{W}(i % Int), Val{Aligned}(), Val{Nontemporal}()))
 # end
-@generated function load(
+@generated function vload(
     ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::Vec{N,Bool}, ::Val{Aligned}
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
@@ -184,7 +184,7 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}, Vec{$N,Bool}}, ptr, mask)
     end
 end
-@generated function load(
+@generated function vload(
     ::Type{Vec{N,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
@@ -221,7 +221,7 @@ end
             Vec{$N,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
     end
 end
-@generated function load(
+@generated function vload(
     ptr::Ptr{T}, i::_MM{W}, mask::U, ::Val{Aligned}
 ) where {W,T,U<:Unsigned,Aligned}
     ptyp = JuliaPointerType
@@ -254,8 +254,8 @@ end
             Vec{$W,$T}, Tuple{Ptr{$T}, Int, $U}, ptr, i.i, mask))
     end
 end
-# @inline function load(::Type{Vec{W,T}}, ptr::Ptr{T}, i::Integer, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned}
-    # extract_data(load(ptr, _MM{W}(i % Int), mask, Val{Aligned}()))
+# @inline function vload(::Type{Vec{W,T}}, ptr::Ptr{T}, i::Integer, mask::Unsigned, ::Val{Aligned}) where {W,T,Aligned}
+    # extract_data(vload(ptr, _MM{W}(i % Int), mask, Val{Aligned}()))
 # end
 
 for v ∈ (:Vec, :SVec, :Val, :_MM)
@@ -284,17 +284,17 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
             if mask
                 margs = push!(copy(iargs), :(mask::Unsigned))
                 mcall = push!(copy(icall), :mask)
-                fopts = [:load,:loada]
+                fopts = [:vload,:vloada]
             else
                 margs = iargs
                 mcall = icall
-                fopts = [:load,:loada,:loadnt]
+                fopts = [:vload,:vloada,:vloadnt]
             end
             for f ∈ fopts
-                body = Expr(:call, :load, mcall...)
-                push!(body.args, Expr(:call, Expr(:curly, :Val, f !== :load))) # aligned arg
+                body = Expr(:call, :vload, mcall...)
+                push!(body.args, Expr(:call, Expr(:curly, :Val, f !== :vload))) # aligned arg
                 if !mask
-                    push!(body.args, Expr(:call, Expr(:curly, :Val, f === :loadnt))) # nontemporal argf
+                    push!(body.args, Expr(:call, Expr(:curly, :Val, f === :vloadnt))) # nontemporal argf
                 end
                 if index
                     if v === :Vec
@@ -313,9 +313,9 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
     end
 end
 
-@inline load(::Type{Vec{W,T}}, ::VectorizationBase.AbstractZeroInitializedPointer, args...) where {W,T} = vzero(Vec{W,T})
+@inline vload(::Type{Vec{W,T}}, ::VectorizationBase.AbstractZeroInitializedPointer, args...) where {W,T} = vzero(Vec{W,T})
 
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, ::Val{Aligned}, ::Val{Nontemporal}
 ) where {N,T,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
@@ -343,7 +343,7 @@ end
         )
     end
 end
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, i::I, ::Val{Aligned}, ::Val{Nontemporal}
 ) where {N,T,I,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
@@ -375,7 +375,7 @@ end
     end
 end
 
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, mask::Vec{N,Bool}, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned}
     @assert isa(Aligned, Bool)
@@ -405,7 +405,7 @@ end
         )
     end
 end
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
@@ -442,7 +442,7 @@ end
             ptr, v, mask)
     end
 end
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, i::I, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {N,T,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
@@ -504,18 +504,18 @@ let pargs = Union{Symbol,Expr}[:(ptr::Ptr{T}), :(v::AbstractSIMDVector{W,T})]
             if mask
                 margs = push!(copy(iargs), :(mask::Union{Vec{W,Bool},<:Unsigned}))
                 mcall = push!(copy(icall), :mask)
-                fopts = (:store!,:storea!)
+                fopts = (:vstore!,:vstorea!)
             else
                 margs = iargs
                 mcall = icall
-                fopts = (:store!,:storea!,:storent!)
+                fopts = (:vstore!,:vstorea!,:vstorent!)
             end
             for f ∈ fopts
-                body = Expr(:call, :store!)
+                body = Expr(:call, :vstore!)
                 append!(body.args, mcall)
-                push!(body.args, Expr(:call, Expr(:curly, :Val, f !== :store!))) # aligned arg
+                push!(body.args, Expr(:call, Expr(:curly, :Val, f !== :vstore!))) # aligned arg
                 if !mask
-                    push!(body.args, Expr(:call, Expr(:curly, :Val, f === :storent!))) # nontemporal argf
+                    push!(body.args, Expr(:call, Expr(:curly, :Val, f === :vstorent!))) # nontemporal argf
                 end
                 @eval @inline function $f($(margs...)) where {W,T}
                     $body
@@ -525,7 +525,7 @@ let pargs = Union{Symbol,Expr}[:(ptr::Ptr{T}), :(v::AbstractSIMDVector{W,T})]
     end
 end
 
-# @generated function loadscope(
+# @generated function vloadscope(
 #     ::Type{Vec{N,T}}, ptr::Ptr{T}, ::Val{Scope},
 #     ::Val{Aligned}, ::Val{Nontemporal}
 # ) where {N, T, Scope, Aligned, Nontemporal}
@@ -657,7 +657,7 @@ end
         )
     end
 end
-@generated function load(
+@generated function vload(
    ptr::Ptr{T}, i::Vec{N,I}, ::Val{Aligned} = Val{false}()
 ) where {N,T,I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
@@ -689,11 +689,11 @@ end
         )
     end
 end
-@inline load(ptr::Ptr, i::SVec{W,I}, ::Val{Aligned}) where {W,I<:Integer,Aligned} = SVec(load(ptr, extract_data(i), Val{Aligned}()))
-@inline load(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,I<:Integer,Aligned} = SVec(load(ptr, extract_data(i), mask, Val{Aligned}()))
-@inline load(ptr::Ptr, i::SVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(load(ptr, extract_data(i), Val{Aligned}()))
-@inline load(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(load(ptr, extract_data(i), mask, Val{Aligned}()))
-@generated function load(
+@inline vload(ptr::Ptr, i::SVec{W,I}, ::Val{Aligned}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), Val{Aligned}()))
+@inline vload(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask, Val{Aligned}()))
+@inline vload(ptr::Ptr, i::SVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), Val{Aligned}()))
+@inline vload(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask, Val{Aligned}()))
+@generated function vload(
    ptr::Ptr{T}, i::Vec{N,I}, mask::U, ::Val{Aligned} = Val{false}()
 ) where {N,T,I<:Integer,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
@@ -803,7 +803,7 @@ end
         )
     end
 end
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, i::Vec{N,I}, ::Val{Aligned} = Val{false}()
 ) where {N,T,Aligned, I<:Integer}
     @assert isa(Aligned, Bool)
@@ -835,7 +835,7 @@ end
             Cvoid, Tuple{Ptr{$T}, Vec{$N,$T}, Vec{$N,$I}}, ptr, v, i)
     end
 end
-@generated function store!(
+@generated function vstore!(
     ptr::Ptr{T}, v::Vec{N,T}, i::Vec{N,I}, mask::U, ::Val{Aligned} = Val{false}()
 ) where {N,T,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
@@ -1059,10 +1059,10 @@ end
 # end
 
 
-@inline store!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::AbstractSIMDVector{W,T}, i, b::Bool) where {W,T} = (b && store!(ptr, v, i))
+@inline vstore!(ptr::VectorizationBase.AbstractStridedPointer{T}, v::AbstractSIMDVector{W,T}, i, b::Bool) where {W,T} = (b && vstore!(ptr, v, i))
 
-@inline store!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple) where {W,T1,T2} = store!(ptr, vconvert(Vec{W,T1}, v), i)
-@inline store!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::Unsigned) where {W,T1,T2} = store!(ptr, vconvert(Vec{W,T1}, v), i, u)
+@inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), i)
+@inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::Unsigned) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), i, u)
 using VectorizationBase: AbstractPackedStridedPointer, PackedStridedPointer, tdot
 @inline VectorizationBase.gep(ptr::AbstractPackedStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, i)
 
@@ -1092,27 +1092,27 @@ end
 # _MM support
 # zero initialized
 # scalar if only and Int
-@inline load(::AbstractZeroInitializedPointer{T}, ::Tuple{Int}) where {W,T<:Number} = zero(T)
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{Int}) where {W,T<:Number} = zero(T)
 # if a Vec of some kind, broadcast the zero
-@inline load(::AbstractZeroInitializedPointer{T}, ::Tuple{_MM{W},Vararg}) where {W,T<:Number} = vzero(SVec{W,T})
-@inline load(::AbstractZeroInitializedPointer{T}, ::Tuple{V,Vararg}) where {W,T<:Number,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
-@inline load(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,V,Vararg}) where {W,T<:Number,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
-@inline load(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,_MM{W},Vararg}) where {W,T<:Number} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{_MM{W},Vararg}) where {W,T<:Number} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{V,Vararg}) where {W,T<:Number,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,V,Vararg}) where {W,T<:Number,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
+@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,_MM{W},Vararg}) where {W,T<:Number} = vzero(SVec{W,T})
 # peel off indices
-@inline load(ptr::AbstractZeroInitializedPointer{T}, i::Tuple{<:Integer,<:Integer,Vararg}) where {W,T<:Number} = load(ptr, Base.tail(i))
+@inline vload(ptr::AbstractZeroInitializedPointer{T}, i::Tuple{<:Integer,<:Integer,Vararg}) where {W,T<:Number} = vload(ptr, Base.tail(i))
 
-@inline store!(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}) where {W,T<:Number,I} = store!(ptr, vbroadcast(Vec{W,T}, v), i)
-@inline store!(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}, u::Unsigned) where {W,T<:Number,I} = store!(ptr, vbroadcast(Vec{W,T}, v), i, u)
+@inline vstore!(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}) where {W,T<:Number,I} = vstore!(ptr, vbroadcast(Vec{W,T}, v), i)
+@inline vstore!(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}, u::Unsigned) where {W,T<:Number,I} = vstore!(ptr, vbroadcast(Vec{W,T}, v), i, u)
 
 vectypewidth(::Type{V}) where {W, V<:AbstractSIMDVector{W}} = W::Int
 vectypewidth(::Type{_MM{W}}) where {W} = W::Int
 vectypewidth(::Any) = 1
 
-@inline load(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
-@inline load(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
 # Ignore masks
-@inline load(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
-@inline load(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
 
 function transposeshuffle0(split, W)
     tup = Expr(:tuple)
@@ -1194,7 +1194,7 @@ end
                       )
                 Wt = Wh
             end
-            push!(q.args, Expr(:call, :store!, :bptr, v0))
+            push!(q.args, Expr(:call, :vstore!, :bptr, v0))
             ncomp += minWN
         end
     else
@@ -1202,7 +1202,7 @@ end
             push!(
                 q.args,
                 Expr(
-                    :call, :store!,
+                    :call, :vstore!,
                     Expr(:call, :gep, :bptr, Expr(:tuple, n-1)),
                     Expr(
                         :call, :vsum,
@@ -1216,41 +1216,41 @@ end
 end
 
 using VectorizationBase: MappedStridedPointer
-@inline function load(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}) where {W,F,T}
-    extract_data(m.f(load(SVec{W,T}, m.ptr)))
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr)))
 end
-@inline function load(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
-    extract_data(m.f(load(SVec{W,T}, m.ptr, i)))
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr, i)))
 end
-@inline function load(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
-    extract_data(m.f(load(SVec{W,T}, m.ptr, mask)))
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr, mask)))
 end
-@inline function load(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
-    extract_data(m.f(load(SVec{W,T}, m.ptr, i, mask)))
+@inline function vload(::Type{Vec{W,T}}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    extract_data(m.f(vload(SVec{W,T}, m.ptr, i, mask)))
 end
-@inline function load(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr))
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr))
 end
-@inline function load(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr, i))
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i))
 end
-@inline function load(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr, mask))
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, mask))
 end
-@inline function load(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr, i, mask))
+@inline function vload(::Type{SVec{W,T}}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i, mask))
 end
-@inline function load(::Val{W}, m::MappedStridedPointer{F,T}) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr))
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr))
 end
-@inline function load(::Val{W}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr, i))
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}, i) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i))
 end
-@inline function load(::Val{W}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr, mask))
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, mask))
 end
-@inline function load(::Val{W}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
-    m.f(load(SVec{W,T}, m.ptr, i, mask))
+@inline function vload(::Val{W}, m::MappedStridedPointer{F,T}, i, mask::Union{<:Unsigned,Vec{W,Bool}}) where {W,F,T}
+    m.f(vload(SVec{W,T}, m.ptr, i, mask))
 end
 
 

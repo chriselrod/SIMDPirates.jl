@@ -6,42 +6,42 @@ This library serves two primary purposes:
 
 The second point has been a major driving factor behind the API divergence between [SIMD.jl](https://github.com/eschnett/SIMD.jl) and `SIMDPirates.jl`. That is, code-gen is a lot easier if multiple dispatch does the heavy lifting so that the same code does the correct thing based on type information.
 
-The major differences are with the `load` and `store!` API. They use zero-based indexing, and the behavior is a function of the input types:
+The major differences are with the `vload` and `vstore!` API. They use zero-based indexing, and the behavior is a function of the input types:
 ```julia
 julia> using SIMDPirates
 
 julia> A = rand(100,100); ptrA = stridedpointer(A); # WARNING: don't let A get garbage collected
 
-julia> load(ptrA, (0,0)), A[1,1]
+julia> vload(ptrA, (0,0)), A[1,1]
 (0.7977634555508373, 0.7977634555508373)
 
-julia> load(ptrA, (1,)), A[2]
+julia> vload(ptrA, (1,)), A[2]
 (0.13579836748463214, 0.13579836748463214)
 ```
 The type `_MM{W}(i)` represents indexing a vector.
 ```julia
-julia> load(ptrA, (_MM{8}(8),))
+julia> vload(ptrA, (_MM{8}(8),))
 SVec{8,Float64}<0.6145530413966958, 0.13905050452534073, 0.8536024612786386, 0.13206059984056195, 0.5746515798950431, 0.035588186094294816, 0.9061808924885322, 0.0761514370503289>
 
 julia> A[9:16,1]'
 1×8 LinearAlgebra.Adjoint{Float64,Array{Float64,1}}:
  0.614553  0.139051  0.853602  0.132061  0.574652  0.0355882  0.906181  0.0761514
 
-julia> load(ptrA, (_MM{8}(16),2))
+julia> vload(ptrA, (_MM{8}(16),2))
 SVec{8,Float64}<0.9345847434764896, 0.8778295861820791, 0.3882306993294067, 0.029132949582947543, 0.13643548789260773, 0.22573385104528088, 0.16953827538934285, 0.09210510294056884>
 
 julia> A[17:24,3]'
 1×8 LinearAlgebra.Adjoint{Float64,Array{Float64,1}}:
  0.934585  0.87783  0.388231  0.0291329  0.136435  0.225734  0.169538  0.0921051
 
-julia> load(ptrA, (2,_MM{8}(24)))
+julia> vload(ptrA, (2,_MM{8}(24)))
 SVec{8,Float64}<0.4586224341251526, 0.21030061931083033, 0.12676185033224674, 0.03418338751245442, 0.1415585905885226, 0.5599978264570737, 0.8694201302322504, 0.5101382821233793>
 
 julia> A[3,25:32]'
 1×8 LinearAlgebra.Adjoint{Float64,Array{Float64,1}}:
  0.458622  0.210301  0.126762  0.0341834  0.141559  0.559998  0.86942  0.510138
 
-julia> load(ptrA, (_MM{8}(24),_MM{8}(24)))
+julia> vload(ptrA, (_MM{8}(24),_MM{8}(24)))
 SVec{8,Float64}<0.41258101001567926, 0.7681445910047522, 0.49408560799133205, 0.8683185123046988, 0.0988985046194395, 0.382843770190751, 0.47204194244896036, 0.4655638468723473>
 
 julia> getindex.(Ref(A), 25:32, 25:32)'
@@ -52,14 +52,14 @@ You can also index using vectors:
 ```julia
 julia> si = SVec(ntuple(i -> Core.VecElement(3i), Val(8)));
 
-julia> load(ptrA, (si,4))
+julia> vload(ptrA, (si,4))
 SVec{8,Float64}<0.420209298966957, 0.09396816626228843, 0.4879807535620213, 0.7244630379947636, 0.7657242973977998, 0.37856664034180176, 0.14493820968814353, 0.26933496073958674>
 
 julia> A[4:3:27,5]'
 1×8 LinearAlgebra.Adjoint{Float64,Array{Float64,1}}:
  0.420209  0.0939682  0.487981  0.724463  0.765724  0.378567  0.144938  0.269335
  ```
-The api for `store!(::AbstractStridedPointer, v, i)` is similar. The index determines the elements to which `v` is stored. If `v` is a scalar, it will be stored to each of the implied elements.
+The api for `vstore!(::AbstractStridedPointer, v, i)` is similar. The index determines the elements to which `v` is stored. If `v` is a scalar, it will be stored to each of the implied elements.
 However, you should manually reduce a vector to store at a scalar location, because whether you'd want `sum`, `prod`, or some other operation is not assumed.
 
 The operations also take bitmasks (placed affter the index tuple) to perform masked loads/stores. This is useful for dealing with the ends of arrays, for example.
@@ -192,7 +192,7 @@ julia> bitstring(ans)
 
 julia> x = rand(5);
 
-julia> load(Val(8), pointer(x), 0x1f)
+julia> vload(Val(8), pointer(x), 0x1f)
 SVec{8,Float64}<0.9883925090112797, 0.5963333776815305, 0.39507716254066527, 0.20452877630045485, 0.11416439490499686, 0.0, 0.0, 0.0>
 ```
 This can be an efficient means of safely calculating the remaining iterations of a loop without segfaulting by going out of bounds.
@@ -204,7 +204,7 @@ julia> A = randn(8,8,8);
 
 julia> using VectorizationBase
 
-julia> load(Val(8), stridedpointer(A), (0,2,4))
+julia> vload(Val(8), stridedpointer(A), (0,2,4))
 SVec{8,Float64}<0.5652101029566953, 0.3735600961400492, -0.46186341442110324, -0.023470374325385516, -0.05667600480551983, -0.5376619417499121, -0.660267667473099, 0.4155986530326794>
 
 julia> A[:,3,5]'
@@ -215,7 +215,7 @@ The strided pointer can also handle non-unit strides i nthe first axis:
 ```
 julia> A = randn(8,8,8);
 
-julia> load(Val(8), stridedpointer(@view(A[3,:,:])), (0,4))
+julia> vload(Val(8), stridedpointer(@view(A[3,:,:])), (0,4))
 SVec{8,Float64}<-0.6981645894507432, -0.21264670662945478, -0.46186341442110324, 1.0916967467999321, 0.0676744641262481, 1.6641946624495672, -0.36650334364272646, -0.20951071047318678>
 
 julia> @view(A[3,:,:])[:,5]'
@@ -224,7 +224,7 @@ julia> @view(A[3,:,:])[:,5]'
 
 julia> 
 
-julia> @code_native debuginfo=:none load(Val(8), stridedpointer(@view(A[3,:,:])), (0,4))
+julia> @code_native debuginfo=:none vload(Val(8), stridedpointer(@view(A[3,:,:])), (0,4))
 	.text
 	movq	8(%rsi), %rax
 	movq	16(%rsi), %rcx
@@ -261,9 +261,9 @@ Something else fun:
     W, Wshift = VectorizationBase.pick_vector_width_shift(T)
     incr = sizeof(T) << Wshift
     for _ ∈ 1:(L>>>Wshift)
-        vb = load(V, ptrb)
-        vc = load(V, ptrc)
-        store!(ptra, vmul(vb, vc))
+        vb = vload(V, ptrb)
+        vc = vload(V, ptrc)
+        vstore!(ptra, vmul(vb, vc))
         ptra += incr
         ptrb += incr
         ptrc += incr
@@ -271,7 +271,7 @@ Something else fun:
     ptra = ptrai
     out = vbroadcast(V, zero(T))
     for _ ∈ 1:(L>>>Wshift)
-        out = vadd(out, load(V, ptra))
+        out = vadd(out, vload(V, ptra))
         ptra += incr
     end
     SIMDPirates.lifetime_end!(ptrai, Val(L))

@@ -4,12 +4,12 @@ using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, AbstractZeroInitializedPointer,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
-import VectorizationBase: load, store!
+import VectorizationBase: vload, vstore!
 
 
 export  Vec, SVec, VE, _MM, stridedpointer,
     extract_data, vbroadcast, vconvert,
-    load, loada, store!, storea!, storent!, shufflevector,
+    vload, vloada, vstore!, vstorea!, vstorent!, shufflevector,
     vifelse,
     vfma, vmuladd,
     vsqrt, rsqrt, vinv, vabs2,
