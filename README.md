@@ -79,7 +79,7 @@ This allows one to implement cartesian indexing as simply the dot product betwee
 However, care must be taken to avoid multiplying `_MM` instances by `1` whenever possible as this will convert the `_MM` into an `SVec` with equivalent behavior (loads/stores to the same elements), but the inferior performance of a discontiguous memory accesses.
 Whenever a stride is known to equal `1` at compile time, as is commonly the case for the first stride, this should be exploited.
 
-~~~
+---
 Older documenation begins here.
 
 `SIMDPirates.jl` is a library for `SIMD` intrinsics. The code was stolen from  , whose authors and maintainers deserve credit for most of the good work here. Aside from pirating code, `SIMDPirates` also provides an `@pirate` macro that lets you imagine you're commiting type piracy:
