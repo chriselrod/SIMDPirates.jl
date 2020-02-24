@@ -94,6 +94,7 @@ end
 @inline Base.:(>>)(i::_MM, j::Integer) = svrange(i) >> j
 @inline Base.:(>>>)(i::_MM, j::Integer) = svrange(i) >>> j
 
-Base.:(*)(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
+@inline Base.:(*)(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
+@inline Base.:(*)(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
 @inline vconvert(::Type{Vec{W,T}}, i::_MM{W}) where {W,T} = vrange(i, T)
 @inline vconvert(::Type{SVec{W,T}}, i::_MM{W}) where {W,T} = svrange(i, T)

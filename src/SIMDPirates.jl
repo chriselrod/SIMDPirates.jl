@@ -4,17 +4,12 @@ using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, AbstractZeroInitializedPointer,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
-# using MacroTools: prewalk, postwalk
-    
-export  Vec, SVec, VE,
-    @pirate,
-    extract_data,
-    vbroadcast, vconvert,
-    vload,
-    vloada,
-    vstore!,
-    vstorea!,
-    shufflevector,
+import VectorizationBase: load, store!
+
+
+export  Vec, SVec, VE, _MM, stridedpointer,
+    extract_data, vbroadcast, vconvert,
+    load, loada, store!, storea!, storent!, shufflevector,
     vifelse,
     vfma, vmuladd,
     vsqrt, rsqrt, vinv, vabs2,
@@ -23,7 +18,8 @@ export  Vec, SVec, VE,
     vfmadd, vfnmadd, vfmsub, vfnmsub,
     vfmadd_fast, vfnmadd_fast, vfmsub_fast, vfnmsub_fast,
     gather, scatter!,
-    addscalar
+    addscalar,
+    @pirate
 
 
 vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]

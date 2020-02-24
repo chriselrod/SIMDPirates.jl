@@ -593,26 +593,26 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 # const Vec{W,T} = NTuple{W,Core.VecElement{T}}
 @inline function vfmadd231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
     Base.llvmcall(
-        """%res = call <8 x double> asm "vfmadd231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+        """%res = call <8 x double> asm "vfmadd231pd \$3, \$2, \$1", "=v,0,v,v"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
     ret <8 x double> %res""",
         Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
 end
 # @inline vfmadd(a::Vec{8,Float64}, b::Vec{8,Float64}, c::Vec{8,Float64}) = vfmadd231pd(a, b, c)
 @inline function vfnmadd231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
     Base.llvmcall(
-        """%res = call <8 x double> asm "vfnmadd231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+        """%res = call <8 x double> asm "vfnmadd231pd \$3, \$2, \$1", "=v,0,v,v"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
     ret <8 x double> %res""",
         Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
 end
 @inline function vfmsub231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
     Base.llvmcall(
-        """%res = call <8 x double> asm "vfmsub231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+        """%res = call <8 x double> asm "vfmsub231pd \$3, \$2, \$1", "=v,0,v,v"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
     ret <8 x double> %res""",
         Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
 end
 @inline function vfnmsub231pd(c::Vec{8,Float64}, a::Vec{8,Float64}, b::Vec{8,Float64})
     Base.llvmcall(
-        """%res = call <8 x double> asm "vfnmsub231pd \$3, \$2, \$1", "=x,0,x,x"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
+        """%res = call <8 x double> asm "vfnmsub231pd \$3, \$2, \$1", "=v,0,v,v"(<8 x double> %2, <8 x double> %1, <8 x double> %0)
     ret <8 x double> %res""",
         Vec{8,Float64}, Tuple{Vec{8,Float64},Vec{8,Float64},Vec{8,Float64}}, a, b, c)
 end
