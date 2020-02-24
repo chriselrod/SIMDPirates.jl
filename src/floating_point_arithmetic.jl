@@ -527,6 +527,8 @@ end
 @inline vadd(x::Number, y::Number) = Base.FastMath.add_fast(x, y)
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
+@inline vadd(a,b,c,d) = evadd(vadd(a,b), vadd(c,d))
+@inline Base.:(+)(a::SVec, b, c, d) = evadd(vadd(a,b), vadd(c,d))
 @inline vmuladd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 # These intrinsics are not FastMath.
 

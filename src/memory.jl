@@ -270,7 +270,7 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
         if v === :_MM
             index || continue
             icall = Union{Symbol,Expr}[:ptr, :i]#Expr(:call, :gep, :ptr, :i)]
-            iargs = push!(copy(pargs), :i)                
+            iargs = push!(copy(pargs), :(i::_MM{W}))
         else
             if index
                 icall = Union{Symbol,Expr}[:ptr, :(_MM{W}(i))]#Expr(:call, :gep, :ptr, :i)]
@@ -282,7 +282,7 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
         end
         for mask ∈ (true,false)
             if mask
-                margs = push!(copy(iargs), :(mask::Union{Vec{W,Bool},<:Unsigned}))
+                margs = push!(copy(iargs), :(mask::Unsigned))
                 mcall = push!(copy(icall), :mask)
                 fopts = [:load,:loada]
             else
@@ -291,12 +291,11 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
                 fopts = [:load,:loada,:loadnt]
             end
             for f ∈ fopts
-                fcall = copy(mcall)
-                push!(fcall, Expr(:call, Expr(:curly, :Val, f !== :load))) # aligned arg
+                body = Expr(:call, :load, mcall...)
+                push!(body.args, Expr(:call, Expr(:curly, :Val, f !== :load))) # aligned arg
                 if !mask
-                    push!(fcall, Expr(:call, Expr(:curly, :Val, f === :loadnt))) # nontemporal argf
+                    push!(body.args, Expr(:call, Expr(:curly, :Val, f === :loadnt))) # nontemporal argf
                 end
-                body = Expr(:call, :load, fcall...)
                 if index
                     if v === :Vec
                         body = Expr(:call, :extract_data, body)
