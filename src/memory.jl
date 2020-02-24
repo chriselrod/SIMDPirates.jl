@@ -270,7 +270,7 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
         if v === :_MM
             index || continue
             icall = Union{Symbol,Expr}[:ptr, :i]#Expr(:call, :gep, :ptr, :i)]
-            iargs = push!(copy(pargs), :(i::_MM{W}))
+            iargs = push!(copy(pargs), :(i::Union{_MM{W},AbstractSIMDVector{W,<:Integer}}))
         else
             if index
                 icall = Union{Symbol,Expr}[:ptr, :(_MM{W}(i))]#Expr(:call, :gep, :ptr, :i)]
