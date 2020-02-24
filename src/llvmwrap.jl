@@ -276,6 +276,7 @@ end
     end
 end
 
+
 @generated function llvmwrapshift(
     ::Val{Op}, v1::Vec{N,T}, ::Val{I}
 ) where {Op,N,T,I}
@@ -329,15 +330,15 @@ end
     instrs = String[]
     append!(instrs, scalar2vector("%count", N, typ, "%1"))
     nbits = 8*sizeof(T)
-    push!(instrs, "%tmp = $ins $vtyp %0, %count")
-    push!(instrs, "%inbounds = icmp ult $typ %1, $nbits")
-    if Op === :>> && T <: IntTypes
-        nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
-        push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
-        push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp %limit")
-    else
-        push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
-    end
+    push!(instrs, "%res = $ins $vtyp %0, %count")
+    # push!(instrs, "%inbounds = icmp ult $typ %1, $nbits")
+    # if Op === :>> && T <: IntTypes
+    #     nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+    #     push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
+    #     push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp %limit")
+    # else
+    #     push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
+    # end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
@@ -428,3 +429,159 @@ end
         )
     end
 end
+
+
+# @generated function llvmwrapshift(
+#     ::Val{Op}, v1::Vec{N,T}, ::Val{I}
+# ) where {Op,N,T,I}
+#     @assert isa(Op, Symbol)
+#     if I >= 0
+#         op = Op
+#         i = I
+#     else
+#         if Op === :>> || Op === :>>>
+#             op = :<<
+#         else
+#             @assert Op === :<<
+#             if T <: Unsigned
+#                 op = :>>>
+#             else
+#                 op = :>>
+#             end
+#         end
+#         i = -I
+#     end
+#     @assert op in (:<<, :>>, :>>>)
+#     @assert i >= 0
+#     typ = llvmtype(T)
+#     vtyp = "<$N x $typ>"
+#     ins = llvmins(op, N, T)
+#     decls = String[]
+#     instrs = String[]
+#     nbits = 8*sizeof(T)
+#     if (op === :>> && T <: IntTypes) || i < nbits
+#         count = llvmconst(N, T, min(nbits-1, i))
+#         push!(instrs, "%res = $ins $vtyp %0, $count")
+#         push!(instrs, "ret $vtyp %res")
+#     else
+#         push!(instrs, "return $vtyp zeroinitializer")
+#     end
+#     quote
+#         $(Expr(:meta, :inline))
+#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#             Vec{N,T}, Tuple{Vec{N,T}}, v1)
+#     end
+# end
+
+# @generated function llvmwrapshift(
+#     ::Val{Op}, v1::Vec{N,T}, x2::Unsigned
+# ) where {Op,N,T}
+#     @assert isa(Op, Symbol)
+#     typ = llvmtype(T)
+#     vtyp = "<$N x $typ>"
+#     ins = llvmins(Op, N, T)
+#     decls = String[]
+#     instrs = String[]
+#     append!(instrs, scalar2vector("%count", N, typ, "%1"))
+#     nbits = 8*sizeof(T)
+#     push!(instrs, "%tmp = $ins $vtyp %0, %count")
+#     push!(instrs, "%inbounds = icmp ult $typ %1, $nbits")
+#     if Op === :>> && T <: IntTypes
+#         nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+#         push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
+#         push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp %limit")
+#     else
+#         push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
+#     end
+#     push!(instrs, "ret $vtyp %res")
+#     quote
+#         $(Expr(:meta, :inline))
+#         # Note that this function might be called with out-of-bounds
+#         # values for x2, assuming that the results are then ignored
+#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#             Vec{N,T}, Tuple{Vec{N,T}, T}, v1, x2 % T)
+#     end
+# end
+
+# @generated function llvmwrapshift(
+#     ::Val{Op}, v1::Vec{N,T}, x2::Integer
+# ) where {Op,N,T}
+#     if Op === :>> || Op === :>>>
+#         NegOp = :<<
+#     else
+#         @assert Op === :<<
+#         if T <: Unsigned
+#             NegOp = :>>>
+#         else
+#             NegOp = :>>
+#         end
+#     end
+#     ValOp = Val{Op}()
+#     ValNegOp = Val{NegOp}()
+#     quote
+#         $(Expr(:meta, :inline))
+#         x2 < 0 ? llvmwrapshift($ValNegOp, v1, unsigned(-x2)) : llvmwrapshift($ValOp, v1, unsigned(x2))
+#     end
+# end
+
+# @generated function llvmwrapshift(
+#     ::Val{Op},
+#     v1::Vec{N,T},
+#     v2::Vec{N,U}
+# ) where {Op,N,T,U<:UIntTypes}
+#     @assert isa(Op, Symbol)
+#     typ = llvmtype(T)
+#     vtyp = "<$N x $typ>"
+#     ins = llvmins(Op, N, T)
+#     decls = String[]
+#     instrs = String[]
+#     push!(instrs, "%res = $ins $vtyp %0, %1")
+#     # push!(instrs, "%tmp = $ins $vtyp %0, %1")
+#     # nbits = llvmconst(N, T, 8*sizeof(T))
+#     # push!(instrs, "%inbounds = icmp ult $vtyp %1, $nbits")
+#     # if Op === :>> && T <: IntTypes
+#     #     nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+#     #     push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
+#     #     push!(instrs,
+#     #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
+#     # else
+#     #     push!(instrs,
+#     #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
+#     # end
+#     push!(instrs, "ret $vtyp %res")
+#     quote
+#         $(Expr(:meta, :inline))
+#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#             Vec{N,T}, Tuple{Vec{N,T}, Vec{N,T}},
+#             v1, vrem(v2, Vec{N,T}))
+#     end
+# end
+
+# @generated function llvmwrapshift(
+#     ::Val{Op},
+#     v1::Vec{N,T},
+#     v2::Vec{N,U}
+# ) where {Op,N,T,U<:IntegerTypes}
+#     if Op === :>> || Op === :>>>
+#         NegOp = :<<
+#     else
+#         @assert Op === :<<
+#         if T <: Unsigned
+#             NegOp = :>>>
+#         else
+#             NegOp = :>>
+#         end
+#     end
+#     ValOp = Val{Op}()
+#     ValNegOp = Val{NegOp}()
+#     quote
+#         $(Expr(:meta, :inline))
+#         vifelse(
+#             vgreater_or_equal(v2, 0),
+#             llvmwrapshift($ValOp, v1, vrem(v2, Vec{N,unsigned(U)})),
+#             llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{N,unsigned(U)}))
+#         )
+#     end
+# end
+
+

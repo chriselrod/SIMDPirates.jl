@@ -156,15 +156,11 @@ end
 # Convert between LLVM scalars, vectors, and arrays
 
 function scalar2vector(vec, siz, typ, sca)
-    instrs = String[]
-    accum(nam, i) = i<0 ? "undef" : i==siz-1 ? nam : "$(nam)_iter$i"
-    for i in 0:siz-1
-        push!(instrs,
-            "$(accum(vec,i)) = " *
-                "insertelement <$siz x $typ> $(accum(vec,i-1)), " *
-                "$typ $sca, i32 $i")
-    end
-    instrs
+    tempvec = vec * "_temporary"
+    String[
+        "$tempvec = insertelement <$siz x $typ> undef, $typ $sca, i32 0",
+        "$vec = shufflevector <$siz x $typ> $tempvec, <$siz x $typ> undef, <$siz x i32> zeroinitializer"
+    ]
 end
 
 function array2vector(vec, siz, typ, arr, tmp="$(arr)_av")
