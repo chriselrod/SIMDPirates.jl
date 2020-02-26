@@ -33,8 +33,8 @@ function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = fal
         argv[1] = :vifelse
         return length(call.args) == 4, cnmul, csub
     end
-    isadd = fun === :+ || fun === :vadd || fun == :(Base.FastMath.add_fast)
-    issub = fun === :- || fun === :vsub || fun == :(Base.FastMath.sub_fast)
+    isadd = fun === :+ || fun === :vadd! || fun === :vadd || fun == :(Base.FastMath.add_fast)
+    issub = fun === :- || fun === :vsub! || fun === :vsub || fun == :(Base.FastMath.sub_fast)
     if !(isadd | issub)
         return length(call.args) == 4, cnmul, csub
     end
@@ -45,7 +45,7 @@ function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = fal
             exa = ex.args
             f = first(exa)
             exav = @view(exa[2:end])
-            if f === :* || f === :vmul || f == :(Base.FastMath.mul_fast)
+            if f === :* || f === :vmul! || f === :vmul || f == :(Base.FastMath.mul_fast)
                 # isnmul = any(check_negative, exav)
                 a, b = mulexpr(exav)
                 call.args[2] = a
@@ -104,6 +104,8 @@ function capture_muladd(ex::Expr, mod)
     call = Expr(:call, Symbol(""), Symbol(""), Symbol(""))
     found, nmul, sub = recursive_mul_search!(call, ex.args)
     found || return ex
+    # a, b, c = call.args[2], call.args[3], call.args[4]
+    # call.args[2], call.args[3], call.args[4] = c, a, b
     if mod === nothing
         call.args[1] = if nmul && sub
             :vfnmsub#_fast
@@ -133,19 +135,19 @@ function contract!(expr::Expr, ex::Expr, i::Int, mod = nothing)
     if ex.head === :call
         expr.args[i] = capture_muladd(ex, mod)
     elseif ex.head === :(+=)
-        call = Expr(:call, :(+))
+        call = Expr(:call, :vadd)
         append!(call.args, ex.args)
         expr.args[i] = Expr(:(=), first(ex.args), call)
     elseif ex.head === :(-=)
-        call = Expr(:call, :(-))
+        call = Expr(:call, :vsub)
         append!(call.args, ex.args)
         expr.args[i] = Expr(:(=), first(ex.args), call)
     elseif ex.head === :(*=)
-        call = Expr(:call, :(*))
+        call = Expr(:call, :vmul)
         append!(call.args, ex.args)
         expr.args[i] = Expr(:(=), first(ex.args), call)
     elseif ex.head === :(/=)
-        call = Expr(:call, :(/))
+        call = Expr(:call, :vfdiv)
         append!(call.args, ex.args)
         expr.args[i] = Expr(:(=), first(ex.args), call)
     end

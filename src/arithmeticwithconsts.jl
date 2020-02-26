@@ -28,6 +28,10 @@ const INVLOG10 = 1 / log(10)
 
 @inline vadd!(y, x) = vadd(y, x)
 @inline vsub!(y, x) = vsub(y, x)
+@inline vmul!(y, x) = vmul(y, x)
+@inline vfdiv!(y, x) = vfdiv(y, x)
 @inline vfmadd!(c, a, b) = vfmadd(a, b, c)
 @inline vfnmadd!(c, a, b) = vfnmadd(a, b, c)
+@inline vfmsub!(c, a, b) = vfmsub(a, b, c)
+@inline vfnmsub!(c, a, b) = vfnmsub(a, b, c)
 

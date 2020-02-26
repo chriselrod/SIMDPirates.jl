@@ -1008,6 +1008,10 @@ end
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), i)
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::Unsigned) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), i, u)
 @inline vstore!(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::Mask{W}) where {W,T1,T2} = vstore!(ptr, vconvert(Vec{W,T1}, v), i, u.u)
+
+@inline vstore!(ptr::VectorizationBase.AbstractPointer{T}, m::Mask{W}, i::Tuple) where {W,T} = vstore!(ptr, vifelse(m, vone(Vec{W,T}), vzero(Vec{W,T})), i)
+@inline vstore!(ptr::VectorizationBase.AbstractPointer{T}, m::Mask{W}, i::Tuple, mask::Mask{W}) where {W,T} = vstore!(ptr, vifelse(m, vone(Vec{W,T}), vzero(Vec{W,T})), i, mask)
+
 using VectorizationBase: AbstractColumnMajorStridedPointer, PackedStridedPointer, tdot
 @inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, i)
 
