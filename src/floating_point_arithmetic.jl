@@ -12,35 +12,28 @@ for op ∈ (
     @eval begin
         @inline $rename(s1::FloatingTypes) = @fastmath $op(s1)
 
-        @vectordef $rename function Base.$op(v1) where {N,T<:FloatingTypes}
+        @vectordef $rename function Base.$op(v1) where {W,T<:FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1))
         end
-
-        # @inline $rename(v1::Vec{N,T}) where {N,T<:FloatingTypes} =
-        #     llvmwrap(Val{$(QuoteNode(op))}(), v1)
-        # @inline $rename(v1::SVec{N,T}) where {N,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
-        # @inline Base.$op(v1::SVec{N,T}) where {N,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1)))
     end
 end
 # @inline vexp10(s1::FloatingTypes) = exp10(s1)
-# @vectordef vexp10 function Base.exp10(v1) where {N,T <: FloatingTypes}
-    # vpow(vbroadcast(Vec{N,T}, 10), extract_data(v1))
+# @vectordef vexp10 function Base.exp10(v1) where {W,T <: FloatingTypes}
+    # vpow(vbroadcast(Vec{W,T}, 10), extract_data(v1))
 # end
-# @inline vexp10(v1::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} = vpow(vbroadcast(Vec{N,T}, 10), v1)
+# @inline vexp10(v1::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} = vpow(vbroadcast(Vec{W,T}, 10), v1)
 @inline vsign(s1::FloatingTypes) = sign(s1)
-@vectordef vsign function Base.sign(v1) where {N,T<:FloatingTypes}
+@vectordef vsign function Base.sign(v1) where {W,T<:FloatingTypes}
     vifelse(
-        extract_data(v1) == vbroadcast(Vec{N,T}, zero(T)),
-        vbroadcast(Vec{N,T}, zero(T)),
-        copysign(vbroadcast(Vec{N,T}, one(T)), extract_data(v1))
+        extract_data(v1) == vbroadcast(Vec{W,T}, zero(T)),
+        vbroadcast(Vec{W,T}, zero(T)),
+        copysign(vbroadcast(Vec{W,T}, one(T)), extract_data(v1))
     )
 end
-# @inline function vsign(v1::SVec{N,T}) where {N,T<:FloatingTypes}
+# @inline function vsign(v1::SVec{W,T}) where {W,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
 # end
-# @inline function Base.sign(v1::SVec{N,T}) where {N,T<:FloatingTypes}
+# @inline function Base.sign(v1::SVec{W,T}) where {W,T<:FloatingTypes}
 #     SVec(vsign(extract_data(v1)))
 # end
 
@@ -54,13 +47,13 @@ for op ∈ (
     @eval begin
         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = @fastmath $op(s1, s2)
 
-        @vectordef $rename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
+        @vectordef $rename function Base.$op(v1, v2) where {W,T <: FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
         @inline $erename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
 
-        @evectordef $erename function Base.$op(v1, v2) where {N,T <: FloatingTypes}
+        @evectordef $erename function Base.$op(v1, v2) where {W,T <: FloatingTypes}
             llvmwrap_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
         end
 
@@ -76,11 +69,11 @@ for op ∈ (
             # V = vpromote(V1, V2)
             # $rename(vconvert(V, v1), vconvert(V, v2))
         # end
-        # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+        # @inline $rename(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
         #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2)
-        # @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
+        # @inline $rename(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
-        # @inline Base.$op(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
+        # @inline Base.$op(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
     end
 end
@@ -92,11 +85,11 @@ end
 end
 # @vpromote vfdiv 2
 @inline vmax(x::Number, y::Number) = Base.FastMath.max_fast(x,y)
-@vectordef vmax function Base.max(v1, v2) where {N,T<:FloatingTypes}
+@vectordef vmax function Base.max(v1, v2) where {W,T<:FloatingTypes}
     vifelse(vgreater(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
 end
 @inline vmin(x::Number, y::Number) = Base.FastMath.min_fast(x,y)
-@vectordef vmin function Base.min(v1, v2) where {N,T<:FloatingTypes}
+@vectordef vmin function Base.min(v1, v2) where {W,T<:FloatingTypes}
     vifelse(vless(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
 end
 
@@ -105,13 +98,13 @@ end
 #     rename = VECTOR_SYMBOLS[op]
 #     @eval begin
 #         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
-#         # @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+#         # @inline $rename(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
 #         #     VecProduct(v1, v2)
-#         @inline $rename(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+#         @inline $rename(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
 #             VecProduct(extract_data(v1), extract_data(v2))
-#         @inline $rename(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
+#         @inline $rename(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
 #             SVecProduct(extract_data(v1), extract_data(v2))
-#         @inline Base.$op(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T<:FloatingTypes} =
+#         @inline Base.$op(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:FloatingTypes} =
 #             SVecProduct(extract_data(v1), extract_data(v2))
 #     end
 # end
@@ -120,32 +113,32 @@ end
 
 
 # @inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
-# @vectordef vpow function Base.:^(v1, x2::Integer) where {N,T<:FloatingTypes}
+# @vectordef vpow function Base.:^(v1, x2::Integer) where {W,T<:FloatingTypes}
     # llvmwrap(Val{:powi}, extract_data(v1), Int(x2))
 # end
-# @inline function vpow(v1::Vec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
+# @inline function vpow(v1::Vec{W,T}, x2::Integer) where {W,T<:FloatingTypes}
 #     llvmwrap(Val{:powi}, v1, Int(x2))
 # end
-# @inline function vpow(v1::SVec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
+# @inline function vpow(v1::SVec{W,T}, x2::Integer) where {W,T<:FloatingTypes}
 #     SVec(llvmwrap(Val{:powi}, extract_data(v1), Int(x2)))
 # end
-# @inline function Base.:^(v1::SVec{N,T}, x2::Integer) where {N,T<:FloatingTypes}
+# @inline function Base.:^(v1::SVec{W,T}, x2::Integer) where {W,T<:FloatingTypes}
 #     SVec(llvmwrap(Val{:powi}, extract_data(v1), Int(x2)))
 # end
 
 @inline vflipsign(s1::FloatingTypes, s2::FloatingTypes) = flipsign(s1, s2)
 
-@vectordef vflipsign function Base.flipsign(v1, v2) where {N,T<:FloatingTypes}
+@vectordef vflipsign function Base.flipsign(v1, v2) where {W,T<:FloatingTypes}
     vifelse(vsignbit(extract_data(v2)), vsub(extract_data(v1)), extract_data(v1))
 end
 
 @inline vcopysign(v1::Vec{W,T}, v2::Vec{W,U}) where {W,T,U<:Unsigned} = vcopysign(v1, vreinterpret(Vec{W,T}, v2))
 
-# @inline vflipsign(v1::Vec{N,T}, v2::Vec{N,T}) where {N,T<:FloatingTypes} =
+# @inline vflipsign(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
 #     vifelse(vsignbit(v2), -v1, v1)
-# @inline vflipsign(v1::AbstractSIMDVector{N,T}, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes} =
+# @inline vflipsign(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
 #     SVec(vifelse(vsignbit(v2), -v1, v1))
-# @inline Base.flipsign(v1::SVec{N,T}, v2::SVec{N,T}) where {N,T<:FloatingTypes} =
+# @inline Base.flipsign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:FloatingTypes} =
 #     SVec(vifelse(vsignbit(v2), -v1, v1))
 
 for op ∈ (:fma, :muladd)
@@ -156,39 +149,39 @@ for op ∈ (:fma, :muladd)
     # end
     @eval begin
 
-        @vectordef $rename function Base.$op(v1, v2, v3) where {N,T<:FloatingTypes}
+        @vectordef $rename function Base.$op(v1, v2, v3) where {W,T<:FloatingTypes}
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3))
         end
-        @vectordef $rename function Base.$op(s1::T, v2, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{N,T}, s1), extract_data(v2), extract_data(v3))
+        @vectordef $rename function Base.$op(s1::T, v2, v3) where {W,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{W,T}, s1), extract_data(v2), extract_data(v3))
         end
-        @vectordef $rename function Base.$op(v1, s2::T, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
+        @vectordef $rename function Base.$op(v1, s2::T, v3) where {W,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{W,T}, s2), extract_data(v3))
         end
-        @vectordef $rename function Base.$op(v1, v2, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
+        @vectordef $rename function Base.$op(v1, v2, s3::T) where {W,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), vbroadcast(Vec{W,T}, s3))
         end
-        @vectordef $rename function Base.$op(s1::T, s2::T, v3) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{N,T}, s1), vbroadcast(Vec{N,T}, s2), extract_data(v3))
+        @vectordef $rename function Base.$op(s1::T, s2::T, v3) where {W,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{W,T}, s1), vbroadcast(Vec{W,T}, s2), extract_data(v3))
         end
-        @vectordef $rename function Base.$op(s1::T, v2, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{N,T}, s1), extract_data(v2), vbroadcast(Vec{N,T}, s3))
+        @vectordef $rename function Base.$op(s1::T, v2, s3::T) where {W,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}(), vbroadcast(Vec{W,T}, s1), extract_data(v2), vbroadcast(Vec{W,T}, s3))
         end
-        @vectordef $rename function Base.$op(v1, s2::T, s3::T) where {N,T<:FloatingTypes}
-            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{N,T}, s2), vbroadcast(Vec{N,T}, s3))
+        @vectordef $rename function Base.$op(v1, s2::T, s3::T) where {W,T<:FloatingTypes}
+            llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{W,T}, s2), vbroadcast(Vec{W,T}, s3))
         end
         @vpromote $rename 3
         # scalar default already set in integer_arithmetic.jl
-        # @inline function $rename(v1::Vec{N,T},
-        #         v2::Vec{N,T}, v3::Vec{N,T}) where {N,T<:FloatingTypes}
+        # @inline function $rename(v1::Vec{W,T},
+        #         v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
         #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2, v3)
         # end
-        # @inline function $rename(v1::AbstractSIMDVector{N,T},
-        #         v2::AbstractSIMDVector{N,T}, v3::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
+        # @inline function $rename(v1::AbstractSIMDVector{W,T},
+        #         v2::AbstractSIMDVector{W,T}, v3::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes}
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
         # end
-        # @inline function Base.$op(v1::SVec{N,T},
-        #         v2::SVec{N,T}, v3::SVec{N,T}) where {N,T<:FloatingTypes}
+        # @inline function Base.$op(v1::SVec{W,T},
+        #         v2::SVec{W,T}, v3::SVec{W,T}) where {W,T<:FloatingTypes}
         #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
         # end
     end
@@ -208,30 +201,30 @@ for op ∈ (
     )
     rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @vectordef $rename function Base.$op(s1::ScalarTypes, v2) where {N,T<:FloatingTypes}
-            $rename(vbroadcast(Vec{N,T}, s1), extract_data(v2))
+        @vectordef $rename function Base.$op(s1::ScalarTypes, v2) where {W,T<:FloatingTypes}
+            $rename(vbroadcast(Vec{W,T}, s1), extract_data(v2))
         end
-        @vectordef $rename function Base.$op(v1, s2::ScalarTypes) where {N,T<:FloatingTypes}
-            $rename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
+        @vectordef $rename function Base.$op(v1, s2::ScalarTypes) where {W,T<:FloatingTypes}
+            $rename(extract_data(v1), vbroadcast(Vec{W,T}, s2))
         end
         
-        @inline function Base.$op(s1::T2, v2::SVec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
-            SVec($rename(vbroadcast(Vec{N,T2}, s1), vconvert(Vec{N,T2}, extract_data(v2))))
+        @inline function Base.$op(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(vbroadcast(Vec{W,T2}, s1), vconvert(Vec{W,T2}, extract_data(v2))))
         end
-        @inline function Base.$op(v1::SVec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
-            SVec($rename(vconvert(Vec{N,T2}, extract_data(v1)), vbroadcast(Vec{N,T2}, s2)))
+        @inline function Base.$op(v1::SVec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(vconvert(Vec{W,T2}, extract_data(v1)), vbroadcast(Vec{W,T2}, s2)))
         end
-        @inline function $rename(s1::T2, v2::SVec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
-            SVec($rename(vbroadcast(Vec{N,T2}, s1), extract_data(v2)))
+        @inline function $rename(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(vbroadcast(Vec{W,T2}, s1), extract_data(v2)))
         end
-        @inline function $rename(v1::SVec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
-            SVec($rename(extract_data(v1), vbroadcast(Vec{N,T2}, s2)))
+        @inline function $rename(v1::SVec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            SVec($rename(extract_data(v1), vbroadcast(Vec{W,T2}, s2)))
         end
-        @inline function $rename(s1::T2, v2::Vec{N,T}) where {N,T<:Integer,T2<:FloatingTypes}
-            $rename(vbroadcast(Vec{N,T2}, s1), v2)
+        @inline function $rename(s1::T2, v2::Vec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            $rename(vbroadcast(Vec{W,T2}, s1), v2)
         end
-        @inline function $rename(v1::Vec{N,T}, s2::T2) where {N,T<:Integer,T2<:FloatingTypes}
-            $rename(v1, vbroadcast(Vec{N,T2}, s2))
+        @inline function $rename(v1::Vec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            $rename(v1, vbroadcast(Vec{W,T2}, s2))
         end
         @vpromote $rename 2
     end
@@ -244,20 +237,13 @@ for op ∈ (
     erename = Symbol(:e, VECTOR_SYMBOLS[op])
     @eval begin
 
-        @evectordef $erename function Base.$op(v1, s2::ScalarTypes) where {N,T <: FloatingTypes}
-            $erename(extract_data(v1), vbroadcast(Vec{N,T}, s2))
+        @evectordef $erename function Base.$op(v1, s2::ScalarTypes) where {W,T <: FloatingTypes}
+            $erename(extract_data(v1), vbroadcast(Vec{W,T}, s2))
         end
-        @evectordef $erename function Base.$op(s1::ScalarTypes, v2) where {N,T <: FloatingTypes}
-            $erename(vbroadcast(Vec{N,T}, s1), extract_data(v2))
+        @evectordef $erename function Base.$op(s1::ScalarTypes, v2) where {W,T <: FloatingTypes}
+            $erename(vbroadcast(Vec{W,T}, s1), extract_data(v2))
         end
     end
-end
-
-@inline function vifelse(c::AbstractSIMDVector{N,Bool}, s1::ScalarTypes, v2::AbstractSIMDVector{N,T}) where {N,T<:FloatingTypes}
-    SVec(vifelse(extract_data(c), vbroadcast(Vec{N,T}, s1), extract_data(v2)))
-end
-@inline function vifelse(c::AbstractSIMDVector{N,Bool}, v1::AbstractSIMDVector{N,T}, s2::ScalarTypes) where {N,T<:FloatingTypes}
-    SVec(vifelse(extract_data(c), extract_data(v1), vbroadcast(Vec{N,T}, s2)))
 end
  
 # Reduction operations
@@ -283,13 +269,13 @@ end
 
 # We cannot pass in the neutral element via Val{}; if we try, Julia refuses to
 # inline this function, which is then disastrous for performance
-@generated function llvmwrapreduce(::Val{Op}, v::Vec{N,T}) where {Op,N,T}
+@generated function llvmwrapreduce(::Val{Op}, v::Vec{W,T}) where {Op,W,T}
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
     typ = llvmtype(T)
     decls = String[]
     instrs = String[]
-    n = N
+    n = W
     nam = "%0"
     nold,n = n, VectorizationBase.nextpow2(n)
     if n > nold
@@ -319,19 +305,19 @@ end
         $(Expr(:meta, :inline))
         Base.llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
-            $T, Tuple{Vec{$N,$T}}, v
+            $T, Tuple{Vec{$W,$T}}, v
         )
     end
 end
 
 @static if Base.libllvm_version >= v"8"
-    @generated function vsum(v::Vec{N,T}) where {N,T<:FloatingTypes}
+    @generated function vsum(v::Vec{W,T}) where {W,T<:FloatingTypes}
         decls = String[]
         instrs = String[]
         typ = llvmtype(T)
-        vtyp = "<$N x $typ>"
+        vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(N)f$(bits)"
+        ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(W)f$(bits)"
         push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
         push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -339,17 +325,17 @@ end
             $(Expr(:meta, :inline))
             Base.llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
-                $T, Tuple{Vec{$N,$T}}, v
+                $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
-    @generated function vprod(v::Vec{N,T}) where {N,T<:FloatingTypes}
+    @generated function vprod(v::Vec{W,T}) where {W,T<:FloatingTypes}
         decls = String[]
         instrs = String[]
         typ = llvmtype(T)
-        vtyp = "<$N x $typ>"
+        vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(N)f$(bits)"
+        ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(W)f$(bits)"
         push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
         push!(instrs, "%res = call fast $typ $ins($typ 1.0, $vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -357,17 +343,17 @@ end
             $(Expr(:meta, :inline))
             Base.llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
-                $T, Tuple{Vec{$N,$T}}, v
+                $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
-    @generated function reduced_add(v::Vec{N,T}, s::T) where {N,T<:FloatingTypes}
+    @generated function reduced_add(v::Vec{W,T}, s::T) where {W,T<:FloatingTypes}
         decls = String[]
         instrs = String[]
         typ = llvmtype(T)
-        vtyp = "<$N x $typ>"
+        vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(N)f$(bits)"
+        ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(W)f$(bits)"
         push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
         push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -375,17 +361,17 @@ end
             $(Expr(:meta, :inline))
             Base.llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
-                $T, Tuple{Vec{$N,$T},$T}, v, s
+                $T, Tuple{Vec{$W,$T},$T}, v, s
             )
         end
     end
-    @generated function reduced_prod(v::Vec{N,T}, s::T) where {N,T<:FloatingTypes}
+    @generated function reduced_prod(v::Vec{W,T}, s::T) where {W,T<:FloatingTypes}
         decls = String[]
         instrs = String[]
         typ = llvmtype(T)
-        vtyp = "<$N x $typ>"
+        vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(N)f$(bits)"
+        ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(W)f$(bits)"
         push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
         push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -393,17 +379,17 @@ end
             $(Expr(:meta, :inline))
             Base.llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
-                $T, Tuple{Vec{$N,$T},$T}, v, s
+                $T, Tuple{Vec{$W,$T},$T}, v, s
             )
         end
     end
-    @generated function vsum(v::Vec{N,T}) where {N,T<:IntegerTypes}
+    @generated function vsum(v::Vec{W,T}) where {W,T<:IntegerTypes}
         decls = String[]
         instrs = String[]
         typ = llvmtype(T)
-        vtyp = "<$N x $typ>"
+        vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        ins = "@llvm.experimental.vector.reduce.add.v$(N)i$(bits)"
+        ins = "@llvm.experimental.vector.reduce.add.v$(W)i$(bits)"
         push!(decls, "declare $(typ) $(ins)($(vtyp))")
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -411,17 +397,17 @@ end
             $(Expr(:meta, :inline))
             Base.llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
-                $T, Tuple{Vec{$N,$T}}, v
+                $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
-    @generated function vprod(v::Vec{N,T}) where {N,T<:IntegerTypes}
+    @generated function vprod(v::Vec{W,T}) where {W,T<:IntegerTypes}
         decls = String[]
         instrs = String[]
         typ = llvmtype(T)
-        vtyp = "<$N x $typ>"
+        vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        ins = "@llvm.experimental.vector.reduce.mul.v$(N)i$(bits)"
+        ins = "@llvm.experimental.vector.reduce.mul.v$(W)i$(bits)"
         push!(decls, "declare $(typ) $(ins)($(vtyp))")
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -429,7 +415,7 @@ end
             $(Expr(:meta, :inline))
             Base.llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
-                $T, Tuple{Vec{$N,$T}}, v
+                $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
@@ -458,7 +444,7 @@ else
     # vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
     rename = VECTOR_SYMBOLS[:-]
     @eval begin
-        @vectordef $rename function Base.:(-)(v1) where {N,T<:FloatingTypes}
+        @vectordef $rename function Base.:(-)(v1) where {W,T<:FloatingTypes}
             llvmwrap(Val{:(-)}(), extract_data(v1))
         end
     end
@@ -469,25 +455,25 @@ for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
                                     (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
     @eval begin
-        @inline $rename(v::AbstractSIMDVector{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
-        @inline $name(v::SVec{N,T}) where {N,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        @inline $name(v::SVec{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
     end
 end
 
-# @inline vall(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
-# @inline vany(v::Vec{N,T}) where {N,T<:IntegerTypes} = llvmwrapreduce(Val{:|}, v)
-# @inline vmaximum(v::Vec{N,T}) where {N,T<:FloatingTypes} =
+# @inline vall(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
+# @inline vany(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:|}, v)
+# @inline vmaximum(v::Vec{W,T}) where {W,T<:FloatingTypes} =
 #     llvmwrapreduce(Val{:max}, v)
-# @inline vminimum(v::Vec{N,T}) where {N,T<:FloatingTypes} =
+# @inline vminimum(v::Vec{W,T}) where {W,T<:FloatingTypes} =
 #     llvmwrapreduce(Val{:min}, v)
-# @inline vprod(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:*}, v)
-# @inline vsum(v::Vec{N,T}) where {N,T} = llvmwrapreduce(Val{:+}, v)
+# @inline vprod(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:*}, v)
+# @inline vsum(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:+}, v)
 
-@generated function vreduce(::Val{Op}, v::Vec{N,T}) where {Op,N,T}
+@generated function vreduce(::Val{Op}, v::Vec{W,T}) where {Op,W,T}
     @assert isa(Op, Symbol)
     z = getneutral(Op, T)
     stmts = String[]
-    n = N
+    n = W
     push!(stmts, :($(Symbol(:v,n)) = v))
     nold,n = n,nextpow2(n)
     if n > nold
@@ -512,15 +498,15 @@ end
     Expr(:block, Expr(:meta, :inline), stmts...)
 end
 
-@vectordef vmaximum function Base.maximum(v) where {N,T<:IntegerTypes}
+@vectordef vmaximum function Base.maximum(v) where {W,T<:IntegerTypes}
     vreduce(Val{:max}, extract_data(v))
 end
-@vectordef vminimum function Base.minimum(v) where {N,T<:IntegerTypes}
+@vectordef vminimum function Base.minimum(v) where {W,T<:IntegerTypes}
     vreduce(Val{:min}, extract_data(v))
 end
 
-# @inline vmaximum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:max}, v)
-# @inline vminimum(v::Vec{N,T}) where {N,T<:IntegerTypes} = vreduce(Val{:min}, v)
+# @inline vmaximum(v::Vec{W,T}) where {W,T<:IntegerTypes} = vreduce(Val{:max}, v)
+# @inline vminimum(v::Vec{W,T}) where {W,T<:IntegerTypes} = vreduce(Val{:min}, v)
 
 # TODO: Handle cases with vectors of different lengths correctly!
 @inline vmul(x::Number, y::Number) = Base.FastMath.mul_fast(x, y)
@@ -589,7 +575,7 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 # vfnmadd, vfmsub, and vfnmsub
 # in this manner.
 
-# @inline Base.:*(a::IntegerTypes, b::SVec{N,T}) where {N,T} = SVec{N,T}(a) * b
+# @inline Base.:*(a::IntegerTypes, b::SVec{W,T}) where {W,T} = SVec{W,T}(a) * b
 # @inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
 # const Vec{W,T} = NTuple{W,Core.VecElement{T}}

@@ -1,5 +1,6 @@
 @generated function vrangeincr(::Val{W}, i::I, ::Val{O}) where {W,I<:Integer,O}
-    bytes = min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W))
+    bytes = I === Int ? min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W)) : sizeof(I)
+    # bytes = min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W))
     bits = 8bytes
     jtypesym = Symbol(:Int, bits)
     iexpr = bytes == sizeof(I) ? :i : Expr(:call, :%, :i, jtypesym)
@@ -35,7 +36,7 @@ end
     end
 end
 @generated function vrangemul(::Val{W}, i::I, ::Val{O}) where {W,I<:Integer,O}
-    bytes = min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W))
+    bytes = I === Int ? min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W)) : sizeof(I)
     bits = 8bytes
     jtypesym = Symbol(:Int, bits)
     iexpr = bytes == sizeof(I) ? :i : Expr(:call, :%, :i, jtypesym)

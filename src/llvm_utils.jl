@@ -227,43 +227,6 @@ function extendvector(vec, siz, typ, voff, vsiz, val, rvec, tmp="$(rvec)_ev")
     instrs
 end
 
-# Element-wise access
-
-# export setindex
-@generated function vsetindex(v::Vec{N,T}, x::Number, ::Type{Val{I}}) where {N,T,I}
-    @assert isa(I, Integer)
-    1 <= I <= N || throw(BoundsError())
-    typ = llvmtype(T)
-    ityp = llvmtype(Int)
-    vtyp = "<$N x $typ>"
-    decls = String[]
-    instrs = String[]
-    push!(instrs, "%res = insertelement $vtyp %0, $typ %1, $ityp $(I-1)")
-    push!(instrs, "ret $vtyp %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, T}, v.elts, T(x))
-    end
-end
-
-@generated function vsetindex(v::Vec{N,T}, x::Number, i::Int) where {N,T}
-    typ = llvmtype(T)
-    ityp = llvmtype(Int)
-    vtyp = "<$N x $typ>"
-    decls = String[]
-    instrs = String[]
-    push!(instrs, "%res = insertelement $vtyp %0, $typ %2, $ityp %1")
-    push!(instrs, "ret $vtyp %res")
-    quote
-        $(Expr(:meta, :inline))
-        @boundscheck 1 <= i <= N || throw(BoundsError())
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, Int, T},
-            v.elts, i-1, T(x))
-    end
-end
-setindex(v::Vec{N,T}, x::Number, i) where {N,T} = setindex(v, x, Int(i))
 # Type conversion
 
 @generated function vreinterpret(::Type{Vec{N,R}},

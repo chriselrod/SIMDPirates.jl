@@ -7,11 +7,6 @@ const FloatingTypes = Union{Float16, Float32, Float64}
 const ScalarTypes = Union{IntegerTypes, FloatingTypes}
 
 
-type_length(::Type{Vec{N,T}}) where {N,T} = N
-type_size(::Type{Vec{N,T}}) where {N,T} = (N,)
-type_size(::Type{Vec{N,T}}, n::Integer) where {N,T} = (N,)[n]
-
-
 for T ∈ (:Float16,:Int16,:UInt16)
     @eval @inline sizeequivalentfloat(::Type{$T}) = Float16
     @eval @inline sizeequivalentint(::Type{$T}) = Int16
@@ -51,47 +46,49 @@ end
 
 # Element-wise access
 
-@generated function vsetindex(v::AbstractSIMDVector{N,T}, x::Number, ::Val{I}) where {N,T,I}
+@generated function vsetindex(v::Vec{W,T}, x::Number, ::Val{I}) where {W,T,I}
     @assert isa(I, Integer)
-    1 <= I <= N || throw(BoundsError())
+    1 <= I <= W || throw(BoundsError())
     typ = llvmtype(T)
     ityp = llvmtype(Int)
-    vtyp = "<$N x $typ>"
+    vtyp = "<$W x $typ>"
     decls = String[]
     instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %1, $ityp $(I-1)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Vec{N,T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, T}, extract_data(v), T(x)))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Vec{$W,$T}, $T}, extract_data(v), $T(x))
     end
 end
 
-@generated function vsetindex(v::AbstractSIMDVector{N,T}, x::Number, i::Int) where {N,T}
+@generated function vsetindex(v::Vec{W,T}, x::Number, i::Int) where {W,T}
     typ = llvmtype(T)
     ityp = llvmtype(Int)
-    vtyp = "<$N x $typ>"
+    vtyp = "<$W x $typ>"
     decls = String[]
     instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %2, $ityp %1")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        @boundscheck 1 <= i <= N || throw(BoundsError())
-        Vec{N,T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            NTuple{N,VE{T}}, Tuple{NTuple{N,VE{T}}, Int, T},
-            extract_data(v), i-1, T(x)))
+        @boundscheck 1 <= i <= $W || throw(BoundsError())
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Vec{$W,$T}, Int, $T},
+            extract_data(v), i-1, $T(x))
     end
 end
 
-@inline Base.setindex(v::SVec{N,T}, x::Number, i) where {N,T} = setindex(v, x, i)
-@inline Base.setindex(v::SVec{N,T}, x::Number, i::Integer) where {N,T} = setindex(v, x, Int(i))
+
+Base.@propagate_inbounds Base.setindex(v::AbstractStructVec{W,T}, x::Number, i) where {W,T} = SVec{W}(vsetindex(extract_data(v), x, i % Int))
+@inline Base.setindex(v::AbstractStructVec{W,T}, x::Number, ::Val{I}) where {W,T,I} = SVec{W}(vsetindex(estract_data(v), x, I))
 
 
-@inline getvalindex(v::AbstractSIMDVector{N,T}, ::Val{I}) where {N,T,I} = extract_data(v)[I].value
+
+@inline getvalindex(v::AbstractSIMDVector{W,T}, ::Val{I}) where {W,T,I} = extract_data(v)[I].value
 @inline Base.convert(::Type{SVec{W,T}}, v::Vec{W,T}) where {W,T} = SVec(v)
-@inline Base.convert(::Type{SVec{N,T}}, x::SVec{N,T}) where {N,T} = x
+@inline Base.convert(::Type{SVec{W,T}}, x::SVec{W,T}) where {W,T} = x
 
 @generated function vconvert(::Type{Vec{W,T1}}, v::Vec{W,T2}) where {W,T1 <: FloatingTypes, T2 <: Signed}
     typ1 = llvmtype(T1)
@@ -205,8 +202,20 @@ end
 @inline vconvert(::Type{Vec{W,T1}}, s::T1) where {W, T1 <: Integer} = vbroadcast(Vec{W,T1}, s)
 @inline vconvert(::Type{T}, s::Number) where {T <: Number} = convert(T, s)
 @inline vconvert(::Type{T}, s::Integer) where {T <: Integer} = s % T
+@inline vconvert(::Type{Vec{W,T}}, m::Mask{W}) where {W,T} = m
+@inline vconvert(::Type{Vec{W,T}}, u::Unsigned) where {W,T} = Mask{W}(u)
+@inline vconvert(::Type{SVec{W,T}}, m::Mask{W}) where {W,T} = m
+@inline vconvert(::Type{SVec{W,T}}, u::Unsigned) where {W,T} = Mask{W}(u)
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
+@inline promote_vtype(::Type{Mask{W,U}}, ::Type{V}) where {W, U, T, V <: AbstractSIMDVector{W,T}} = V
+@inline promote_vtype(::Type{V}, ::Type{Mask{W,U}}) where {W, U, T, V <: AbstractSIMDVector{W,T}} = V
+@inline promote_vtype(::Type{Mask{W,U}}, ::Type{SVec{W,T}}) where {W, U, T} = SVec{W,T}
+@inline promote_vtype(::Type{SVec{W,T}}, ::Type{Mask{W,U}}) where {W, U, T} = SVec{W,T}
+@inline promote_vtype(::Type{Mask{W,U}}, ::Type{Mask{W,U}}) where {W, U} = Mask{W,U}
+@inline promote_vtype(::Type{Mask{W,U}}, ::Type{T}) where {W, U, T <: Number} = SVec{W,T}
+@inline promote_vtype(::Type{T}, ::Type{Mask{W,U}}) where {W, U, T <: Number} = SVec{W,T}
+
 @inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
     T = promote_type(T1, T2)
     Vec{W,T}
@@ -293,22 +302,22 @@ exponent_mask(::Type{T}) where {T<:FloatingTypes} =
 sign_mask(::Type{T}) where {T<:FloatingTypes} =
     uint_type(T)(1) << (significand_bits(T) + exponent_bits(T))
 
-@generated function vecbool_to_unsigned(vb::Vec{N,Bool}) where {N}
-    Nout = VectorizationBase.nextpow2(max(N, 8))
-    Utype = VectorizationBase.mask_type(Nout)
-    btype = llvmtype(Bool)
-    vbtyp = "<$N x $btype>"
-    decls = String[]
-    instrs = String["%maskb = trunc $vbtyp %0 to <$N x i1>"]
-    u1name = Nout == N ? "%uout" : "%uabridged"
-    push!(instrs, "$u1name = bitcast <$N x i1> %maskb to i$N")
-    if Nout > N
-        push!(instrs, "%uout = zext i$N %uabridged to i$Nout")
-    end
-    push!(instrs, "ret i$Nout %uout")
-    quote
-        $(Expr(:meta,:inline))
-        Base.llvmcall($(join(instrs, "\n")), $Utype, Tuple{Vec{$N,Bool}}, vb)
-    end
-end
+# @generated function vecbool_to_unsigned(vb::Vec{N,Bool}) where {N}
+#     Nout = VectorizationBase.nextpow2(max(N, 8))
+#     Utype = VectorizationBase.mask_type(Nout)
+#     btype = llvmtype(Bool)
+#     vbtyp = "<$N x $btype>"
+#     decls = String[]
+#     instrs = String["%maskb = trunc $vbtyp %0 to <$N x i1>"]
+#     u1name = Nout == N ? "%uout" : "%uabridged"
+#     push!(instrs, "$u1name = bitcast <$N x i1> %maskb to i$N")
+#     if Nout > N
+#         push!(instrs, "%uout = zext i$N %uabridged to i$Nout")
+#     end
+#     push!(instrs, "ret i$Nout %uout")
+#     quote
+#         $(Expr(:meta,:inline))
+#         Base.llvmcall($(join(instrs, "\n")), $Utype, Tuple{Vec{$N,Bool}}, vb)
+#     end
+# end
 

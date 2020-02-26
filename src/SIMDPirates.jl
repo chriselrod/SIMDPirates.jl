@@ -10,7 +10,7 @@ import VectorizationBase: vload, vstore!
 export  Vec, SVec, VE, _MM, stridedpointer,
     extract_data, vbroadcast, vconvert,
     vload, vloada, vstore!, vstorea!, vstorent!, shufflevector,
-    vifelse,
+    vifelse, Mask,
     vfma, vmuladd,
     vsqrt, rsqrt, vinv, vabs2,
     vadd, vsub, vmul, vfdiv, vsum, vprod,
@@ -22,8 +22,8 @@ export  Vec, SVec, VE, _MM, stridedpointer,
     @pirate
 
 
-vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{N,T})             : arg for arg ∈ args]
-abstractarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{N,T})    : arg for arg ∈ args]
+vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{W,T})             : arg for arg ∈ args]
+abstractarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{W,T})    : arg for arg ∈ args]
 function structvecarguments(args)
     asa = Expr[]
     sva = Expr[]
@@ -31,8 +31,8 @@ function structvecarguments(args)
     for arg ∈ args
         if isa(arg, Symbol)
             rarg = gensym(arg)
-            push!(asa, Expr(:(::), rarg, :(AbstractStructVec{N,T})))
-            push!(sva, Expr(:(::), rarg, :(SVec{N,T})))
+            push!(asa, Expr(:(::), rarg, :(AbstractStructVec{W,T})))
+            push!(sva, Expr(:(::), rarg, :(SVec{W,T})))
             push!(rna, Expr(:(=), arg, Expr(:call, :extract_data, rarg)))
         elseif length(arg.args) == 2
             arg = copy(arg)
@@ -41,7 +41,7 @@ function structvecarguments(args)
             arg.args[1] = rarg
             push!(asa, arg)
             push!(sva, arg)
-            push!(rna, Expr(:(=), narg, Expr(:call, :vconvert, :(Vec{N,T}), rarg)))
+            push!(rna, Expr(:(=), narg, Expr(:call, :vconvert, :(Vec{W,T}), rarg)))
         else
             push!(asa, arg)
             push!(sva, arg)
@@ -69,10 +69,10 @@ end
 macro vectordef(rename, expr)
     f, args, R, body = parse_func_decl(expr)
     vecargs, abstractargs, asargs, structargs, renamedargs = vector_args(args)
-    push!(renamedargs, Expr(:call, :SVec, body))
+    push!(renamedargs, Expr(:call, Expr(:curly, :SVec, :W), body))
     q = quote
         @inline $rename($(vecargs...)) where {$(R...)} = $body
-        @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
+        @inline $rename($(abstractargs...)) where {$(R...)} = SVec{W}($body)
         @inline function $f($(asargs...)) where {$(R...)}
             $(renamedargs...)
         end
@@ -87,7 +87,7 @@ macro evectordef(rename, expr)
     vecargs, abstractargs, structargs = vector_args(args)
     q = quote
         @inline $rename($(vecargs...)) where {$(R...)} = $body
-        @inline $rename($(abstractargs...)) where {$(R...)} = SVec($body)
+        @inline $rename($(abstractargs...)) where {$(R...)} = SVec{W}($body)
     end
     esc(q)
 end
@@ -103,7 +103,7 @@ macro vpromote(f, N)
             $(Expr(:call, f, [ Expr(:call, :vconvert, :V, arg) for arg ∈ argnames  ]... ))
         end
         @inline function $f($(svecargs...)) where {W,T}
-            SVec($(Expr(:call, f, [ Expr(:call, :extract_data, arg) for arg ∈ argnames  ]... )))
+            SVec{W}($(Expr(:call, f, [ Expr(:call, :extract_data, arg) for arg ∈ argnames  ]... )))
         end
     end
     esc(q)
