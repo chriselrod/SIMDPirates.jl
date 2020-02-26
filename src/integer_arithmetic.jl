@@ -241,3 +241,26 @@ end
 @inline vleading_zeros(v::SVec{<:Any,<:Integer}) = SVec(vleading_zeros(extract_data(v)))
 @inline Base.leading_zeros(v::SVec{<:Any,<:Integer}) = SVec(vleading_zeros(extract_data(v)))
 
+@generated function vadd(m::Mask{W,U}, v::Vec{W,I}) where {W,U,I<:Integer}
+    vityp = "<$W x i$(8sizeof(I))>"
+    instrs = String[]
+    if 8sizeof(U) == W
+        push!(instrs, "%bitvector = bitcast i$(W) %0 to <$W x i1>")
+    else
+        push!(instrs, "%truncint = trunc i$(8sizeof(U)) %0 to i$(W)")
+        push!(instrs, "%bitvector = bitcast i$(W) %truncint to <$W x i1>")
+    end
+    push!(instrs, "%zextv = zext <$W x i1> %bitvector to $vityp")
+    push!(instrs, "%res = add $vityp %zextv, %1")
+    push!(instrs, "ret $vityp %res")
+    quote
+        $(Expr(:meta, :inline))
+        SVec(Base.llvmcall(
+            $(join(instrs, "\n")),
+            Vec{$W,$I}, Tuple{$U, Vec{$W,$I}}, m.u, v
+        ))
+    end    
+end
+@inline vadd(v::AbstractSIMDVector{W,I}, m::Mask{W}) where {W,I<:IntegerTypes} = vadd(m, v)
+@inline vadd(m::Mask{W}, v::AbstractStructVec{W,I}) where {W,I<:IntegerTypes} = vadd(m, extract_data(v))
+
