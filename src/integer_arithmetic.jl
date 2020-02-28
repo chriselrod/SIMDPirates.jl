@@ -105,7 +105,7 @@ end
 
 @inline vmax(s1::IntegerTypes, s2::IntegerTypes) = vmax(s1, s2)
 @inline vmax(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} =
-    vifelse(vless(v2, v1), v2, v1)
+    vifelse(vless(v2, v1), v1, v2)
 @inline vmin(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} =
     vifelse(vless(v1, v2), v1, v2)
 
