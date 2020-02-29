@@ -8,4 +8,5 @@ function _precompile_()
     precompile(Tuple{typeof(SIMDPirates.llvmins),Symbol,Int64,Type{T} where T})
     precompile(Tuple{typeof(SIMDPirates.mulexpr),SubArray{Any,1,Array{Any,1},Tuple{UnitRange{Int64}},true}})
     precompile(Tuple{typeof(SIMDPirates.subvector),String,Int64,String,String,Int64,Int64})
+    precompile(Tuple{typeof(SIMDPirates.vsub),VectorizationBase.SVec{8,Float32},VectorizationBase.SVec{8,Float64}})
 end
