@@ -215,6 +215,7 @@ end
 @inline promote_vtype(::Type{Mask{W,U}}, ::Type{Mask{W,U}}) where {W, U} = Mask{W,U}
 @inline promote_vtype(::Type{Mask{W,U}}, ::Type{T}) where {W, U, T <: Number} = SVec{W,T}
 @inline promote_vtype(::Type{T}, ::Type{Mask{W,U}}) where {W, U, T <: Number} = SVec{W,T}
+@inline promote_vtype(::Type{T1}, ::Type{T2}) where {T1 <: Number, T2 <: Number} = promote_type(T1, T2)
 
 @inline function promote_vtype(::Type{V1}, ::Type{V2}) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
     T = promote_type(T1, T2)

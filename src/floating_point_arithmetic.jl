@@ -579,10 +579,19 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 # @inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
 # const Vec{W,T} = NTuple{W,Core.VecElement{T}}
-@inline vfmadd231(a, b, c) = vfmadd(a, b, c)
-@inline vfnmadd231(a, b, c) = vfnmadd(a, b, c)
-@inline vfmsub231(a, b, c) = vfmsub(a, b, c)
-@inline vfnmsub231(a, b, c) = vfnmsub(a, b, c)
+@inline vfmadd231(a::Vec, b, c) = vfmadd(a, b, c)
+@inline vfnmadd231(a::Vec, b, c) = vfnmadd(a, b, c)
+@inline vfmsub231(a::Vec, b, c) = vfmsub(a, b, c)
+@inline vfnmsub231(a::Vec, b, c) = vfnmsub(a, b, c)
+@inline vfmadd231(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
+@inline vfnmadd231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
+@inline vfmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
+@inline vfnmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.sub_fast(c), Base.FastMath.mul_fast(a, b))
+@vpromote vfmadd231 3
+@vpromote vfnmadd231 3
+@vpromote vfmsub231 3
+@vpromote vfnmsub231 3
+
 for T ∈ [Float32,Float64]
     W = 16 ÷ sizeof(T)
     local suffix = T == Float32 ? "ps" : "pd"
