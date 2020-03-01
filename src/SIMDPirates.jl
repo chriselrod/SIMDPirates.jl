@@ -2,7 +2,7 @@ module SIMDPirates
 
 using VectorizationBase
 using VectorizationBase:
-    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, AbstractZeroInitializedPointer,
+    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
 import VectorizationBase: vload, vstore!
 

@@ -279,8 +279,6 @@ for v ∈ (:Vec, :SVec, :Val, :_MM)
     end
 end
 
-@inline vload(::Type{Vec{W,T}}, ::VectorizationBase.AbstractZeroInitializedPointer, args...) where {W,T} = vzero(Vec{W,T})
-
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{W,T}, ::Val{Aligned}, ::Val{Nontemporal}
 ) where {W,T,Aligned, Nontemporal}
@@ -420,7 +418,6 @@ end
 end
 
 
-# for ptr ∈ (:Ptr, :AbstractPointer)#, :AbstractZeroInitializedPointer)
 let pargs = Union{Symbol,Expr}[:(ptr::Ptr{T}), :(v::AbstractSIMDVector{W,T})]
     for index ∈ 0:2
         if index == 0
@@ -531,7 +528,7 @@ end
 
 
 @generated function gather(
-   ptr::Vec{W,Ptr{T}}, ::Val{Aligned} = Val{false}()
+   ptr::Vec{W,Ptr{T}}, ::Val{Aligned}# = Val{false}()
 ) where {W,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -561,7 +558,7 @@ end
 end
 
 @generated function gather(
-   ptr::Vec{W,Ptr{T}}, mask::U, ::Val{Aligned} = Val{false}()
+   ptr::Vec{W,Ptr{T}}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {W,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
@@ -598,7 +595,7 @@ end
     end
 end
 @generated function vload(
-   ptr::Ptr{T}, i::Vec{W,I}, ::Val{Aligned} = Val{false}()
+   ptr::Ptr{T}, i::Vec{W,I}, ::Val{Aligned}# = Val{false}()
 ) where {W,T,I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -636,7 +633,7 @@ end
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask, Val{Aligned}()))
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask.u, Val{Aligned}()))
 @generated function vload(
-   ptr::Ptr{T}, i::Vec{W,I}, mask::U, ::Val{Aligned} = Val{false}()
+   ptr::Ptr{T}, i::Vec{W,I}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {W,T,I<:Integer,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
@@ -676,7 +673,7 @@ end
     end
 end
 @generated function scatter!(
-    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, ::Val{Aligned} = Val{false}()
+    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, ::Val{Aligned}# = Val{false}()
 ) where {W,T,Aligned}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -705,7 +702,7 @@ end
     end
 end
 @generated function scatter!(
-    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, mask::U, ::Val{Aligned} = Val{false}()
+    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {W,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
@@ -746,7 +743,7 @@ end
     end
 end
 @generated function vstore!(
-    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, ::Val{Aligned} = Val{false}()
+    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, ::Val{Aligned}# = Val{false}()
 ) where {W,T,Aligned, I<:Integer}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -778,7 +775,7 @@ end
     end
 end
 @generated function vstore!(
-    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, mask::U, ::Val{Aligned} = Val{false}()
+    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, mask::U, ::Val{Aligned}# = Val{false}()
 ) where {W,T,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
@@ -821,6 +818,17 @@ end
         )
     end
 end
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
+
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType
@@ -1041,14 +1049,6 @@ end
 # _MM support
 # zero initialized
 # scalar if only and Int
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{Int}) where {W,T<:Number} = zero(T)
-# if a Vec of some kind, broadcast the zero
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{_MM{W},Vararg}) where {W,T<:Number} = vzero(SVec{W,T})
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{V,Vararg}) where {W,T<:Number,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,V,Vararg}) where {W,T<:Number,I<:Integer,V<:AbstractSIMDVector{W,I}} = vzero(SVec{W,T})
-@inline vload(::AbstractZeroInitializedPointer{T}, ::Tuple{<:Integer,_MM{W},Vararg}) where {W,T<:Number} = vzero(SVec{W,T})
-# peel off indices
-@inline vload(ptr::AbstractZeroInitializedPointer{T}, i::Tuple{<:Integer,<:Integer,Vararg}) where {W,T<:Number} = vload(ptr, Base.tail(i))
 
 @inline vstore!(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}) where {W,T<:Number,I} = vstore!(ptr, vbroadcast(Vec{W,T}, v), i)
 @inline vstore!(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}, u::Unsigned) where {W,T<:Number,I} = vstore!(ptr, vbroadcast(Vec{W,T}, v), i, u)

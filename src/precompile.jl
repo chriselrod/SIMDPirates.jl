@@ -1,5 +1,7 @@
 function _precompile_()
     ccall(:jl_generating_output, Cint, ()) == 1 || return nothing
+    precompile(Tuple{typeof(SIMDPirates.capture_muladd),Expr,Nothing,Expr})
+    precompile(Tuple{typeof(SIMDPirates.capture_muladd),Expr,Nothing,Symbol})
     precompile(Tuple{typeof(SIMDPirates.getneutral),Symbol,Type{Float32}})
     precompile(Tuple{typeof(SIMDPirates.getneutral),Symbol,Type{Float64}})
     precompile(Tuple{typeof(SIMDPirates.getneutral),Symbol,Type{Int32}})
