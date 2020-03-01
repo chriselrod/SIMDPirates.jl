@@ -26,7 +26,7 @@ end
 
 
 
-function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = false)
+function recursive_muladd_search!(call, argv, cnmul::Bool = false, csub::Bool = false)
     length(argv) < 2 && return length(call.args) == 4, cnmul, csub
     fun = first(argv)
     if fun === :ifelse
@@ -61,7 +61,7 @@ function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = fal
                 end
                 return true, cnmul, csub
             elseif isadd
-                found, cnmul, csub = recursive_mul_search!(call, exa)
+                found, cnmul, csub = recursive_muladd_search!(call, exa)
                 if found
                     if csub
                         call.args[4] = if length(exargs) == 2
@@ -75,7 +75,7 @@ function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = fal
                     return true, cnmul, false
                 end
             elseif issub
-                found, cnmul, csub = recursive_mul_search!(call, exa)
+                found, cnmul, csub = recursive_muladd_search!(call, exa)
                 if found
                     if i == 1
                         if csub
@@ -100,56 +100,57 @@ function recursive_mul_search!(call, argv, cnmul::Bool = false, csub::Bool = fal
     length(call.args) == 4, cnmul, csub
 end
                           
-function capture_muladd(ex::Expr, mod)
+function capture_muladd(ex::Expr, mod, LHS = nothing)
     call = Expr(:call, Symbol(""), Symbol(""), Symbol(""))
-    found, nmul, sub = recursive_mul_search!(call, ex.args)
+    found, nmul, sub = recursive_muladd_search!(call, ex.args)
     found || return ex
     # a, b, c = call.args[2], call.args[3], call.args[4]
     # call.args[2], call.args[3], call.args[4] = c, a, b
-    if mod === nothing
-        call.args[1] = if nmul && sub
-            :vfnmsub#_fast
-        elseif nmul
-            :vfnmadd#_fast
-        elseif sub
-            :vfmsub#_fast
-        else
-            :vfmadd#_fast
-        end
+    clobber = call.args[4] == LHS
+    f = if nmul && sub
+        clobber ? :vfnmsub231 : :vfnmsub_fast
+    elseif nmul
+        clobber ? :vfnmadd231 : :vfnmadd_fast
+    elseif sub
+        clobber ? :vfmsub231 : :vfmsub_fast
     else
-        call.args[1] = if nmul && sub
-            Expr(:(.), mod, QuoteNote(:vfnmsub))#_fast))
-        elseif nmul
-            Expr(:(.), mod, QuoteNote(:vfnmadd))#_fast))
-        elseif sub
-            Expr(:(.), mod, QuoteNote(:vfmsub))#_fast))
-        else
-            Expr(:(.), mod, QuoteNote(:vfmadd))#_fast))
-        end
+        clobber ? :vfmadd231 : :vfmadd_fast
+    end
+    if mod === nothing
+        call.args[1] = f
+    else
+        call.args[1] = Expr(:(.), mod, QuoteNote(f))#_fast))
     end
     call
 end
 
 contract_pass!(::Any, ::Any) = nothing
 function contract!(expr::Expr, ex::Expr, i::Int, mod = nothing)
-    if ex.head === :call
-        expr.args[i] = capture_muladd(ex, mod)
-    elseif ex.head === :(+=)
+    # if ex.head === :call
+        # expr.args[i] = capture_muladd(ex, mod)
+    if ex.head === :(+=)
         call = Expr(:call, :vadd)
         append!(call.args, ex.args)
-        expr.args[i] = Expr(:(=), first(ex.args), call)
+        expr.args[i] = ex = Expr(:(=), first(ex.args), call)
     elseif ex.head === :(-=)
         call = Expr(:call, :vsub)
         append!(call.args, ex.args)
-        expr.args[i] = Expr(:(=), first(ex.args), call)
+        expr.args[i] = ex = Expr(:(=), first(ex.args), call)
     elseif ex.head === :(*=)
         call = Expr(:call, :vmul)
         append!(call.args, ex.args)
-        expr.args[i] = Expr(:(=), first(ex.args), call)
+        expr.args[i] = ex = Expr(:(=), first(ex.args), call)
     elseif ex.head === :(/=)
         call = Expr(:call, :vfdiv)
         append!(call.args, ex.args)
-        expr.args[i] = Expr(:(=), first(ex.args), call)
+        expr.args[i] = ex = Expr(:(=), first(ex.args), call)
+    end
+    if ex.head === :(=)
+        RHS = ex.args[2]
+        # @show ex
+        if RHS isa Expr && RHS.head === :call
+            ex.args[2] = capture_muladd(RHS, mod, ex.args[1])
+        end
     end
     contract_pass!(expr.args[i], mod)
 end
