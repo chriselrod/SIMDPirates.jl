@@ -103,11 +103,34 @@ end
 @inline vflipsign(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:UIntTypes} = v1
 @inline Base.flipsign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:UIntTypes} = v1
 
-@inline vmax(s1::IntegerTypes, s2::IntegerTypes) = vmax(s1, s2)
-@inline vmax(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} =
-    vifelse(vless(v2, v1), v1, v2)
-@inline vmin(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} =
-    vifelse(vless(v1, v2), v1, v2)
+@inline vmax(s1::IntegerTypes, s2::IntegerTypes) = max(s1, s2)
+@inline vmin(s1::IntegerTypes, s2::IntegerTypes) = min(s1, s2)
+@inline vmax(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} = vifelse(vless(v2, v1), v1, v2)
+@inline vmin(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} = vifelse(vless(v1, v2), v1, v2)
+@inline function Base.max(v1::AbstractStructVec, v2::AbstractStructVec)
+    V = promote_vtype(typeof(v1), typeof(v2))
+    SVec(vmax(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
+end
+@inline function Base.max(v1, v2::AbstractStructVec)
+    V = promote_vtype(typeof(v1), typeof(v2))
+    SVec(vmax(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
+end
+@inline function Base.max(v1::AbstractStructVec, v2)
+    V = promote_vtype(typeof(v1), typeof(v2))
+    SVec(vmax(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
+end
+@inline function Base.min(v1::AbstractStructVec, v2::AbstractStructVec)
+    V = promote_vtype(typeof(v1), typeof(v2))
+    SVec(vmin(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
+end
+@inline function Base.min(v1, v2::AbstractStructVec)
+    V = promote_vtype(typeof(v1), typeof(v2))
+    SVec(vmin(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
+end
+@inline function Base.min(v1::AbstractStructVec, v2)
+    V = promote_vtype(typeof(v1), typeof(v2))
+    SVec(vmin(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
+end
 
 vmuladd(s1::ScalarTypes, s2::ScalarTypes, s3::ScalarTypes) = muladd(s1,s2,s3)
 @inline function vmuladd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:IntegerTypes}
@@ -167,6 +190,11 @@ for op ∈ (:(<<), :(>>), :(>>>))
     end
 end
 
+@inline function Base.:(<<)(v1::AbstractStructVec{W,I1}, v2::AbstractStructVec{W,I2}) where {W, I1 <: Unsigned, I2}
+    v2pos = v2 > 0
+    v2abs = vconvert(SVec{W, I1}, abs(v2))
+    vifelse(v2pos, v1 << v2abs, v1 >> v2abs)
+end
 
 # Promote scalars of all IntegerTypes to vectors of IntegerTypes, leaving the
 # vector type unchanged

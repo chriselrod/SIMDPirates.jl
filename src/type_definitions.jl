@@ -261,6 +261,12 @@ end
 @inline promote_vtype(::Type{Vec{W,T}}, ::Type{Vec{W,T}}) where {W,T} = Vec{W,T}
 @inline promote_vtype(::Type{SVec{W,T}}, ::Type{SVec{W,T}}) where {W,T} = SVec{W,T}
 
+@inline Base.unsigned(v::AbstractStructVec{W,Int8}) where {W} = vconvert(SVec{W,UInt8}, v)
+@inline Base.unsigned(v::AbstractStructVec{W,Int16}) where {W} = vconvert(SVec{W,UInt16}, v)
+@inline Base.unsigned(v::AbstractStructVec{W,Int32}) where {W} = vconvert(SVec{W,UInt32}, v)
+@inline Base.unsigned(v::AbstractStructVec{W,Int64}) where {W} = vconvert(SVec{W,UInt64}, v)
+@inline Base.unsigned(v::AbstractStructVec{W,Int128}) where {W} = vconvert(SVec{W,UInt128}, v)
+
 @generated function zeropad(v::Vec{W,T}) where {W,T}
     typ = llvmtype(T)
     W2 = W << 1
@@ -304,6 +310,7 @@ exponent_mask(::Type{T}) where {T<:FloatingTypes} =
     uint_type(T)(uint_type(T)(1) << exponent_bits(T) - 1) << significand_bits(T)
 sign_mask(::Type{T}) where {T<:FloatingTypes} =
     uint_type(T)(1) << (significand_bits(T) + exponent_bits(T))
+
 
 # @generated function vecbool_to_unsigned(vb::Vec{N,Bool}) where {N}
 #     Nout = VectorizationBase.nextpow2(max(N, 8))
