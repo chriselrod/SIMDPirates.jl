@@ -241,6 +241,27 @@ end
 @inline vleading_zeros(v::SVec{<:Any,<:Integer}) = SVec(vleading_zeros(extract_data(v)))
 @inline Base.leading_zeros(v::SVec{<:Any,<:Integer}) = SVec(vleading_zeros(extract_data(v)))
 
+@generated function vtrailing_zeros(v::NTuple{W,Core.VecElement{I}}) where {W, I <: Integer}
+    typ = "i$(8sizeof(I))"
+    vtyp = "<$W x $typ>"
+    instr = "@llvm.cttz.v$(W)$(typ)"
+    decl = "declare $vtyp $instr($vtyp, i1)"
+    instrs = String[
+        "%res = call $vtyp $instr($vtyp %0, i1 1)"
+        "ret $vtyp %res"
+    ]
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall(
+            $((decl, join(instrs, "\n"))),
+            Vec{$W,$I}, Tuple{Vec{$W,$I}}, v
+        )
+    end
+end
+@inline vtrailing_zeros(v::SVec{<:Any,<:Integer}) = SVec(vtrailing_zeros(extract_data(v)))
+@inline Base.trailing_zeros(v::SVec{<:Any,<:Integer}) = SVec(vtrailing_zeros(extract_data(v)))
+
+
 @generated function vadd(m::Mask{W,U}, v::Vec{W,I}) where {W,U,I<:Integer}
     vityp = "<$W x i$(8sizeof(I))>"
     instrs = String[]
