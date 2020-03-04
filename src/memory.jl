@@ -70,6 +70,9 @@ end
         )
     end
 end
+@inline function prefetch(ptr::Union{VectorizationBase.AbstractStridedPointer,Ptr}, i, ::Val{Locality} = Val(1), ::Val{ReadOrWrite} = Val(0)) where {Locality, ReadOrWrite}
+    prefetch(gep(ptr, i), Val{Locality}(), Val{ReadOrWrite}())
+end
 
 
 function valloc(::Type{T}, N::Int, sz::Int) where {T}
