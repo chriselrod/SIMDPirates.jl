@@ -58,6 +58,19 @@ end
     alloca(N % Int32, T, Val{Align}())
 end
 
+@generated function prefetch(ptr::Ptr{T}, ::Val{Locality} = Val(1), ::Val{ReadOrWrite} = Val(0)) where {T, Locality, ReadOrWrite}
+    prefetch_call_string = """%addr = inttoptr i$(8sizeof(Int)) %0 to i8*
+    call void @llvm.prefetch(i8* %addr, i32 $ReadOrWrite, i32 $Locality, i32 1)
+    ret void"""
+    quote
+        $(Expr(:meta, :inline))
+        llvmcall(
+            ("declare void @llvm.prefetch(i8*, i32, i32, i32)",
+             $prefetch_call_string), Cvoid, Tuple{Ptr{$T}}, ptr
+        )
+    end
+end
+
 
 function valloc(::Type{T}, N::Int, sz::Int) where {T}
     @assert N > 0
