@@ -25,7 +25,7 @@ function mulexpr(mulexargs)
         ac = mulexprcost(a)
         bc = mulexprcost(b)
         cc = mulexprcost(c)
-        maxc = min(ac, bc, cc)
+        maxc = max(ac, bc, cc)
         if ac == maxc
             return (a, Expr(:call, :vmul, b, c))
         elseif bc == maxc
