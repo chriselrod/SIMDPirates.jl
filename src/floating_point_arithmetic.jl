@@ -587,6 +587,19 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 @inline vfnmadd231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
 @inline vfmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
 @inline vfnmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.sub_fast(c), Base.FastMath.mul_fast(a, b))
+@inline function vifelse(f::typeof(vfmadd231), m::Mask{W}, a, b, c) where {W}
+    vifelse(m, vfmadd_fast(a, b, c), c)
+end
+@inline function vifelse(f::typeof(vfnmadd231), m::Mask{W}, a, b, c) where {W}
+    vifelse(m, vfnmadd_fast(a, b, c), c)
+end
+@inline function vifelse(f::typeof(vfmsub231), m::Mask{W}, a, b, c) where {W}
+    vifelse(m, vfmsub_fast(a, b, c), c)
+end
+@inline function vifelse(f::typeof(vfnmsub231), m::Mask{W}, a, b, c) where {W}
+    vifelse(m, vfnmsub_fast(a, b, c), c)
+end
+
 @vpromote vfmadd231 3
 @vpromote vfnmadd231 3
 @vpromote vfmsub231 3

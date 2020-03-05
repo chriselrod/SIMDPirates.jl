@@ -106,7 +106,7 @@ function capture_muladd(ex::Expr, mod, LHS = nothing)
     found || return ex
     # a, b, c = call.args[2], call.args[3], call.args[4]
     # call.args[2], call.args[3], call.args[4] = c, a, b
-    clobber = call.args[4] == LHS
+    clobber = false#call.args[4] == LHS
     f = if nmul && sub
         clobber ? :vfnmsub231 : :vfnmsub_fast
     elseif nmul
