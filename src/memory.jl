@@ -1041,8 +1041,8 @@ using VectorizationBase: AbstractColumnMajorStridedPointer, PackedStridedPointer
 
 @inline vadd(s::I1, v::Vec{W,I2}) where {I1<:Integer,I2<:Integer,W} = vadd(vconvert(Vec{W,I2}, s), v)
 
-@inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer, i::Tuple) = @inbounds gep(ptr.ptr, vadd(i[1], tdot(ptr.strides, Base.tail(i))))
-@inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer{T,0}, i::Tuple) where {T} = @inbounds gep(ptr.ptr, i[1])
+# @inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer, i::Tuple) = @inbounds gep(ptr.ptr, vadd(i[1], tdot(ptr.strides, Base.tail(i))))
+# @inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer{T,0}, i::Tuple) where {T} = @inbounds gep(ptr.ptr, i[1])
 @inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{Vec{W,I},Any}) where {W,I} = @inbounds vmul(first(a),first(b)) + tdot(Base.tail(a),Base.tail(b))
 @inline VectorizationBase.tdot(a::Tuple{I,Any}, b::Tuple{SVec{W,I},Any}) where {W,I} = @inbounds vmul(first(a),extract_data(first(b))) + tdot(Base.tail(a),Base.tail(b))
 @inline VectorizationBase.tdot(a::Tuple{I}, b::Tuple{Vec{W,I}}) where {W,I} = @inbounds vmul(first(a),first(b))
