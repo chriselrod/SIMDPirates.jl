@@ -7,7 +7,35 @@ function check_negative(x)
     return (a === :(-) || a == :(Base.FastMath.sub_fast))
 end
 
+
+mulexprcost(::Number) = 0
+mulexprcost(::Symbol) = 1
+function mulexprcost(ex::Expr)
+    base = ex.head === :call ? 10 : 1
+    base + length(ex.args)
+end
 function mulexpr(mulexargs)
+    a = (mulexargs[1])::Union{Symbol,Expr,Number}
+    if length(mulexargs) == 2
+        return (a, mulexargs[2]::Union{Symbol,Expr,Number})
+    elseif length(mulexargs) == 3
+        # We'll calc the product between the guesstimated cheaper two args first, for better out of order execution
+        b = (mulexargs[2])::Union{Symbol,Expr,Number}
+        c = (mulexargs[3])::Union{Symbol,Expr,Number}
+        ac = mulexprcost(a)
+        bc = mulexprcost(b)
+        cc = mulexprcost(c)
+        maxc = min(ac, bc, cc)
+        if ac == maxc
+            return (a, Expr(:call, :vmul, b, c))
+        elseif bc == maxc
+            return (b, Expr(:call, :vmul, a, c))
+        else
+            return (c, Expr(:call, :vmul, a, b))
+        end
+    else
+        return (a, Expr(:call, :vmul, @view(mulexargs[2:end])...)::Expr)
+    end
     a = (mulexargs[1])::Union{Symbol,Expr,Number}
     b = if length(mulexargs) == 2 # two arg mul
         (mulexargs[2])::Union{Symbol,Expr,Number}
