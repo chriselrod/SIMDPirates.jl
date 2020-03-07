@@ -205,6 +205,7 @@ end
 @inline vconvert(::Type{Vec{W,T}}, m::Mask{W}) where {W,T} = m
 @inline vconvert(::Type{Vec{W,T}}, u::Unsigned) where {W,T} = Mask{W}(u)
 @inline vconvert(::Type{SVec{W,T}}, m::Mask{W}) where {W,T} = m
+@inline vconvert(::Type{SVec{W,T1}}, s::T1) where {W, T1 <: Unsigned} = vbroadcast(Vec{W,T1}, s)
 @inline vconvert(::Type{SVec{W,T}}, u::Unsigned) where {W,T} = Mask{W}(u)
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
