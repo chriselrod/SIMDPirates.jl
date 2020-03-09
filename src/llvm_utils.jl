@@ -8,6 +8,7 @@ function fastflags(@nospecialize(T))
     else#if T <: FloatingTypes
         s = "fast"
         # s = "nnan ninf nsz arcp contract reassoc"
+        # s = "nnan ninf nsz arcp contract reassoc"
     end
     return s
 end
@@ -292,7 +293,7 @@ end
 #     Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
 # end
 
-const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos, :inv))#, :muladd, :fma
+const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos))#, :inv, :muladd, :fma
 
 const VECTOR_SYMBOLS = Dict{Symbol,Symbol}(
     :(==) => :visequal,

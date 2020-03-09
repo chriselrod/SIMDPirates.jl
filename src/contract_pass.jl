@@ -136,13 +136,13 @@ function capture_muladd(ex::Expr, mod, LHS = nothing)
     # call.args[2], call.args[3], call.args[4] = c, a, b
     clobber = false#call.args[4] == LHS
     f = if nmul && sub
-        clobber ? :vfnmsub231 : :vfnmsub_fast
+        clobber ? :vfnmsub231 : :vfnmsub#_fast
     elseif nmul
-        clobber ? :vfnmadd231 : :vfnmadd_fast
+        clobber ? :vfnmadd231 : :vfnmadd#_fast
     elseif sub
-        clobber ? :vfmsub231 : :vfmsub_fast
+        clobber ? :vfmsub231 : :vfmsub#_fast
     else
-        clobber ? :vfmadd231 : :vfmadd_fast
+        clobber ? :vfmadd231 : :vfmadd#_fast
     end
     if mod === nothing
         call.args[1] = f
