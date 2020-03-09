@@ -1075,13 +1075,13 @@ vectypewidth(::Type{V}) where {W, V<:AbstractSIMDVector{W}} = W::Int
 vectypewidth(::Type{_MM{W}}) where {W} = W::Int
 vectypewidth(::Any) = 1
 
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i]))
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = @inbounds(_MM{W}(r[i[1].i]))
 # Ignore masks
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Mask) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i + 1]))
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Mask) where {W,T} = @inbounds(_MM{W}(r[i[1].i + 1]))
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i]))
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[i[1].i]))
+@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Mask) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i]))
+@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Mask) where {W,T} = @inbounds(_MM{W}(r[i[1].i]))
 
 function transposeshuffle0(split, W)
     tup = Expr(:tuple)
