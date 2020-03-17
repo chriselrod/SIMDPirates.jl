@@ -514,6 +514,8 @@ end
 @inline vmul(x,y,z...) = vmul(x,vmul(y,z...))
 @inline vadd(x,y,z...) = vadd(x,vadd(y,z...))
 @inline vadd(a,b,c,d) = evadd(vadd(a,b), vadd(c,d))
+@inline vadd(a,b,c,d,e,f) = evadd(evadd(vadd(a,b), vadd(c,d)),vad(e,f))
+@inline vadd(a,b,c,d,e,f,g,h) = vadd(evadd(vadd(a,b), vadd(c,d)),evadd(vadd(e,f),vadd(g,h)))
 @inline Base.:(+)(a::SVec, b, c, d) = evadd(vadd(a,b), vadd(c,d))
 @inline vmuladd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 # These intrinsics are not FastMath.
@@ -547,15 +549,19 @@ vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 @generated function vfmadd_fast(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
-    decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
-    instrs = "%res = call fast $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
+    # ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
+    # decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
+    # instrs = "%res = call fast $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
+    # I don't really want reassoc on the fmul part, so this is what I'm going with.
+    instrs = """
+    %prod = fmul nnan ninf nsz arcp contract $vtyp %0, %1
+    %res = fadd fast $vtyp %prod, %2
+    ret $vtyp %res
+    """
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((decls,instrs)),
-            Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}},
-            v1, v2, v3
+            $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}}, v1, v2, v3
         )
     end
 end

@@ -55,7 +55,7 @@ end
 
 
 function recursive_muladd_search!(call, argv, cnmul::Bool = false, csub::Bool = false)
-    length(argv) < 2 && return length(call.args) == 4, cnmul, csub
+    length(argv) < 3 && return length(call.args) == 4, cnmul, csub
     fun = first(argv)
     if fun === :ifelse
         argv[1] = :vifelse
@@ -136,13 +136,13 @@ function capture_muladd(ex::Expr, mod, LHS = nothing)
     # call.args[2], call.args[3], call.args[4] = c, a, b
     clobber = false#call.args[4] == LHS
     f = if nmul && sub
-        clobber ? :vfnmsub231 : :vfnmsub#_fast
+        clobber ? :vfnmsub231 : :vfnmsub_fast
     elseif nmul
-        clobber ? :vfnmadd231 : :vfnmadd#_fast
+        clobber ? :vfnmadd231 : :vfnmadd_fast
     elseif sub
-        clobber ? :vfmsub231 : :vfmsub#_fast
+        clobber ? :vfmsub231 : :vfmsub_fast
     else
-        clobber ? :vfmadd231 : :vfmadd#_fast
+        clobber ? :vfmadd231 : :vfmadd_fast
     end
     if mod === nothing
         call.args[1] = f
