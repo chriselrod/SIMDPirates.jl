@@ -537,6 +537,9 @@ end
     end
 end
 vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
+vfnmadd(a::Number, b::Number, c::Number) = muladd(-a, b, c)
+vfmsub(a::Number, b::Number, c::Number) = muladd(a, b, -c)
+vfnmsub(a::Number, b::Number, c::Number) = -muladd(a, b, c)
 @inline vfmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
 @inline vfnmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd(vsub(a), b, c)
 @inline vfmsub(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd(a, b, vsub(c))
@@ -566,6 +569,9 @@ vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
     end
 end
 vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
+vfnmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
+vfmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
+vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c))
 @inline vfmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
 @inline vfnmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(vsub(a), b, c)
 @inline vfmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(a, b, vsub(c))
