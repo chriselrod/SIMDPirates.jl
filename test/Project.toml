@@ -2,4 +2,16 @@
 AccurateArithmetic = "22286c92-06ac-501d-9306-4abd417d9753"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MCMCChainSummaries = "4bc3f321-9528-4c7a-aaa1-470f5edc6d51"
+RNGTest = "97cc5700-e6cb-5ca1-8fb2-7f6b45264ecd"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+VectorizedRNG = "33b4df10-0173-11e9-2a0c-851a7edac40e"
+
+[compat]
+AccurateArithmetic = "0.3.3"
+BenchmarkTools = "0"
+MCMCChainSummaries = "0.1.2"
+RNGTest = "1.5"
+VectorizedRNG = "0.1.5"
+julia = "1"
