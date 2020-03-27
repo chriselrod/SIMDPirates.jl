@@ -792,3 +792,32 @@ end
 @inline addscalar(s::T, v::Union{Vec{W,T},SVec{W,T}}) where {W,T} = addscalar(v, s)
 @inline addscalar(a, b) = vadd(a, b)
 
+@generated function mulscalar(v::Vec{W,T}, s::T) where {W, T <: Integer}
+    typ = "i$(8sizeof(T))"
+    vtyp = "<$W x $typ>"
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp $(llvmconst(W, T, 1)), $typ %1, i32 0")
+    push!(instrs, "%v = mul $vtyp %0, %ie")
+    push!(instrs, "ret $vtyp %v")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+    end
+end
+@generated function mulscalar(v::Vec{W,T}, s::T) where {W, T <: Union{Float16,Float32,Float64}}
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp $(llvmconst(W, T, 1.0)), $typ %1, i32 0")
+    push!(instrs, "%v = fmul fast $vtyp %0, %ie")
+    push!(instrs, "ret $vtyp %v")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+    end
+end
+@inline mulscalar(v::SVec, s) = mulscalar(extract_data(v), s)
+@inline mulscalar(s::T, v::Union{Vec{W,T},SVec{W,T}}) where {W,T} = mulscalar(v, s)
+@inline mulscalar(a, b) = vmul(a, b)
+
+

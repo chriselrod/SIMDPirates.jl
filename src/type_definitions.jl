@@ -81,7 +81,7 @@ end
 end
 
 
-Base.@propagate_inbounds Base.setindex(v::AbstractStructVec{W,T}, x::Number, i) where {W,T} = SVec{W}(vsetindex(extract_data(v), x, i % Int))
+Base.@propagate_inbounds Base.setindex(v::AbstractStructVec{W,T}, x::Number, i) where {W,T} = @inbounds SVec{W}(vsetindex(extract_data(v), x, i % Int))
 @inline Base.setindex(v::AbstractStructVec{W,T}, x::Number, ::Val{I}) where {W,T,I} = SVec{W}(vsetindex(estract_data(v), x, I))
 
 
