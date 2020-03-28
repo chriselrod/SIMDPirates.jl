@@ -217,14 +217,14 @@ for op ∈ (
     end
 end
 @inline evadd(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vadd(v1, v2)
-@inline evadd(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vadd(v1, vbroadcast(Vec{W,T}(), v2))
-@inline evadd(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vadd(vbroadcast(Vec{W,T}(), v1), v2)
+@inline evadd(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vadd(v1, vbroadcast(Vec{W,T}, v2))
+@inline evadd(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vadd(vbroadcast(Vec{W,T}, v1), v2)
 @inline evsub(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vsub(v1, v2)
-@inline evsub(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vsub(v1, vbroadcast(Vec{W,T}(), v2))
-@inline evsub(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vsub(vbroadcast(Vec{W,T}(), v1), v2)
+@inline evsub(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vsub(v1, vbroadcast(Vec{W,T}, v2))
+@inline evsub(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vsub(vbroadcast(Vec{W,T}, v1), v2)
 @inline evmul(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vmul(v1, v2)
-@inline evmul(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vmul(v1, vbroadcast(Vec{W,T}(), v2))
-@inline evmul(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vmul(vbroadcast(Vec{W,T}(), v1), v2)
+@inline evmul(v1::AbstractSIMDVector{W,T}, v2::T) where {W, T <: Integer} = vmul(v1, vbroadcast(Vec{W,T}, v2))
+@inline evmul(v1::T, v2::AbstractSIMDVector{W,T}) where {W, T <: Integer} = vmul(vbroadcast(Vec{W,T}, v1), v2)
 
 @generated function vpmaddwd(a::NTuple{W,Core.VecElement{Int16}}, b::NTuple{W,Core.VecElement{Int16}}) where {W}
     Wh = W >>> 1
