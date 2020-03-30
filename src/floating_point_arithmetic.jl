@@ -83,7 +83,8 @@ end
     T = sizeequivalentfloat(I)
     SVec(vfdiv(vconvert(Vec{W,T}, v1), vconvert(Vec{W,T}, v2)))
 end
-# @vpromote vfdiv 2
+@inline Base.:(/)(v::SVec{W,I}, s::Integer) where {W,I} = v / vbroadcast(SVec{W,I}, s % I)
+@inline Base.:(/)(s::Integer, v::SVec{W,I}) where {W,I} = vbroadcast(SVec{W,I}, s % I) / v
 @inline vmax(x::Number, y::Number) = Base.FastMath.max_fast(x,y)
 @vectordef vmax function Base.max(v1, v2) where {W,T<:FloatingTypes}
     vifelse(vgreater(extract_data(v1), extract_data(v2)), extract_data(v1), extract_data(v2))
