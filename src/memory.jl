@@ -1071,6 +1071,8 @@ for store ∈ [:vstore!, :vnoaliasstore!]
     @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::Mask{W}, i::Tuple) where {W,T} = $store(ptr, vifelse(m, vone(Vec{W,T}), vzero(Vec{W,T})), i)
     @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::Mask{W}, i::Tuple, mask::Mask{W}) where {W,T} = $store(ptr, vifelse(m, vone(Vec{W,T}), vzero(Vec{W,T})), i, mask)
 end
+@inline vstore!(ptr::Ptr{T}, v::_MM{W}, i) where {W, T <: Integer} = vstore!(ptr, vrange(_MM{W}(v.i % T)), i)
+@inline vstore!(ptr::Ptr{T}, v::_MM{W}, i, m::Mask) where {W, T <: Integer} = vstore!(ptr, vrange(_MM{W}(v.i % T)), i, m)
 
 using VectorizationBase: AbstractColumnMajorStridedPointer, PackedStridedPointer, tdot
 @inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, i)

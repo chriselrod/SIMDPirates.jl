@@ -307,3 +307,13 @@ end
 @inline vadd(v::AbstractSIMDVector{W,I}, m::Mask{W}) where {W,I<:IntegerTypes} = vadd(m, v)
 @inline vadd(m::Mask{W}, v::AbstractStructVec{W,I}) where {W,I<:IntegerTypes} = vadd(m, extract_data(v))
 
+@inline Base.:(<<)(i::_MM{W}, j::SVec{W,T}) where {W,T<:Integer} = svrange(_MM{W}(i.i %T)) << j
+@inline Base.:(>>)(i::_MM{W}, j::SVec{W,T}) where {W,T<:Integer} = svrange(_MM{W}(i.i %T)) >> j
+@inline Base.:(>>>)(i::_MM{W}, j::SVec{W,T}) where {W,T<:Integer} = svrange(_MM{W}(i.i %T)) >>> j
+@inline Base.:(<<)(i::SVec{W,T}, j::_MM{W}) where {W,T<:Integer} = i << svrange(_MM{W}(j.i %T))
+@inline Base.:(>>)(i::SVec{W,T}, j::_MM{W}) where {W,T<:Integer} = i >> svrange(_MM{W}(j.i %T))
+@inline Base.:(>>>)(i::SVec{W,T}, j::_MM{W}) where {W,T<:Integer} = i >>> svrange(_MM{W}(j.i %T))
+@inline Base.:(<<)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) << svrange(j)
+@inline Base.:(>>)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) >> svrange(j)
+@inline Base.:(>>>)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) >>> svrange(j)
+
