@@ -703,8 +703,12 @@ end
 @inline rsqrt(x::SVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt(x) = vinv(vsqrt(x))
 @inline vinv(x::IntegerTypes) = vinv(float(x))
-@inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt64,Int64}} = vinv(pirate_convert(Vec{W,Float64}, v))
-@inline vinv(v::Vec{W,I}) where {W,I<:Union{UInt32,Int32}} = vinv(pirate_convert(Vec{W,Float32}, v))
+@inline vinv(x::Vec{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(Vec{W,Float64}), vconvert(Vec{W,Float64}, x))
+@inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(SVec{W,Float64}), vconvert(SVec{W,Float64}, x))
+@inline vinv(x::Vec{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(Vec{W,Float32}), vconvert(Vec{W,Float32}, x))
+@inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
+@inline vinv(x::Vec{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(Vec{W,Float32}), vconvert(Vec{W,Float32}, x))
+@inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
 
 # for accumulating vector results of different sizes.
 @generated function vadd(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
@@ -845,4 +849,35 @@ end
 @inline mulscalar(s::T, v::Union{Vec{W,T},SVec{W,T}}) where {W,T} = mulscalar(v, s)
 @inline mulscalar(a, b) = vmul(a, b)
 
+@inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{-2}) = (xi = vinv(x); vmul(xi, xi))
+@inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{-1}) = vinv(x)
+@inline Base.literal_pow(::typeof(^), x::V, ::Val{0}) where {V <: AbstractStructVec} = vone(V)
+@inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{1}) = x
+@inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{2}) = vmul(x, x)
+@inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{3}) = vmul(x, vmul(x, x))
+@inline function Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{4})
+    x2 = vmul(x, x)
+    vmul(x2, x2)
+end
+@inline function Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{5})
+    x2 = vmul(x, x)
+    vmul(x, vmul(x2, x2))
+end
+@inline function Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{6})
+    x2 = vmul(x, x)
+    vmul(x2, vmul(x2, x2))
+end
+@inline function Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{7})
+    x2 = vmul(x, x)
+    x3 = vmul(x, x2)
+    x4 = vmul(x2, x2)
+    vmul(x3, x4)
+end
+@inline function Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{8})
+    x2 = vmul(x, x)
+    x4 = vmul(x2, x2)
+    vmul(x4, x4)
+end
+Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
+# @inline literal_power(x, ::Val{P}) = Base.literal_pow(Base.^, x, Val{P}())
 
