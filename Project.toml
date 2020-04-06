@@ -1,7 +1,7 @@
 name = "SIMDPirates"
 uuid = "21efa798-c60a-11e8-04d3-e1a92915a26a"
 authors = ["Chris Elrod <elrodc@gmail.com>"]
-version = "0.7.8"
+version = "0.7.9"
 
 [deps]
 VectorizationBase = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
