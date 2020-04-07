@@ -1106,9 +1106,9 @@ end
 # scalar if only and Int
 
 for store ∈ [:vstore!, :vnoaliasstore!]
-    @eval @inline $store(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}) where {W,T<:Number,I} = $store(ptr, vbroadcast(Vec{W,T}, v), i)
-    @eval @inline $store(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}, u::Unsigned) where {W,T<:Number,I} = $store(ptr, vbroadcast(Vec{W,T}, v), i, u)
-    @eval @inline $store(ptr::Ptr{T}, v::T, i::Union{SVec{W,<:Integer},_MM{W}}, u::Mask{W}) where {W,T<:Number,I} = $store(ptr, vbroadcast(Vec{W,T}, v), i, u.u)
+    @eval @inline $store(ptr::Ptr{T}, v::S, i::Union{SVec{W,<:Integer},_MM{W}}) where {W,T<:Number,S<:Number,I} = $store(ptr, vbroadcast(Vec{W,T}, v), i)
+    @eval @inline $store(ptr::Ptr{T}, v::S, i::Union{SVec{W,<:Integer},_MM{W}}, u::Unsigned) where {W,T<:Number,S<:Number,I} = $store(ptr, vbroadcast(Vec{W,T}, v), i, u)
+    @eval @inline $store(ptr::Ptr{T}, v::S, i::Union{SVec{W,<:Integer},_MM{W}}, u::Mask{W}) where {W,T<:Number,S<:Number,I} = $store(ptr, vbroadcast(Vec{W,T}, v), i, u.u)
 end
 
 vectypewidth(::Type{V}) where {W, V<:AbstractSIMDVector{W}} = W::Int
