@@ -1,12 +1,4 @@
 
-const BoolTypes = Union{Bool}
-const IntTypes = Union{Int8, Int16, Int32, Int64, Int128}
-const UIntTypes = Union{UInt8, UInt16, UInt32, UInt64, UInt128}
-const IntegerTypes = Union{IntTypes, UIntTypes, Ptr}
-const FloatingTypes = Union{Float16, Float32, Float64}
-const ScalarTypes = Union{IntegerTypes, FloatingTypes}
-
-
 for T ∈ (:Float16,:Int16,:UInt16)
     @eval @inline sizeequivalentfloat(::Type{$T}) = Float16
     @eval @inline sizeequivalentint(::Type{$T}) = Int16

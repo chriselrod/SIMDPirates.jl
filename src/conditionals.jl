@@ -76,7 +76,11 @@ end
     decls = String[]
     instrs = String[]
     push!(instrs, "%cond = trunc $vbtyp %0 to <$W x i1>")
-    push!(instrs, "%res = select <$W x i1> %cond, $vtyp %1, $vtyp %2")
+    if T <: FloatingTypes && Base.libllvm_version >= v"9"
+        push!(instrs, "%res = select fast <$W x i1> %cond, $vtyp %1, $vtyp %2")
+    else
+        push!(instrs, "%res = select <$W x i1> %cond, $vtyp %1, $vtyp %2")
+    end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
@@ -86,8 +90,9 @@ end
             v1, v2, v3)
     end
 end
-@inline function vifelse(v1::AbstractSIMDVector{W,Bool},
-        v2::AbstractSIMDVector{W,T}, v3::AbstractSIMDVector{W,T}) where {W,T}
+@inline function vifelse(
+    v1::AbstractSIMDVector{W,Bool}, v2::AbstractSIMDVector{W,T}, v3::AbstractSIMDVector{W,T}
+) where {W,T}
     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
 end
 # @inline function vifelse(v1::VecOrProd{W,Bool},
@@ -143,7 +148,7 @@ end
 @inline vifelse(U::Unsigned, s::Union{T,Int}, v2::Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
 @inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractSIMDVector{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s), extract_data(v2)))
 
-@inline function vifelse(f::F, m::Mask{W}, vargs::Vararg{<:Any,N}) where {F<:Function,W,N}
+@inline function vifelse(f::F, m::AbstractMask{W}, vargs::Vararg{<:Any,N}) where {F<:Function,W,N}
     vifelse(m, f(vargs...), @inbounds(vargs[N]))
 end
 

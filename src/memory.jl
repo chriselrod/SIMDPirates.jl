@@ -1263,4 +1263,72 @@ end
 end
 
 
+@generated function vload(ptr::Ptr{Bool}, i::_MM{W,I}) where {W,I<:Integer}
+    U = VectorizationBase.mask_type(W)
+    utype = "i$(VectorizationBase.nextpow2(W))"
+    itype = "i$(8sizeof(I))"
+    ptyp = "i$(8sizeof(Int))"
+    instrs = String[]
+    push!(instrs, "%ptrbool = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%ptroffset = getelementptr inbounds i8, i8* %ptrbool, $itype %1")
+    push!(instrs, "%ptrvbool = bitcast i8* %ptroffset to <$W x i8>*")
+    push!(instrs, "%vbool = load <$W x i8>, <$W x i8>* %ptrvbool")
+    push!(instrs, "%vbooltrunc = trunc <$W x i8> %vbool to <$W x i1>")
+    if 8sizeof(U) == W
+        push!(instrs, "%mask = bitcast <$W x i1> %vbooltrunc to $utype")
+    else
+        push!(instrs, "%masktrunc = bitcast <$W x i1> %vbooltrunc to i$(W)")
+        push!(instrs, "%mask = zext i$(W) %masktrunc to $utype")
+    end
+    push!(instrs, "ret $utype %mask")
+    quote
+        $(Expr(:meta,:inline))
+        Mask{$W}(Base.llvmcall(
+            $(join(instrs,"\n")),
+            $U,
+            Tuple{Ptr{Bool},$I},
+            ptr, i.i
+        ))
+    end
+end
+
+@generated function vstore!(ptr::Ptr{Bool}, v::Mask{W,U}, i::I) where {W,U,I<:Integer}
+    utype = "i$(8sizeof(U))"
+    itype = "i$(8sizeof(I))"
+    ptyp = "i$(8sizeof(Int))"
+    instrs = String[]
+    push!(instrs, "%ptrbool = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%ptroffset = getelementptr inbounds i8, i8* %ptrbool, $itype %2")
+    push!(instrs, "%ptr = bitcast i8* %ptroffset to <$(8W) x i1>*")
+    if W == 8sizeof(U)
+        push!(instrs, "%mask = bitcast $utype %1 to <$W x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $utype %1 to i$(W)")
+        push!(instrs, "%mask = bitcast i$(W) %masktrunc to <$W x i1>")
+    end
+    push!(instrs, "%maskzext = zext <$W x i1> %mask to <$W x i8>")
+    push!(instrs, "%vbits = bitcast <$W x i8> %maskzext to <$(8W) x i1>")
+    undefmask = ""
+    for w in 1:W
+        for b in 1:7
+            undefmask *= " i1 undef,"
+        end
+        undefmask *= w == W ? " i1 1" : " i1 1,"
+    end
+    push!(instrs, "%vundefbits = and <$(8W) x i1> %vbits, <$undefmask >")
+    push!(instrs, "store <$(8W) x i1> %vundefbits, <$(8W) x i1>* %ptr")
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall(
+            $(join(instrs,"\n")),
+            Cvoid,
+            Tuple{Ptr{Bool}, $U, $I},
+            ptr, v.u, i
+        )
+    end
+end
+
+
+
 

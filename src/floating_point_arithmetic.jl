@@ -577,30 +577,30 @@ vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.Fast
 @inline vfnmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(vsub(a), b, c)
 @inline vfmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(a, b, vsub(c))
 @inline vfnmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vsub(vfmadd_fast(a, b, c))
-@inline vfmadd_fast(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
-@inline vfmadd_fast(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
-@inline vfnmadd_fast(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
-@inline vfnmadd_fast(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
-@inline vfmsub_fast(m::Mask{W}, b::V, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
-@inline vfmsub_fast(b::V, m::Mask{W}, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
-@inline vfnmsub_fast(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd_fast(m, b, c))
-@inline vfnmsub_fast(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd_fast(m, b, c))
-@inline vfmadd(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
-@inline vfmadd(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
-@inline vfnmadd(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
-@inline vfnmadd(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
-@inline vfmsub(m::Mask{W}, b::V, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
-@inline vfmsub(b::V, m::Mask{W}, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
-@inline vfnmsub(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd(m, b, c))
-@inline vfnmsub(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd(m, b, c))
-@inline vfmadd231(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
-@inline vfmadd231(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
-@inline vfnmadd231(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
-@inline vfnmadd231(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
-@inline vfmsub231(m::Mask{W}, b::V, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
-@inline vfmsub231(b::V, m::Mask{W}, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
-@inline vfnmsub231(m::Mask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd231(m, b, c))
-@inline vfnmsub231(b::AbstractSIMDVector{W}, m::Mask{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd231(m, b, c))
+@inline vfmadd_fast(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
+@inline vfmadd_fast(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
+@inline vfnmadd_fast(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
+@inline vfnmadd_fast(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
+@inline vfmsub_fast(m::AbstractMask{W}, b::V, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
+@inline vfmsub_fast(b::V, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
+@inline vfnmsub_fast(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd_fast(m, b, c))
+@inline vfnmsub_fast(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd_fast(m, b, c))
+@inline vfmadd(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
+@inline vfmadd(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
+@inline vfnmadd(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
+@inline vfnmadd(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
+@inline vfmsub(m::AbstractMask{W}, b::V, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
+@inline vfmsub(b::V, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
+@inline vfnmsub(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd(m, b, c))
+@inline vfnmsub(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd(m, b, c))
+@inline vfmadd231(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
+@inline vfmadd231(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
+@inline vfnmadd231(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
+@inline vfnmadd231(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
+@inline vfmsub231(m::AbstractMask{W}, b::V, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
+@inline vfmsub231(b::V, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W,V<:AbstractSIMDVector{W}} = vsub(vifelse(m, b, vzero(V)), c)
+@inline vfnmsub231(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd231(m, b, c))
+@inline vfnmsub231(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vsub(vfmadd231(m, b, c))
 @vpromote vfmadd_fast 3
 @vpromote vfnmadd_fast 3
 @vpromote vfmsub_fast 3
@@ -624,16 +624,16 @@ vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.Fast
 @inline vfnmadd231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
 @inline vfmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
 @inline vfnmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.sub_fast(c), Base.FastMath.mul_fast(a, b))
-@inline function vifelse(f::typeof(vfmadd231), m::Mask{W}, a, b, c) where {W}
+@inline function vifelse(f::typeof(vfmadd231), m::AbstractMask{W}, a, b, c) where {W}
     vifelse(m, vfmadd_fast(a, b, c), c)
 end
-@inline function vifelse(f::typeof(vfnmadd231), m::Mask{W}, a, b, c) where {W}
+@inline function vifelse(f::typeof(vfnmadd231), m::AbstractMask{W}, a, b, c) where {W}
     vifelse(m, vfnmadd_fast(a, b, c), c)
 end
-@inline function vifelse(f::typeof(vfmsub231), m::Mask{W}, a, b, c) where {W}
+@inline function vifelse(f::typeof(vfmsub231), m::AbstractMask{W}, a, b, c) where {W}
     vifelse(m, vfmsub_fast(a, b, c), c)
 end
-@inline function vifelse(f::typeof(vfnmsub231), m::Mask{W}, a, b, c) where {W}
+@inline function vifelse(f::typeof(vfnmsub231), m::AbstractMask{W}, a, b, c) where {W}
     vifelse(m, vfnmsub_fast(a, b, c), c)
 end
 
