@@ -1066,10 +1066,10 @@ for store ∈ [:vstore!, :vnoaliasstore!]
 
     @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple) where {W,T1,T2} = $store(ptr, vconvert(Vec{W,T1}, v), i)
     @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::Unsigned) where {W,T1,T2} = $store(ptr, vconvert(Vec{W,T1}, v), i, u)
-    @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::Mask{W}) where {W,T1,T2} = $store(ptr, vconvert(Vec{W,T1}, v), i, u.u)
+    @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T1}, v::AbstractStructVec{W,T2}, i::Tuple, u::AbstractMask{W}) where {W,T1,T2} = $store(ptr, vconvert(Vec{W,T1}, v), i, tomask(u).u)
 
-    @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::Mask{W}, i::Tuple) where {W,T} = $store(ptr, vifelse(m, vone(Vec{W,T}), vzero(Vec{W,T})), i)
-    @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::Mask{W}, i::Tuple, mask::Mask{W}) where {W,T} = $store(ptr, vifelse(m, vone(Vec{W,T}), vzero(Vec{W,T})), i, mask)
+    @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::AbstractMask{W}, i::Tuple) where {W,T} = $store(ptr, vifelse(tomask(m), vone(Vec{W,T}), vzero(Vec{W,T})), i)
+    @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::AbstractMask{W}, i::Tuple, mask::AbstractMask{W}) where {W,T} = $store(ptr, vifelse(tomask(m), vone(Vec{W,T}), vzero(Vec{W,T})), i, tomask(mask))
 end
 @inline vstore!(ptr::Ptr{T}, v::_MM{W}, i) where {W, T <: Integer} = vstore!(ptr, vrange(_MM{W}(v.i % T)), i)
 @inline vstore!(ptr::Ptr{T}, v::_MM{W}, i, m::Mask) where {W, T <: Integer} = vstore!(ptr, vrange(_MM{W}(v.i % T)), i, m)

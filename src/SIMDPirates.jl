@@ -4,7 +4,7 @@ using VectorizationBase
 using VectorizationBase:
     llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM,
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
-import VectorizationBase: vload, vstore!, vnoaliasstore!, AbstractMask, IntTypes, UIntTypes, IntegerTypes, FloatingTypes, ScalarTypes
+import VectorizationBase: vload, vstore!, vnoaliasstore!, AbstractMask, tomask, IntTypes, UIntTypes, IntegerTypes, FloatingTypes, ScalarTypes
 
 
 export  Vec, SVec, VE, _MM, stridedpointer,
