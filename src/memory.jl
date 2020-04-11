@@ -1299,7 +1299,8 @@ end
     instrs = String[]
     push!(instrs, "%ptrbool = inttoptr $ptyp %0 to i8*")
     push!(instrs, "%ptroffset = getelementptr inbounds i8, i8* %ptrbool, $itype %2")
-    push!(instrs, "%ptr = bitcast i8* %ptroffset to <$(8W) x i1>*")
+    # push!(instrs, "%ptr = bitcast i8* %ptroffset to <$(8W) x i1>*")
+    push!(instrs, "%ptr = bitcast i8* %ptroffset to <$(W) x i8>*")
     if W == 8sizeof(U)
         push!(instrs, "%mask = bitcast $utype %1 to <$W x i1>")
     else
@@ -1307,16 +1308,16 @@ end
         push!(instrs, "%mask = bitcast i$(W) %masktrunc to <$W x i1>")
     end
     push!(instrs, "%maskzext = zext <$W x i1> %mask to <$W x i8>")
-    push!(instrs, "%vbits = bitcast <$W x i8> %maskzext to <$(8W) x i1>")
-    undefmask = ""
-    for w in 1:W
-        for b in 1:7
-            undefmask *= " i1 undef,"
-        end
-        undefmask *= w == W ? " i1 1" : " i1 1,"
-    end
-    push!(instrs, "%vundefbits = and <$(8W) x i1> %vbits, <$undefmask >")
-    push!(instrs, "store <$(8W) x i1> %vundefbits, <$(8W) x i1>* %ptr")
+    # push!(instrs, "%vbits = bitcast <$W x i8> %maskzext to <$(8W) x i1>")
+    # undefmask = ""
+    # for w in 1:W
+    #     for b in 1:7
+    #         undefmask *= " i1 undef,"
+    #     end
+    #     undefmask *= w == W ? " i1 1" : " i1 1,"
+    # end
+    # push!(instrs, "%vundefbits = and <$(8W) x i1> %vbits, <$undefmask >")
+    push!(instrs, "store <$(W) x i8> %maskzext, <$(W) x i8>* %ptr")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta,:inline))
