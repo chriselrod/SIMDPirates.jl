@@ -1070,9 +1070,16 @@ for store ∈ [:vstore!, :vnoaliasstore!]
 
     @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::AbstractMask{W}, i::Tuple) where {W,T} = $store(ptr, vifelse(tomask(m), vone(Vec{W,T}), vzero(Vec{W,T})), i)
     @eval @inline $store(ptr::VectorizationBase.AbstractPointer{T}, m::AbstractMask{W}, i::Tuple, mask::AbstractMask{W}) where {W,T} = $store(ptr, vifelse(tomask(m), vone(Vec{W,T}), vzero(Vec{W,T})), i, tomask(mask))
+    @eval @inline function $store(ptr::VectorizationBase.AbstractPointer{Bool}, m::SVec{W,Bool}, i::Tuple) where {W}
+        $store(ptr.ptr, extract_data(m), VectorizationBase.offset(ptr, VectorizationBase.staticm1(i)))
+    end
+    @eval @inline function $store(ptr::VectorizationBase.AbstractPointer{Bool}, m::SVec{W,Bool}, i::Tuple, mask::AbstractMask{W}) where {W}
+        $store(ptr.ptr, extract_data(m), VectorizationBase.offset(ptr, VectorizationBase.staticm1(i)), tomask(mask))
+    end
 end
 @inline vstore!(ptr::Ptr{T}, v::_MM{W}, i) where {W, T <: Integer} = vstore!(ptr, vrange(_MM{W}(v.i % T)), i)
 @inline vstore!(ptr::Ptr{T}, v::_MM{W}, i, m::Mask) where {W, T <: Integer} = vstore!(ptr, vrange(_MM{W}(v.i % T)), i, m)
+
 
 using VectorizationBase: AbstractColumnMajorStridedPointer, PackedStridedPointer, tdot
 @inline VectorizationBase.gep(ptr::AbstractColumnMajorStridedPointer, i::NTuple{W,Core.VecElement{I}}) where {W,I<:Integer} = gep(ptr.ptr, i)
