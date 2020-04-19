@@ -126,6 +126,7 @@ end
 @inline Base.:(!=)(i::_MM, ::Static{j}) where {j} = svrange(i) != j
 @inline Base.:(!=)(::Static{i}, j::_MM) where {i} = i != svrange(j)
 @inline Base.:(!=)(i::_MM, j::_MM) = svrange(i) != svrange(j)
-
+@inline Base.:(*)(i::_MM, j::_MM) = SVec(vmul(vrange(i), vrange(j)))
+@inline vmul(i::_MM, j::_MM) = SVec(vmul(vrange(i), vrange(j)))
 
 

@@ -254,6 +254,10 @@ end
 @inline promote_vtype(::Type{Vec{W,T}}, ::Type{Vec{W,T}}) where {W,T} = Vec{W,T}
 @inline promote_vtype(::Type{SVec{W,T}}, ::Type{SVec{W,T}}) where {W,T} = SVec{W,T}
 
+@inline Base.float(v::AbstractStructVec{W,<:FloatingTypes}) where {W} = v
+@inline Base.float(v::AbstractStructVec{W,I}) where {W, I <: Union{Int64,UInt64}} = vconvert(SVec{W,Float64}, v)
+@inline Base.float(v::AbstractStructVec{W,I}) where {W, I <: Union{Int32,UInt32}} = vconvert(SVec{W,Float32}, v)
+
 @inline Base.unsigned(v::AbstractStructVec{W,Int8}) where {W} = vconvert(SVec{W,UInt8}, v)
 @inline Base.unsigned(v::AbstractStructVec{W,Int16}) where {W} = vconvert(SVec{W,UInt16}, v)
 @inline Base.unsigned(v::AbstractStructVec{W,Int32}) where {W} = vconvert(SVec{W,UInt32}, v)

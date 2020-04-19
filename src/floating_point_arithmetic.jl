@@ -709,6 +709,8 @@ end
 @inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
 @inline vinv(x::Vec{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(Vec{W,Float32}), vconvert(Vec{W,Float32}, x))
 @inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
+@inline Base.inv(v::AbstractStructVec{W,I}) where {W, I<: IntegerTypes} = vinv(v)
+@inline Base.sqrt(v::AbstractStructVec{W,I}) where {W, I<: IntegerTypes} = vsqrt(float(v))
 
 # for accumulating vector results of different sizes.
 @generated function vadd(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
