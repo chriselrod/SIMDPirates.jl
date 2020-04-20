@@ -25,18 +25,18 @@ end
     iv = vreinterpret(Vec{W,U}, v1)
     vnot_equal(vand(iv, em), em)
 end
-@inline visfinite(v1::SVec) = SVec(visfinite(extract_data(v1)))
-@inline Base.isfinite(v1::SVec) = SVec(visfinite(extract_data(v1)))
+@inline visfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
+@inline Base.isfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
 
 @inline visinf(s1::ScalarTypes) = isinf(s1)
 @inline visinf(v1::Vec{W,T}) where {W,T<:FloatingTypes} = visequal(vabs(v1), vbroadcast(Vec{W,T},Inf))
-@inline visinf(v1::SVec) = SVec(visinf(extract_data(v1)))
-@inline Base.isinf(v1::SVec) = SVec(visinf(extract_data(v1)))
+@inline visinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
+@inline Base.isinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
 
 @inline visnan(s1::ScalarTypes) = isnan(s1)
 @inline visnan(v1::Vec{W,T}) where {W,T<:FloatingTypes} = vnot_equal(v1, v1)
-@inline visnan(v1::SVec) = SVec(visnan(extract_data(v1)))
-@inline Base.isnan(v1::SVec) = SVec(visnan(extract_data(v1)))
+@inline visnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
+@inline Base.isnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 
 @inline vissubnormal(s1::ScalarTypes) = issubnormal(s1)
 @inline function vissubnormal(v1::Vec{W,T}) where {W,T<:FloatingTypes}
@@ -46,8 +46,8 @@ end
     iv = vreinterpret(Vec{W,U}, v1)
     vand(visequal(vand(iv, em), vbroadcast(Vec{W,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{W,U}, 0)))
 end
-@inline vissubnormal(v1::SVec) = SVec(vissubnormal(extract_data(v1)))
-@inline Base.issubnormal(v1::SVec) = SVec(vissubnormal(extract_data(v1)))
+@inline vissubnormal(v1::SVec{W}) where {W} = SVec{W}(vissubnormal(extract_data(v1)))
+@inline Base.issubnormal(v1::SVec{W}) where {W} = SVec{W}(vissubnormal(extract_data(v1)))
 
 
 @inline signbit(s1::ScalarTypes) = signbit(s1)
@@ -58,10 +58,10 @@ end
     vnot_equal(vand(iv, sm), vbroadcast(Vec{W,U}, 0))
 end
 @inline function vsignbit(v1::SVec{W,T}) where {W,T<:FloatingTypes}
-    SVec(vsignbit(extract_data(v1)))
+    SVec{W}(vsignbit(extract_data(v1)))
 end
 @inline function Base.signbit(v1::SVec{W,T}) where {W,T<:FloatingTypes}
-    SVec(vsignbit(extract_data(v1)))
+    SVec{W}(vsignbit(extract_data(v1)))
 end
 
 @inline vifelse(c::Bool, x, y) = c ? x : y
