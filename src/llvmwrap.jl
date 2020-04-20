@@ -124,13 +124,10 @@ end
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
     vbtyp = "<$N x $btyp>"
-    abtyp = "[$N x $btyp]"
     typ1 = llvmtype(T1)
     vtyp1 = "<$N x $typ1>"
-    atyp1 = "[$N x $typ1]"
     typ2 = llvmtype(T2)
     vtyp2 = "<$N x $typ2>"
-    atyp2 = "[$N x $typ2]"
     ins = llvmins(Op, N, T1)
     decls = String[]
     instrs = String[]
@@ -154,17 +151,10 @@ end
     end
 end
 # Functions taking two arguments, returning a bitmask
-@generated function llvmwrap_bitmask(::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T2}) where {Op,N,T1,T2}
+@generated function llvmwrap_bitmask(::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T1}) where {Op,N,T1}
     @assert isa(Op, Symbol)
-    btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
-    abtyp = "[$N x $btyp]"
     typ1 = llvmtype(T1)
     vtyp1 = "<$N x $typ1>"
-    atyp1 = "[$N x $typ1]"
-    typ2 = llvmtype(T2)
-    vtyp2 = "<$N x $typ2>"
-    atyp2 = "[$N x $typ2]"
     ins = llvmins(Op, N, T1)
     decls = String[]
     instrs = String[]
@@ -172,9 +162,6 @@ end
         # push!(instrs, "%res = $ins reassoc $vtyp1 %0, %1")
     # else
     push!(instrs, "%res = $ins $vtyp1 %0, %1")
-    # end
-    # push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
-
     maskbits = max(8, VectorizationBase.nextpow2(N))
     bitcastname = maskbits == N ? "resu" : "resutrunc"
     push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
@@ -186,7 +173,49 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            $julia_mask_type, Tuple{Vec{N,T1}, Vec{N,T2}},
+            $julia_mask_type, Tuple{Vec{N,T1}, Vec{N,T1}},
+            v1, v2)
+    end
+end
+@generated function llvmwrap_bitmask_notfast(::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T1}) where {Op,N,T1}
+    @assert isa(Op, Symbol)
+    typ1 = llvmtype(T1)
+    vtyp1 = "<$N x $typ1>"
+    ins = if Op == :(==)
+        "fcmp oeq"
+    elseif Op == :(!=)
+        "fcmp une"
+    elseif Op == :(>)
+        "fcmp ogt"
+    elseif Op == :(>=)
+        "fcmp oge"
+    elseif Op == :(<)
+        "fcmp olt"
+    elseif Op == :(<=)
+        "fcmp ole"
+    else
+        throw("Op $Op not recognized.")
+    end
+    decls = String[]
+    instrs = String[]
+    # if T1 <: FloatingTypes && T2 <: FloatingTypes
+        # push!(instrs, "%res = $ins reassoc $vtyp1 %0, %1")
+    # else
+    push!(instrs, "%res = $ins $vtyp1 %0, %1")
+    # end
+    # push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
+    maskbits = max(8, VectorizationBase.nextpow2(N))
+    bitcastname = maskbits == N ? "resu" : "resutrunc"
+    push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
+    if maskbits != N
+        push!(instrs, "%resu = zext i$N %$(bitcastname) to i$maskbits")
+    end
+    push!(instrs, "ret i$maskbits %resu")
+    julia_mask_type = VectorizationBase.mask_type(maskbits)
+    quote
+        $(Expr(:meta, :inline))
+        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            $julia_mask_type, Tuple{Vec{N,T1}, Vec{N,T1}},
             v1, v2)
     end
 end

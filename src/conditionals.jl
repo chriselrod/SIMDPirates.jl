@@ -3,6 +3,7 @@
 
 for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
     rename = VECTOR_SYMBOLS[op]
+    erename = Symbol(:e, rename)
     # rename_mask = Symbol(rename, :_mask)
     @eval begin
         # scalar versions handled in floating_point_arithmetic.jl
@@ -16,6 +17,9 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
         @vectordef $rename function Base.$op(v1::T, v2) where {W,T}
             $rename(extract_data(v1), v2)
         end
+        @evectordef $erename function Base.$op(v1, v2) where {W,T <: FloatingTypes}
+            llvmwrap_bitmask_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
+        end
     end
 end
 @inline visfinite(s::ScalarTypes) = isfinite(s)
@@ -23,18 +27,18 @@ end
     U = uint_type(T)
     em = vbroadcast(Vec{W,U}, exponent_mask(T))
     iv = vreinterpret(Vec{W,U}, v1)
-    vnot_equal(vand(iv, em), em)
+    evnot_equal(vand(iv, em), em)
 end
 @inline visfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
 @inline Base.isfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
 
 @inline visinf(s1::ScalarTypes) = isinf(s1)
-@inline visinf(v1::Vec{W,T}) where {W,T<:FloatingTypes} = visequal(vabs(v1), vbroadcast(Vec{W,T},Inf))
+@inline visinf(v1::Vec{W,T}) where {W,T<:FloatingTypes} = evisequal(vabs(v1), vbroadcast(Vec{W,T},Inf))
 @inline visinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
 @inline Base.isinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
 
 @inline visnan(s1::ScalarTypes) = isnan(s1)
-@inline visnan(v1::Vec{W,T}) where {W,T<:FloatingTypes} = vnot_equal(v1, v1)
+@inline visnan(v1::Vec{W,T}) where {W,T<:FloatingTypes} = evnot_equal(v1, v1)
 @inline visnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 @inline Base.isnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 
@@ -44,7 +48,7 @@ end
     em = vbroadcast(Vec{W,U}, exponent_mask(T))
     sm = vbroadcast(Vec{W,U}, significand_mask(T))
     iv = vreinterpret(Vec{W,U}, v1)
-    vand(visequal(vand(iv, em), vbroadcast(Vec{W,U}, 0)), vnot_equal(vand(iv, sm), vbroadcast(Vec{W,U}, 0)))
+    vand(evisequal(vand(iv, em), vbroadcast(Vec{W,U}, 0)), evnot_equal(vand(iv, sm), vbroadcast(Vec{W,U}, 0)))
 end
 @inline vissubnormal(v1::SVec{W}) where {W} = SVec{W}(vissubnormal(extract_data(v1)))
 @inline Base.issubnormal(v1::SVec{W}) where {W} = SVec{W}(vissubnormal(extract_data(v1)))
