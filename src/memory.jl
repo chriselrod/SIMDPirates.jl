@@ -78,30 +78,18 @@ end
 end
 
 
-function valloc(::Type{T}, N::Int, sz::Int) where {T}
+function valloc(::Type{T}, N::Int) where {T}
     @assert N > 0
-    @assert sz >= 0
+    W, Wshift = VectorizationBase.pick_vector_width_shift(T)
     # We use padding to align the address of the first element, and
     # also to ensure that we can access past the last element up to
     # the next full vector width
-    padding = N-1 + mod(-sz, N)
-    mem = Vector{T}(undef, sz + padding)
-    addr = Int(pointer(mem))
-    off = mod(-addr, N * sizeof(T))
-    @assert mod(off, sizeof(T)) == 0
-    off = fld(off, sizeof(T))
-    @assert 0 <= off <= padding
-    res = view(mem, off+1 : off+sz)
-    addr2 = Int(pointer(res))
-    @assert mod(addr2, N * sizeof(T)) == 0
-    res
-end
-function valloc(f, ::Type{T}, N::Int, sz::Int) where {T}
-    mem = valloc(T, N, sz)
-    @inbounds for i in 1:sz
-        mem[i] = f(i)
-    end
-    mem
+    mem = Vector{T}(undef, (N + W) & (-W))
+    addr = reinterpret(Int, pointer(mem))
+    reg_size = VectorizationBase.REGISTER_SIZE
+    off = (addr & (reg_size - 1)) >>> VectorizationBase.intlog2(sizeof(T))
+    off = W - off
+    view(mem, off + 1 : off + N)
 end
 
 # @generated function sub2ind(dims::NTuple{N}, I::NTuple{N}) where {N}
