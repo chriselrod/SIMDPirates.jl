@@ -606,6 +606,15 @@ vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.Fast
 @vpromote vfmsub_fast 3
 @vpromote vfnmsub_fast 3
 
+@inline Base.:(+)(m::AbstractMask{W}, v::AbstractStructVec{W}) where {W} = vifelse(m, vadd(v, one(v)), v)
+@inline Base.:(+)(v::AbstractStructVec{W}, m::AbstractMask{W}) where {W} = vifelse(m, vadd(v, one(v)), v)
+@inline vadd(m::AbstractMask{W}, v::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(v, one(v)), v)
+@inline vadd(v::AbstractSIMDVector{W}, m::AbstractMask{W}) where {W} = vifelse(m, vadd(v, one(v)), v)
+@inline Base.:(-)(m::AbstractMask{W}, v::AbstractStructVec{W}) where {W} = vsub(vifelse(m, one(v), zero(v)), v)
+@inline Base.:(-)(v::AbstractStructVec{W}, m::AbstractMask{W}) where {W} = vifelse(m, vsub(v, one(v)), v)
+@inline vsub(m::AbstractMask{W}, v::AbstractSIMDVector{W}) where {W} = vsub(vifelse(m, one(v), zero(v)), v)
+@inline vsub(v::AbstractSIMDVector{W}, m::AbstractMask{W}) where {W} = vifelse(m, vsub(v, one(v)), v)
+
 # Lowers to same split mul-add llvm as the 
 # @inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
 # definition, so I wont bother implementing

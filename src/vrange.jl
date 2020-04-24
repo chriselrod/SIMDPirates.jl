@@ -103,6 +103,10 @@ end
 
 
 
+@inline Base.:(-)(i::Integer, j::_MM{W}) where {W} = i - svrange(j)
+@inline Base.:(-)(::Static{i}, j::_MM{W}) where {W,i} = i - svrange(j)
+@inline Base.:(-)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) - svrange(j)
+@inline Base.:(-)(i::_MM{W}) where {W} = -svrange(i)
 
 
 
