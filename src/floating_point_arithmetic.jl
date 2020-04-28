@@ -313,109 +313,103 @@ end
 
 @static if Base.libllvm_version >= v"9"
     @generated function vsum(v::Vec{W,T}) where {W,T<:FloatingTypes}
-        decls = String[]
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(W)f$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
         push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
             Base.llvmcall(
-                $((join(decls, "\n"), join(instrs, "\n"))),
+                $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
     @generated function vprod(v::Vec{W,T}) where {W,T<:FloatingTypes}
-        decls = String[]
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(W)f$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
         push!(instrs, "%res = call fast $typ $ins($typ 1.0, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
             Base.llvmcall(
-                $((join(decls, "\n"), join(instrs, "\n"))),
+                $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
     @generated function reduced_add(v::Vec{W,T}, s::T) where {W,T<:FloatingTypes}
-        decls = String[]
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(W)f$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
         push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
             Base.llvmcall(
-                $((join(decls, "\n"), join(instrs, "\n"))),
+                $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T},$T}, v, s
             )
         end
     end
     @generated function reduced_prod(v::Vec{W,T}, s::T) where {W,T<:FloatingTypes}
-        decls = String[]
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(W)f$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(typ), $(vtyp))")
+        decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
         push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
             Base.llvmcall(
-                $((join(decls, "\n"), join(instrs, "\n"))),
+                $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T},$T}, v, s
             )
         end
     end
     @generated function vsum(v::Vec{W,T}) where {W,T<:IntegerTypes}
-        decls = String[]
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.add.v$(W)i$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(vtyp))")
+        decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
             Base.llvmcall(
-                $((join(decls, "\n"), join(instrs, "\n"))),
+                $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
         end
     end
     @generated function vprod(v::Vec{W,T}) where {W,T<:IntegerTypes}
-        decls = String[]
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.mul.v$(W)i$(bits)"
-        push!(decls, "declare $(typ) $(ins)($(vtyp))")
+        decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
             Base.llvmcall(
-                $((join(decls, "\n"), join(instrs, "\n"))),
+                $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
         end
@@ -526,12 +520,12 @@ end
     vtyp = "<$W x $typ>"
     # ins = "@llvm.fma.v$(W)f$(8*sizeof(T))"
     ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
-    decls = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
+    decl = "declare $vtyp $ins($vtyp, $vtyp, $vtyp)"
     instrs = "%res = call $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((decls,instrs)),
+            $((decl,instrs)),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}},
             v1, v2, v3
         )
@@ -891,4 +885,79 @@ end
 end
 Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
 # @inline literal_power(x, ::Val{P}) = Base.literal_pow(Base.^, x, Val{P}())
+
+
+# These don't work yet.
+# @static if Base.libllvm_version ≥ v"10.0.0"
+#     @generated function vcolumnwiseload(ptr::Ptr{T}, stride::Integer, ::Val{M}, ::Val{N}) where {T,M,N}
+#         typ = llvmtype(T)
+#         W = M * N
+#         vtyp = "<$W x $typ>"
+#         ptyp = "i$(8sizeof(Int))"
+#         # suffix = 'r' * M * 'c' * N * typ
+#         suffix = "v$(W)$(T <: Integer ? 'i' : 'f')$(8sizeof(T))"
+#         instr = "@llvm.matrix.columnwise.load.$suffix"
+#         decl = "declare $vtyp $instr($vtyp*, i32, i32, i32)"
+#         instrs = String[]
+#         push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
+#         push!(instrs, "%res = call $vtyp $instr($vtyp* %ptr, i32 %1, i32 $M, i32 $N)")
+#         push!(instrs, "ret $vtyp %res")
+#         quote
+#             $(Expr(:meta,:inline))
+#             Base.llvmcall(
+#                 $((decl, join(instrs, "\n"))),
+#                 Vec{$W, $T}, Tuple{Ptr{$T}, UInt32},
+#                 ptr, stride % UInt32
+#             )
+#         end
+#     end
+#     @generated function vcolumnwisestore!(ptr::Ptr{T}, v::Vec{W,T}, stride::Integer, ::Val{M}, ::Val{N}) where {W,T,M,N}
+#         typ = llvmtype(T)
+#         W = M * N
+#         vtyp = "<$W x $typ>"
+#         ptyp = "i$(8sizeof(Int))"
+#         # suffix = 'r' * M * 'c' * N * typ
+#         suffix = "v$(W)$(T <: Integer ? 'i' : 'f')$(8sizeof(T))"
+#         instr = "@llvm.matrix.columnwise.store.$suffix"
+#         decl = "declare void $instr($vtyp, $typ*, i32, i32, i32)"
+#         instrs = String[]
+#         push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
+#         push!(instrs, "%res = call void $instr($vtyp %1, $vtyp* %ptr, i32 %2, i32 $M, i32 $N)")
+#         push!(instrs, "ret void")
+#         quote
+#             $(Expr(:meta,:inline))
+#             Base.llvmcall(
+#                 $((decl, join(instrs, "\n"))),
+#                 Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, UInt32},
+#                 ptr, v, stride % UInt32
+#             )
+#         end
+#     end
+#     @generated function vmatmul(vA::Vec{WA,T}, vB::Vec{WB,T}, ::Val{M}, ::Val{K}, ::Val{N}) where {WA, WB, M, K, N, T}
+#         typ = llvmtype(T)
+#         WC = M * N
+#         vtypA = "<$WA x $typ>"
+#         vtypB = "<$WB x $typ>"
+#         vtypC = "<$WC x $typ>"
+#         sufftyp = "$(T <: Integer ? 'i' : 'f')$(8sizeof(T))"
+#         suffix = "v$(WC)$(sufftyp).v$(WA)$(sufftyp).v$(WB)$(sufftyp)"
+#         instr = "@llvm.matrix.multiply.$suffix"
+#         decl = "declare $vtypC $instr($vtypA, $vtypB, i32, i32, i32)"
+#         instrs = String[]
+#         push!(instrs, "%res = call $vtypC $instr($vtypA %0, $vtypB %1, i32 $M, i32 $N, i32 $K)")
+#         push!(instrs, "ret $vtypC %res")
+#         quote
+#             $(Expr(:meta, :inline))
+#             Base.llvmcall(
+#                 $((decl, join(instrs, "\n"))),
+#                 Vec{$WC,$T}, Tuple{Vec{$WA,$T}, Vec{$WB,$T}},
+#                 vA, vB
+#             )
+#         end
+#     end
+        
+    
+# # else
+# end
+
 

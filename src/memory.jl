@@ -21,7 +21,6 @@ This is very likely not what someone writing the above intended, but I do not ye
 @generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
     typ = llvmtype(T)
     ptyp = JuliaPointerType
-    decls = String[]
     instrs = String[]
     push!(instrs, "%ptr = alloca $typ, i32 $N, align $Align")
     push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
@@ -31,7 +30,7 @@ This is very likely not what someone writing the above intended, but I do not ye
     quote
         $(Expr(:meta,:inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $(join(instrs, "\n")),
             Ptr{$T}, Tuple{}
         )
     end
@@ -39,7 +38,6 @@ end
 @generated function alloca(N::Int32, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
     typ = llvmtype(T)
     ptyp = JuliaPointerType
-    decls = String[]
     instrs = String[]
     push!(instrs, "%ptr = alloca $typ, i32 %0, align $Align")
     push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
@@ -49,7 +47,7 @@ end
     quote
         $(Expr(:meta,:inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $(join(instrs, "\n")),
             Ptr{$T}, Tuple{Int32}, N
         )
     end
@@ -109,7 +107,11 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
+    decl = """
+    !1 = !{!\"noaliasdomain\"}
+    !2 = !{!\"noaliasscope\", !1}
+    !3 = !{!2}
+    """
     # decls = String[]
     instrs = String[]
     if Aligned
@@ -126,7 +128,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Base.llvmcall($((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}}, ptr)
     end
 end
@@ -137,8 +139,11 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
-    # decls = String[]
+    decl = """
+    !1 = !{!\"noaliasdomain\"}
+    !2 = !{!\"noaliasscope\", !1}
+    !3 = !{!2}
+    """
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -156,7 +161,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        SVec(Base.llvmcall($((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, i.i))
     end
 end
@@ -299,7 +304,6 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decls = String[]
     instrs = String[]
     if Aligned# || Nontemporal
         align = Base.datatype_alignment(Vec{W,T})
@@ -315,7 +319,7 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $(join(instrs, "\n")),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}}, ptr, v
         )
     end
@@ -328,7 +332,6 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decls = String[]
     instrs = String[]
     if Aligned# || Nontemporal
         align = Base.datatype_alignment(Vec{W,T})
@@ -346,7 +349,7 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $(join(instrs, "\n")),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I}, ptr, v, i
         )
     end
@@ -361,7 +364,6 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -375,16 +377,14 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    push!(decls,
-        "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
-    )
+    decl = "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     push!(instrs,
         "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask)"
     )
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Base.llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $U},
             ptr, v, mask)
     end
@@ -399,7 +399,6 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -415,16 +414,14 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    push!(decls,
-        "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
-    )
+    decl = "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     push!(instrs,
         "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask)"
     )
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Base.llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I, $U},
             ptr, v, i, mask)
     end
@@ -594,7 +591,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     vptrtyp = "<$W x $typ*>"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -603,13 +599,13 @@ end
     end
     mask = join((", i1 true" for i ∈ 2:W))
     push!(instrs, "%ptr = inttoptr $vptyp %0 to $vptrtyp")
-    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)")
+    decl = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>, $vtyp undef)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}}, ptr
         )
     end
@@ -627,7 +623,6 @@ end
     vptrtyp = "<$W x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -641,13 +636,13 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)")
+    decls = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer)")#undef)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}, $U}, ptr, mask
         )
     end
@@ -661,7 +656,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     vptrtyp = "<$W x $typ*>"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -673,13 +667,13 @@ end
     push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
     push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
     mask = join((", i1 true" for i ∈ 2:W))
-    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)")
+    decl = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>, $vtyp undef)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T},Vec{$W,$I}}, ptr, i
         )
     end
@@ -702,7 +696,6 @@ end
     vptrtyp = "<$W x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -719,13 +712,13 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    push!(decls, "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)")
+    decl = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer)")#undef)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T},Vec{$W,$I},$U}, ptr, i, mask
         )
     end
@@ -739,7 +732,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     vptrtyp = "<$W x $typ*>"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -750,12 +742,12 @@ end
     mask = join((", i1 true" for i ∈ 2:W))
     # push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
-    push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)")
+    decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
     push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Base.llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}}, v, ptr)
     end
 end
@@ -771,7 +763,6 @@ end
     vptrtyp = "<$W x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -789,13 +780,13 @@ end
         # "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs,
         # "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> %mask)")
-    push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)")
+    decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
     push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> %mask)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}, $U}, v, ptr, mask
         )
     end
@@ -809,7 +800,6 @@ end
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     vptrtyp = "<$W x $typ*>"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -823,12 +813,12 @@ end
     mask = join((", i1 true" for i ∈ 2:W))
     # push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
-    push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)")
+    decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
     push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Base.llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i)
     end
 end
@@ -844,7 +834,6 @@ end
     vptrtyp = "<$W x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -865,13 +854,13 @@ end
         # "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs,
         # "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> %mask)")
-    push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)")
+    decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
     push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$W x i1> %mask)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}, $U}, ptr, v, i, mask
         )
     end
@@ -890,7 +879,7 @@ end
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType
-    decls = "declare void @llvm.lifetime.start(i64, i8* nocapture)"
+    decl = "declare void @llvm.lifetime.start(i64, i8* nocapture)"
     instrs = [
         "%ptr = inttoptr $ptyp %0 to i8*",
         "call void @llvm.lifetime.start(i64 $(L*sizeof(T)), i8* %ptr)",
@@ -899,14 +888,14 @@ end
     quote
         $(Expr(:meta,:inline))
         Base.llvmcall(
-            $((decls, join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}}, ptr
         )
     end
 end
 @generated function lifetime_end!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType
-    decls = "declare void @llvm.lifetime.end(i64, i8* nocapture)"
+    decl = "declare void @llvm.lifetime.end(i64, i8* nocapture)"
     instrs = [
         "%ptr = inttoptr $ptyp %0 to i8*",
         "call void @llvm.lifetime.end(i64 $(L*sizeof(T)), i8* %ptr)",
@@ -915,7 +904,7 @@ end
     quote
         $(Expr(:meta,:inline))
         Base.llvmcall(
-            $((decls, join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}}, ptr
         )
     end
@@ -953,7 +942,6 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     push!(instrs, "%ptr = inttoptr $ptyp %1 to $typ*")
     if mtyp_input == mtyp_trunc
@@ -962,13 +950,13 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    push!(decls, "declare void @llvm.masked.compressstore.$(suffix(W,T))($vtyp, $typ*, <$W x i1>)")
+    decl = "declare void @llvm.masked.compressstore.$(suffix(W,T))($vtyp, $typ*, <$W x i1>)"
     push!(instrs, "call void @llvm.masked.compressstore.$(suffix(W,T))($vtyp %0, $typ* %ptr, <$W x i1> %mask)")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Ptr{$T}, $U}, v, ptr, mask
         )
     end    
@@ -985,7 +973,6 @@ end
     vptrtyp = "<$W x $typ*>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String[]
     instrs = String[]
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $typ*")
     if mtyp_input == mtyp_trunc
@@ -994,13 +981,13 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    push!(decls, "declare $vtyp @llvm.masked.expandload.$(suffix(W,T))($typ*, <$W x i1>, $vtyp)")
+    decl = "declare $vtyp @llvm.masked.expandload.$(suffix(W,T))($typ*, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.expandload.$(suffix(W,T))($typ* %ptr, <$W x i1> %mask, $vtyp zeroinitializer)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
+            $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask
         )
     end
