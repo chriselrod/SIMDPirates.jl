@@ -77,6 +77,7 @@ end
 
 @inline vrange(i::_MM{W}) where {W} = vrangeincr(Val{W}(), i.i, Val{0}())
 @inline svrange(i::_MM{W}) where {W} = SVec(vrangeincr(Val{W}(), i.i, Val{0}()))
+@inline Base.:(+)(i::_MM{W}, j::_MM{W}) where {W} = SVec(vadd(vrange(i), vrange(j)))
 @inline Base.:(+)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vadd(vrange(i), j)
 @inline Base.:(+)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vadd(i, vrange(j))
 @inline Base.:(*)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vmul(vrange(i), j)
