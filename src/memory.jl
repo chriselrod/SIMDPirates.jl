@@ -157,12 +157,14 @@ end
     push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
     push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ptyp %1")
     push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    # push!(instrs, "%offsetptr = add nsw nuw $ptyp %0, %1") # uncommenting requires *8n
+    # push!(instrs, "%ptr = inttoptr $ptyp %offsetptr to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         SVec(Base.llvmcall($((decl, join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, i.i))
+            Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, (i.i % Int)))
     end
 end
 @generated function vload(
@@ -1247,7 +1249,7 @@ end
 
 @generated function vload(ptr::Ptr{Bool}, i::_MM{W,I}) where {W,I<:Integer}
     U = VectorizationBase.mask_type(W)
-    utype = "i$(VectorizationBase.nextpow2(W))"
+    utype = "i$(8sizeof(U))"
     itype = "i$(8sizeof(I))"
     ptyp = "i$(8sizeof(Int))"
     instrs = String[]
