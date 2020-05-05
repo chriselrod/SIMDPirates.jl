@@ -9,3 +9,6 @@ for pkg ∈ pkgs
 end
 
 
+sx = SVec(Core.VecElement.((-1,0,1,2)))
+@test sign(sx) === SVec(Core.VecElement.((-1,0,1,1)))
+

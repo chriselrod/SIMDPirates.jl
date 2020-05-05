@@ -27,7 +27,7 @@ end
     vifelse(
         extract_data(v1) == vbroadcast(Vec{W,T}, zero(T)),
         vbroadcast(Vec{W,T}, zero(T)),
-        copysign(vbroadcast(Vec{W,T}, one(T)), extract_data(v1))
+        vcopysign(vbroadcast(Vec{W,T}, one(T)), extract_data(v1))
     )
 end
 # @inline function vsign(v1::SVec{W,T}) where {W,T<:FloatingTypes}
