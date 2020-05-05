@@ -25,7 +25,7 @@ end
 @inline vsign(s1::FloatingTypes) = sign(s1)
 @vectordef vsign function Base.sign(v1) where {W,T<:FloatingTypes}
     vifelse(
-        extract_data(v1) == vbroadcast(Vec{W,T}, zero(T)),
+        visequal(extract_data(v1), vbroadcast(Vec{W,T}, zero(T))),
         vbroadcast(Vec{W,T}, zero(T)),
         vcopysign(vbroadcast(Vec{W,T}, one(T)), extract_data(v1))
     )
