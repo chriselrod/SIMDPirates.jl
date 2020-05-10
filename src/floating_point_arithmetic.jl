@@ -414,6 +414,42 @@ end
             )
         end
     end
+    @generated function vmaximum(v::Vec{W,T}) where {W,T<:Integer}
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$W x $typ>"
+        bits = 8sizeof(T)
+        f = T <: Signed ? "smax" : "umax"
+        ins = "@llvm.experimental.vector.reduce.$f.v$(W)i$(bits)"
+        decl = "declare $(typ) $(ins)($(vtyp))"
+        push!(instrs, "%res = call $typ $ins($vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((decl, join(instrs, "\n"))),
+                $T, Tuple{Vec{$W,$T}}, v
+            )
+        end
+    end
+    @generated function vminimum(v::Vec{W,T}) where {W,T<:Integer}
+        instrs = String[]
+        typ = llvmtype(T)
+        vtyp = "<$W x $typ>"
+        bits = 8sizeof(T)
+        f = T <: Signed ? "smin" : "smax"
+        ins = "@llvm.experimental.vector.reduce.$f.v$(W)i$(bits)"
+        decl = "declare $(typ) $(ins)($(vtyp))"
+        push!(instrs, "%res = call $typ $ins($vtyp %0)")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((decl, join(instrs, "\n"))),
+                $T, Tuple{Vec{$W,$T}}, v
+            )
+        end
+    end
     @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -455,53 +491,15 @@ for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
     end
 end
 
-# @inline vall(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:&}, v)
-# @inline vany(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:|}, v)
+# @inline vall(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:&}(), v)
+# @inline vany(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:|}(), v)
 # @inline vmaximum(v::Vec{W,T}) where {W,T<:FloatingTypes} =
-#     llvmwrapreduce(Val{:max}, v)
+#     llvmwrapreduce(Val{:max}(), v)
 # @inline vminimum(v::Vec{W,T}) where {W,T<:FloatingTypes} =
-#     llvmwrapreduce(Val{:min}, v)
-# @inline vprod(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:*}, v)
-# @inline vsum(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:+}, v)
+#     llvmwrapreduce(Val{:min}(), v)
+# @inline vprod(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:*}(), v)
+# @inline vsum(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:+}(), v)
 
-@generated function vreduce(::Val{Op}, v::Vec{W,T}) where {Op,W,T}
-    @assert isa(Op, Symbol)
-    z = getneutral(Op, T)
-    stmts = String[]
-    n = W
-    push!(stmts, :($(Symbol(:v,n)) = v))
-    nold,n = n,nextpow2(n)
-    if n > nold
-        push!(stmts,
-            :($(Symbol(:v,n)) = $(Expr(:tuple,
-                [:($(Symbol(:v,nold))[$i]) for i in 1:nold]...,
-                [:(VE($z)) for i in nold+1:n]...))))
-    end
-    while n > 1
-        nold,n = n, div(n, 2)
-        push!(stmts,
-            :($(Symbol(:v,n,"lo")) = $(Expr(:tuple,
-                [:($(Symbol(:v,nold))[$i]) for i in 1:n]...,))))
-        push!(stmts,
-            :($(Symbol(:v,n,"hi")) = $(Expr(:tuple,
-                [:($(Symbol(:v,nold))[$i]) for i in n+1:nold]...))))
-        push!(stmts,
-            :($(Symbol(:v,n)) =
-                $Op($(Symbol(:v,n,"lo")), $(Symbol(:v,n,"hi")))))
-    end
-    push!(stmts, :(v1[1].value))
-    Expr(:block, Expr(:meta, :inline), stmts...)
-end
-
-@vectordef vmaximum function Base.maximum(v) where {W,T<:IntegerTypes}
-    vreduce(Val{:max}, extract_data(v))
-end
-@vectordef vminimum function Base.minimum(v) where {W,T<:IntegerTypes}
-    vreduce(Val{:min}, extract_data(v))
-end
-
-# @inline vmaximum(v::Vec{W,T}) where {W,T<:IntegerTypes} = vreduce(Val{:max}, v)
-# @inline vminimum(v::Vec{W,T}) where {W,T<:IntegerTypes} = vreduce(Val{:min}, v)
 
 # TODO: Handle cases with vectors of different lengths correctly!
 @inline vmul(x::Number, y::Number) = Base.FastMath.mul_fast(x, y)
