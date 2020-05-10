@@ -68,8 +68,8 @@ end
     SVec{W}(vsignbit(extract_data(v1)))
 end
 
-@inline vifelse(c::Bool, x, y) = c ? x : y
-# @inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
+# @inline vifelse(c::Bool, x, y) = c ? x : y
+@inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
 @generated function vifelse(v1::Vec{W,Bool}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T}
     btyp = llvmtype(Bool)
     vbtyp = "<$W x $btyp>"
