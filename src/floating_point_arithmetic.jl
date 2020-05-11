@@ -372,13 +372,13 @@ end
             )
         end
     end
-    @generated function vmaximum(v::Vec{W,T}) where {W,T<:Integer}
+    @generated function vmaximum(v::Vec{W,T}) where {W,T<:ScalarTypes}
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        f = T <: Signed ? "smax" : "umax"
-        ins = "@llvm.experimental.vector.reduce.$f.v$(W)i$(bits)"
+        prefix = T <: FloatingTypes ? 'f' : (T <: Signed ? 's' : 'u')
+        ins = "@llvm.experimental.vector.reduce.$(prefix)max.v$(W)i$(bits)"
         decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -395,8 +395,8 @@ end
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        f = T <: Signed ? "smin" : "smax"
-        ins = "@llvm.experimental.vector.reduce.$f.v$(W)i$(bits)"
+        prefix = T <: FloatingTypes ? 'f' : (T <: Signed ? 's' : 'u')
+        ins = "@llvm.experimental.vector.reduce.$(prefix)min.v$(W)i$(bits)"
         decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
