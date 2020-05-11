@@ -10,11 +10,17 @@ for pkg ∈ pkgs
 end
 
 
-sx = SVec(Core.VecElement.((-1,0,1,2)))
-@test sign(sx) === SVec(Core.VecElement.((-1,0,1,1)))
-@test sum(sx) == 2
-@test prod(sx) == 0
-@test maximum(sx) == 2
-@test minimum(sx) == -1
+sxi = SVec(Core.VecElement.((-1,0,1,2)))
+@test sign(sxi) === SVec(Core.VecElement.((-1,0,1,1)))
+@test sum(sxi) == 2
+@test prod(sxi) == 0
+@test maximum(sxi) == 2
+@test minimum(sxi) == -1
+@test SIMDPirates.addscalar(sxi, 2) === SVec(Core.VecElement.((1,0,1,2)))
+@test SIMDPirates.mulscalar(sxi, 2) === SVec(Core.VecElement.((-2,0,1,2)))
+@test SIMDPirates.maxscalar(sxi, 2) === SVec(Core.VecElement.((2,0,1,2)))
+@test SIMDPirates.maxscalar(sxi, -2) === SVec(Core.VecElement.((-1,0,1,2)))
+@test SIMDPirates.minscalar(sxi, 2) === SVec(Core.VecElement.((-1,0,1,2)))
+@test SIMDPirates.minscalar(sxi, -2) === SVec(Core.VecElement.((-2,0,1,2)))
 
 

@@ -834,8 +834,8 @@ end
         Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
-@inline addscalar(v::SVec, s) = addscalar(extract_data(v), s)
-@inline addscalar(s::T, v::Union{Vec{W,T},SVec{W,T}}) where {W,T} = addscalar(v, s)
+@inline addscalar(v::SVec, s) = SVec(addscalar(extract_data(v), s))
+@inline addscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = addscalar(v, s)
 @inline addscalar(a, b) = vadd(a, b)
 
 @generated function mulscalar(v::Vec{W,T}, s::T) where {W, T <: Integer}
@@ -862,9 +862,57 @@ end
         Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
-@inline mulscalar(v::SVec, s) = mulscalar(extract_data(v), s)
-@inline mulscalar(s::T, v::Union{Vec{W,T},SVec{W,T}}) where {W,T} = mulscalar(v, s)
+@inline mulscalar(v::SVec, s) = SVec(mulscalar(extract_data(v), s))
+@inline mulscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = mulscalar(v, s)
 @inline mulscalar(a, b) = vmul(a, b)
+
+
+function scalar_maxmin(W, ::Type{T}, ismax) where {T}
+    comp = if T <: Signed
+        LLVM_INS_Int[ismax ? :(>) : :(<)]
+    elseif T <: Unsigned
+        LLVM_INS_UInt[ismax ? :(>) : :(<)]
+    elseif ismax
+        "fcmp ogt"
+    else
+        "fcmp olt"
+    end
+    basevalue = if T <: Integer
+        minmaxzero = ifelse(ismax, typemin(T), typemax(T))
+        llvmconst(W, T, minmaxzero)
+    else
+        llvmconst(W, T, repr(reinterpret(UInt64, ifelse(ismax, -Inf, Inf))))
+    end
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    instrs = String[]
+    push!(instrs, "%ie = insertelement $vtyp $(basevalue), $typ %1, i32 0")
+    push!(instrs, "%selection = $comp $vtyp %0, %ie")
+    push!(instrs, "%v = select <$W x i1> %selection, $vtyp %0, $vtyp %ie")
+    push!(instrs, "ret $vtyp %v")
+    instrs
+end
+@generated function maxscalar(v::Vec{W,T}, s::T) where {W, T}
+    instrs = scalar_maxmin(W, T, true)
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+    end
+end
+@generated function minscalar(v::Vec{W,T}, s::T) where {W, T}
+    instrs = scalar_maxmin(W, T, false)
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+    end
+end
+@inline maxscalar(v::SVec, s) = SVec(maxscalar(extract_data(v), s))
+@inline maxscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = maxscalar(v, s)
+@inline maxscalar(a, b) = vmax(a, b)
+@inline minscalar(v::SVec, s) = SVec(minscalar(extract_data(v), s))
+@inline minscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = minscalar(v, s)
+@inline minscalar(a, b) = vmin(a, b)
+
 
 @inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{-2}) = (xi = vinv(x); vmul(xi, xi))
 @inline Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{-1}) = vinv(x)

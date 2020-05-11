@@ -41,7 +41,7 @@ function llvmconst(::Type{Bool}, val)
     "$typ $(Int(val))"
 end
 function llvmconst(N::Integer, T, val)
-    iszero(val) && return "zeroinitializer"
+    isa(val, Number) && iszero(val) && return "zeroinitializer"
     typ = llvmtype(T)
     "<" * join(["$typ $val" for i in 1:N], ", ") * ">"
 end
