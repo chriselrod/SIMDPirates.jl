@@ -424,6 +424,39 @@ else
 end
 @static if Base.libllvm_version >= v"8"
     
+    @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
+        typ = llvmtype(T)
+        vtyp = "<$W x $typ>"
+        instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
+        end
+    end
+    @inline Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+    @inline vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+else
+    let rename = VECTOR_SYMBOLS[:-]
+        @eval begin
+            @vectordef $rename function Base.:(-)(v1) where {W,T<:FloatingTypes}
+                llvmwrap(Val{:(-)}(), extract_data(v1))
+            end
+        end
+    end
+
+    for (name, rename, op) ∈ [(:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
+                                    (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min)]
+                              
+        @eval begin
+            @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        end
+    end
+
+
+end
+@inline vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
+
+@static if Base.libllvm_version >= v"6"
     @generated function vmaximum(v::Vec{W,T}) where {W,T<:ScalarTypes}
         instrs = String[]
         typ = llvmtype(T)
@@ -460,38 +493,7 @@ end
             )
         end
     end
-    @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
-        typ = llvmtype(T)
-        vtyp = "<$W x $typ>"
-        instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
-        quote
-            $(Expr(:meta, :inline))
-            Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
-        end
-    end
-    @inline Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
-    @inline vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
-else
-    let rename = VECTOR_SYMBOLS[:-]
-        @eval begin
-            @vectordef $rename function Base.:(-)(v1) where {W,T<:FloatingTypes}
-                llvmwrap(Val{:(-)}(), extract_data(v1))
-            end
-        end
-    end
-
-    for (name, rename, op) ∈ [(:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
-                                    (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min)]
-                              
-        @eval begin
-            @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
-        end
-    end
-
-
 end
-@inline vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
-
 for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
                           (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
