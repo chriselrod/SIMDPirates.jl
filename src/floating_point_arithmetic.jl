@@ -268,48 +268,6 @@ function getneutral(op::Symbol, ::Type{T}) where {T}
     throw("Op $op not recognized.")
 end
 
-# We cannot pass in the neutral element via Val{}; if we try, Julia refuses to
-# inline this function, which is then disastrous for performance
-@generated function llvmwrapreduce(::Val{Op}, v::Vec{W,T}) where {Op,W,T}
-    @assert isa(Op, Symbol)
-    z = getneutral(Op, T)
-    typ = llvmtype(T)
-    decls = String[]
-    instrs = String[]
-    n = W
-    nam = "%0"
-    nold,n = n, VectorizationBase.nextpow2(n)
-    if n > nold
-        namold,nam = nam,"%vec_$n"
-        append!(instrs,
-            extendvector(namold, nold, typ, n, n-nold,
-                llvmtypedconst(T,z), nam))
-    end
-    while n > 1
-        nold,n = n, div(n, 2)
-        namold,nam = nam,"%vec_$n"
-        vtyp = "<$n x $typ>"
-        ins = llvmins(Op, n, T)
-        append!(instrs, subvector(namold, nold, typ, "$(nam)_1", n, 0))
-        append!(instrs, subvector(namold, nold, typ, "$(nam)_2", n, n))
-        if ins[1] == '@'
-            push!(decls, "declare $vtyp $ins($vtyp, $vtyp)")
-            push!(instrs,
-                "$nam = call $vtyp $ins($vtyp $(nam)_1, $vtyp $(nam)_2)")
-        else
-            push!(instrs, "$nam = $ins $vtyp $(nam)_1, $(nam)_2")
-        end
-    end
-    push!(instrs, "%res = extractelement <$n x $typ> $nam, i32 0")
-    push!(instrs, "ret $typ %res")
-    quote
-        $(Expr(:meta, :inline))
-        Base.llvmcall(
-            $((join(decls, "\n"), join(instrs, "\n"))),
-            $T, Tuple{Vec{$W,$T}}, v
-        )
-    end
-end
 
 @static if Base.libllvm_version >= v"9"
     @generated function vsum(v::Vec{W,T}) where {W,T<:FloatingTypes}
@@ -459,8 +417,8 @@ end
             Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
         end
     end
-    Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
-    vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+    @inline Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+    @inline vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
 else
     # @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
     #     typ = llvmtype(T)
@@ -479,15 +437,69 @@ else
             llvmwrap(Val{:(-)}(), extract_data(v1))
         end
     end
+
+    @generated function llvmwrapreduce(::Val{Op}, v::Vec{W,T}) where {Op,W,T}
+        @assert isa(Op, Symbol)
+        z = getneutral(Op, T)
+        typ = llvmtype(T)
+        decls = String[]
+        instrs = String[]
+        n = W
+        nam = "%0"
+        nold,n = n, VectorizationBase.nextpow2(n)
+        if n > nold
+            namold,nam = nam,"%vec_$n"
+            append!(instrs,
+                    extendvector(namold, nold, typ, n, n-nold,
+                                 llvmtypedconst(T,z), nam))
+        end
+        while n > 1
+            nold,n = n, div(n, 2)
+            namold,nam = nam,"%vec_$n"
+            vtyp = "<$n x $typ>"
+            ins = llvmins(Op, n, T)
+            append!(instrs, subvector(namold, nold, typ, "$(nam)_1", n, 0))
+            append!(instrs, subvector(namold, nold, typ, "$(nam)_2", n, n))
+            if ins[1] == '@'
+                push!(decls, "declare $vtyp $ins($vtyp, $vtyp)")
+                push!(instrs,
+                      "$nam = call $vtyp $ins($vtyp $(nam)_1, $vtyp $(nam)_2)")
+            else
+                push!(instrs, "$nam = $ins $vtyp $(nam)_1, $(nam)_2")
+            end
+        end
+        push!(instrs, "%res = extractelement <$n x $typ> $nam, i32 0")
+        push!(instrs, "ret $typ %res")
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall(
+                $((join(decls, "\n"), join(instrs, "\n"))),
+                $T, Tuple{Vec{$W,$T}}, v
+            )
+        end
+    end
+
+    
+    for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
+                                    (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
+                                    (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
+        @eval begin
+            @inline $name(v::SVec{W,T}) where {W,T} = SVec($rename(extract_data(v)))
+        end
+    end
+
 end
-vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
+@inline vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
 
 for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
-                                    (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
+                          (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
+    
     @eval begin
-        @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
-        @inline $name(v::SVec{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        @inline $name(v::SVec{W,T}) where {W,T} = $rename(extract_data(v))
+        @inline $rename(v::SVec{W,T}) where {W,T} = $rename(extract_data(v))
+        # @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        # @inline $name(v::SVec{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
     end
 end
 
@@ -932,7 +944,7 @@ Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
 #         end
 #     end
 #     @generated function vmatmul(vA::Vec{WA,T}, vB::Vec{WB,T}, ::Val{M}, ::Val{K}, ::Val{N}) where {WA, WB, M, K, N, T}
-#         typ = llvmtype(T)
+#         typ = llvmtype(
 #         WC = M * N
 #         vtypA = "<$WA x $typ>"
 #         vtypB = "<$WB x $typ>"
