@@ -277,21 +277,15 @@ end
 @inline vrem(v::Vec{W,I}, ::Type{Vec{W,U}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(Vec{W,U}, v), Vec{W,U})
 @inline vrem(v::Vec{W,U}, ::Type{Vec{W,I}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(Vec{W,I}, v), Vec{W,I})
 
-# Doesn't seem to do anything, eg
-# assume(N < 10)
-# for n ∈ 1:10
-#
-# end
-# will still often be unrolled by factors greater than 10. =( 
-# @inline function assume(b::Bool)
-#     decls = "declare void @llvm.assume(i1 %cond)"
-#     instrs = """
-#     %b = trunc i8 %0 to i1
-#     call void @llvm.assume(i1 %b)
-#     ret void
-# """
-#     Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
-# end
+@inline function assume(b::Bool)
+    decls = "declare void @llvm.assume(i1 %cond)"
+    instrs = """
+    %b = trunc i8 %0 to i1
+    call void @llvm.assume(i1 %b)
+    ret void
+"""
+    Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
+end
 
 const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos))#, :inv, :muladd, :fma
 
