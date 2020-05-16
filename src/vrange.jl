@@ -10,7 +10,7 @@
     instrs = String[]
     push!(instrs, "%ie = insertelement $vtyp undef, $typ %0, i32 0")
     push!(instrs, "%v = shufflevector $vtyp %ie, $vtyp undef, <$W x i32> zeroinitializer")
-    push!(instrs, "%res = add $vtyp %v, <$rangevec>")
+    push!(instrs, "%res = add nsw $vtyp %v, <$rangevec>")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta,:inline))
@@ -46,7 +46,7 @@ end
     instrs = String[]
     push!(instrs, "%ie = insertelement $vtyp undef, $typ %0, i32 0")
     push!(instrs, "%v = shufflevector $vtyp %ie, $vtyp undef, <$W x i32> zeroinitializer")
-    push!(instrs, "%res = mul $vtyp %v, <$rangevec>")
+    push!(instrs, "%res = mul nsw $vtyp %v, <$rangevec>")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta,:inline))
@@ -82,6 +82,11 @@ end
 @inline Base.:(+)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vadd(i, vrange(j))
 @inline Base.:(*)(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vmul(vrange(i), j)
 @inline Base.:(*)(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vmul(i, vrange(j))
+@inline vadd(i::_MM{W}, j::_MM{W}) where {W} = SVec(vadd(vrange(i), vrange(j)))
+@inline vadd(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vadd(vrange(i), j)
+@inline vadd(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vadd(i, vrange(j))
+@inline vmul(i::_MM{W}, j::AbstractSIMDVector{W}) where {W} = vmul(vrange(i), j)
+@inline vmul(i::AbstractSIMDVector{W}, j::_MM{W}) where {W} = vmul(i, vrange(j))
 
 
 @inline vrange(::Val{W}) where {W} = vrange(Val{W}(), Float64)
@@ -98,6 +103,8 @@ end
 
 @inline Base.:(*)(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
 @inline Base.:(*)(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
+@inline vmul(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
+@inline vmul(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
 @inline vconvert(::Type{Vec{W,T}}, i::_MM{W}) where {W,T} = vrange(i, T)
 @inline vconvert(::Type{SVec{W,T}}, i::_MM{W}) where {W,T} = svrange(i, T)
 
@@ -108,6 +115,10 @@ end
 @inline Base.:(-)(::Static{i}, j::_MM{W}) where {W,i} = i - svrange(j)
 @inline Base.:(-)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) - svrange(j)
 @inline Base.:(-)(i::_MM{W}) where {W} = -svrange(i)
+@inline vsub(i::Integer, j::_MM{W}) where {W} = i - svrange(j)
+@inline vsub(::Static{i}, j::_MM{W}) where {W,i} = i - svrange(j)
+@inline vsub(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) - svrange(j)
+@inline vsub(i::_MM{W}) where {W} = -svrange(i)
 
 
 

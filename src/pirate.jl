@@ -44,7 +44,7 @@ function _pirate!(expr, mod)
     esc(expr)
 end
 
-macro pirate(ex) _pirate!(contract_pass!(ex, Expr(:(.), mod, QuoteNode(:SIMDPirates))), Symbol(__module__)) end
+macro pirate(ex) _pirate!(contract_pass!(Expr(:(.), mod, QuoteNode(:SIMDPirates))), Symbol(__module__)) end
 
 
 # struct vBitArray

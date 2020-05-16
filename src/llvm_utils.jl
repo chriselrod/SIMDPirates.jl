@@ -283,27 +283,18 @@ end
     %b = trunc i8 %0 to i1
     call void @llvm.assume(i1 %b)
     ret void
-"""
-    Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
-end
-# @inline function expect(b::Bool)
-#     decls = "declare i1 @llvm.expect.i1(i1, i1)"
-#     instrs = """
-#     %b = trunc i8 %0 to i1
-#     %actual = call i1 @llvm.expect.i1(i1 %b, i1 true)
-#     %byte = zext i1 %actual to i8
-#     ret %byte
-#     """
-#     Base.llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
-# end
-@inline function expect(b::Bool)
-    decls = "declare void @llvm.expect.i1(i1, i1)"
-    instrs = """
-    %b = trunc i8 %0 to i1
-    call void @llvm.expect.i1(i1 %b, i1 true)
-    ret void
     """
     Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
+end
+@inline function expect(b::Bool)
+    decls = "declare i1 @llvm.expect.i1(i1, i1)"
+    instrs = """
+    %b = trunc i8 %0 to i1
+    %actual = call i1 @llvm.expect.i1(i1 %b, i1 true)
+    %byte = zext i1 %actual to i8
+    ret i8 %byte
+    """
+    Base.llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
 end
 
 const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos))#, :inv, :muladd, :fma

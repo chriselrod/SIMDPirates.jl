@@ -229,20 +229,31 @@ end
     SVec{W,T}
 end
 # @inline promote_vtype(::Type{V}, ::Type{T}) where {W,T,V <: AbstractSIMDVector{W,T}} = V
+# @inline promote_type_vs(::Type{V}, ::Type{S}) where {V,S} = promote_type(V,S)
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V,S} = V # fallback
+# @inline promote_type_vs(::Type{V}, ::Type{V}) where {V} = V # 
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Signed,S<:Signed} = V
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Unsigned,S<:Signed} = V
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Signed,S<:Unsigned} = unsigned(V)
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Unsigned,S<:Unsigned} = V
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:FloatingTypes,S<:FloatingTypes} = V
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Unsigned,S<:FloatingTypes} = Base.uinttype(S)
+@inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Signed,S<:FloatingTypes} = signed(Base.uinttype(S))
+    
 @inline function promote_vtype(::Type{Vec{W,T1}}, ::Type{T2}) where {W,T1,T2<:Number}
-    T = promote_type(T1,T2)
+    T = promote_type_vs(T1,T2)
     Vec{W,T}
 end
 @inline function promote_vtype(::Type{SVec{W,T1}}, ::Type{T2}) where {W,T1,T2<:Number}
-    T = promote_type(T1,T2)
+    T = promote_type_vs(T1,T2)
     SVec{W,T}
 end
 @inline function promote_vtype(::Type{T2}, ::Type{Vec{W,T1}}) where {W,T1,T2<:Number}
-    T = promote_type(T1,T2)
+    T = promote_type_vs(T1,T2)
     Vec{W,T}
 end
 @inline function promote_vtype(::Type{T2}, ::Type{SVec{W,T1}}) where {W,T1,T2<:Number}
-    T = promote_type(T1,T2)
+    T = promote_type_vs(T1,T2)
     SVec{W,T}
 end
 @inline promote_vtype(::Type{<:_MM{W}}, ::Type{T}) where {W,T<:Number} = SVec{W,T}

@@ -4,7 +4,7 @@
 for op ∈ (:(~), :(+), :(-))
     rename = VECTOR_SYMBOLS[op]
     @eval begin
-        @inline $rename(s1::IntegerTypes) = $op($IntegerTypes)
+        @inline $rename(s1::IntegerTypes) = $op(s1)
         @vectordef $rename function Base.$op(v1) where {W,T<:IntegerTypes}
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1))
         end
@@ -157,7 +157,6 @@ end
         v3::SVec{W,T}) where {W,T<:IntegerTypes}
     SVec(vadd(vmul(extract_data(v1),extract_data(v2)),extract_data(v3)))
 end
-
 # TODO: Handle negative shift counts
 #       use vifelse
 #       ensure vifelse is efficient
@@ -219,7 +218,6 @@ end
 @inline evadd(v1,v2) = vadd(v1,v2)
 @inline evsub(v1,v2) = vsub(v1,v2)
 @inline evmul(v1,v2) = vmul(v1,v2)
-
 @generated function vpmaddwd(a::NTuple{W,Core.VecElement{Int16}}, b::NTuple{W,Core.VecElement{Int16}}) where {W}
     Wh = W >>> 1
     @assert 2Wh == W
