@@ -239,6 +239,7 @@ end
 @inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:FloatingTypes,S<:FloatingTypes} = V
 @inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Unsigned,S<:FloatingTypes} = Base.uinttype(S)
 @inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Signed,S<:FloatingTypes} = signed(Base.uinttype(S))
+@inline promote_type_vs(::Type{<:Integer}, ::Type{Ptr{T}}) where {T} = Ptr{T}
     
 @inline function promote_vtype(::Type{Vec{W,T1}}, ::Type{T2}) where {W,T1,T2<:Number}
     T = promote_type_vs(T1,T2)
