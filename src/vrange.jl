@@ -1,3 +1,6 @@
+@generated function vrange(::Val{W}, ::Type{T}) where {W,T}
+    Expr(:block, Expr(:meta, :inline), Expr(:call, :SVec, Expr(:tuple, [Expr(:call, :(Core.VecElement), T(w)) for w ∈ 0:W-1]...)))
+end
 @generated function vrangeincr(::Val{W}, i::I, ::Val{O}) where {W,I<:Integer,O}
     bytes = I === Int ? min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W)) : sizeof(I)
     # bytes = min(8, VectorizationBase.prevpow2(VectorizationBase.REGISTER_SIZE ÷ W))
