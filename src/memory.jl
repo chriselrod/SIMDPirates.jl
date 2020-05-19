@@ -154,9 +154,9 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!alias.scope !3")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ptyp %1")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp %1")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     # push!(instrs, "%offsetptr = add nsw nuw $ptyp %0, %1") # uncommenting requires *8n
     # push!(instrs, "%ptr = inttoptr $ptyp %offsetptr to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
@@ -221,9 +221,9 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ptyp %1")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp %1")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$W x i1>")
     else
@@ -343,9 +343,9 @@ end
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
@@ -407,9 +407,9 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
     else
@@ -448,9 +448,9 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!noalias !3")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
@@ -480,9 +480,9 @@ end
         align = sizeof(T)   # This is overly optimistic
     end
     # push!(flags, "!noalias !3")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
     else
@@ -666,8 +666,11 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %1")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    # push!(instrs, "%ptr = getelementptr inbounds i8, i8* %sptr, $vityp %1")
     mask = join((", i1 true" for i ∈ 2:W))
     decl = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>, $vtyp undef)")
@@ -706,8 +709,9 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %1")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$W x i1>")
     else
@@ -810,8 +814,11 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %2")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    # push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
     mask = join((", i1 true" for i ∈ 2:W))
     # push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
@@ -844,8 +851,11 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %2")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    # push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
     else
