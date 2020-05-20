@@ -23,7 +23,8 @@ for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=) )
     end
 end
 @inline visfinite(s::ScalarTypes) = isfinite(s)
-@inline function visfinite(v1::Vec{W,T}) where {W,T<:FloatingTypes}
+@inline function visfinite(v1::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+    W = _W + 1
     U = uint_type(T)
     em = vbroadcast(Vec{W,U}, exponent_mask(T))
     iv = vreinterpret(Vec{W,U}, v1)
@@ -33,17 +34,18 @@ end
 @inline Base.isfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
 
 @inline visinf(s1::ScalarTypes) = isinf(s1)
-@inline visinf(v1::Vec{W,T}) where {W,T<:FloatingTypes} = evisequal(vabs(v1), vbroadcast(Vec{W,T},Inf))
+@inline visinf(v1::_Vec{W,T}) where {W,T<:FloatingTypes} = evisequal(vabs(v1), vbroadcast(_Vec{W,T},typemax(T)))
 @inline visinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
 @inline Base.isinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
 
 @inline visnan(s1::ScalarTypes) = isnan(s1)
-@inline visnan(v1::Vec{W,T}) where {W,T<:FloatingTypes} = evnot_equal(v1, v1)
+@inline visnan(v1::_Vec{W,T}) where {W,T<:FloatingTypes} = evnot_equal(v1, v1)
 @inline visnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 @inline Base.isnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 
 @inline vissubnormal(s1::ScalarTypes) = issubnormal(s1)
-@inline function vissubnormal(v1::Vec{W,T}) where {W,T<:FloatingTypes}
+@inline function vissubnormal(v1::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+    W = _W + 1
     U = uint_type(T)
     em = vbroadcast(Vec{W,U}, exponent_mask(T))
     sm = vbroadcast(Vec{W,U}, significand_mask(T))
@@ -55,11 +57,11 @@ end
 
 
 @inline signbit(s1::ScalarTypes) = signbit(s1)
-@inline function vsignbit(v1::Vec{W,T}) where {W,T<:FloatingTypes}
+@inline function vsignbit(v1::_Vec{W,T}) where {W,T<:FloatingTypes}
     U = uint_type(T)
-    sm = vbroadcast(Vec{W,U}, sign_mask(T))
-    iv = vreinterpret(Vec{W,U}, v1)
-    vnot_equal(vand(iv, sm), vbroadcast(Vec{W,U}, 0))
+    sm = vbroadcast(_Vec{W,U}, sign_mask(T))
+    iv = vreinterpret(_Vec{W,U}, v1)
+    vnot_equal(vand(iv, sm), vbroadcast(_Vec{W,U}, 0))
 end
 @inline function vsignbit(v1::SVec{W,T}) where {W,T<:FloatingTypes}
     SVec{W}(vsignbit(extract_data(v1)))
@@ -70,7 +72,8 @@ end
 
 # @inline vifelse(c::Bool, x, y) = c ? x : y
 @inline vifelse(c::Bool, x, y) = ifelse(c, x, y)
-@generated function vifelse(v1::Vec{W,Bool}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T}
+@generated function vifelse(v1::_Vec{_W,Bool}, v2::_Vec{_W,T}, v3::_Vec{_W,T}) where {_W,T}
+    W = _W + 1
     btyp = llvmtype(Bool)
     vbtyp = "<$W x $btyp>"
     abtyp = "[$W x $btyp]"
@@ -95,7 +98,12 @@ end
     end
 end
 @inline function vifelse(
-    v1::AbstractSIMDVector{W,Bool}, v2::AbstractSIMDVector{W,T}, v3::AbstractSIMDVector{W,T}
+    v1::_Vec{W,Bool}, v2::AbstractSIMDVector{W}, v3::AbstractSIMDVector{W}
+) where {W}
+    vifelse(extract_data(v1), extract_data(v2), extract_data(v3))
+end
+@inline function vifelse(
+    v1::AbstractStructVec{W,Bool}, v2::AbstractStructVec{W,T}, v3::AbstractStructVec{W,T}
 ) where {W,T}
     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
 end
@@ -108,7 +116,8 @@ end
 #     SVec(vifelse(extract_data(v1), extract_data(v2), extract_data(v3)))
 # end
 
-@generated function vifelse(mask::U, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T,U<:Unsigned}
+@generated function vifelse(mask::U, v2::_Vec{_W,T}, v3::_Vec{_W,T}) where {_W,T,U<:Unsigned}
+    W = _W + 1
     @assert 8sizeof(U) >= W
     btyp = llvmtype(Bool)
     vbtyp = "<$W x $btyp>"
@@ -147,10 +156,10 @@ end
 @vpromote vifelse 3
 
 @inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = SVec(vifelse(U, extract_data(v2), extract_data(v3)))
-@inline vifelse(U::Unsigned, v2::Vec{W,T}, s::Union{T,Int}) where {W,T} = vifelse(U, v2, vbroadcast(Vec{W,T}, s))
-@inline vifelse(U::Unsigned, v2::AbstractSIMDVector{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
-@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
-@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractSIMDVector{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s), extract_data(v2)))
+@inline vifelse(U::Unsigned, v2::_Vec{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
+@inline vifelse(U::Unsigned, v2::AbstractStructVec{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
+@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::_Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
+@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s), extract_data(v2)))
 
 @inline function vifelse(f::F, m::AbstractMask{W}, vargs::Vararg{<:Any,N}) where {F<:Function,W,N}
     vifelse(m, f(vargs...), @inbounds(vargs[N]))

@@ -108,7 +108,6 @@ end
 @inline Base.:(*)(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
 @inline vmul(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
 @inline vmul(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
-@inline vconvert(::Type{Vec{W,T}}, i::_MM{W}) where {W,T} = vrange(i, T)
 @inline vconvert(::Type{SVec{W,T}}, i::_MM{W}) where {W,T} = svrange(i, T)
 
 
@@ -163,4 +162,14 @@ end
 @inline Base.:(*)(i::_MM, j::_MM) = SVec(vmul(vrange(i), vrange(j)))
 @inline vmul(i::_MM, j::_MM) = SVec(vmul(vrange(i), vrange(j)))
 
+
+using VectorizationBase: Static, Zero, One
+@inline vadd(::_MM{W,Zero}, v::AbstractSIMDVector{W,T}) where {W,T} = vadd(vrange(Val{W}(), T), v)
+@inline vadd(v::AbstractSIMDVector{W,T}, ::_MM{W,Zero}) where {W,T} = vadd(vrange(Val{W}(), T), v)
+@inline vadd(::_MM{W,Zero}, ::_MM{W,Zero}) where {W} = vrangemul(Val{W}(), 2, Val{0}())
+# @inline vmul(::_MM{W,Zero}, i) where {W} = svrangemul(Val{W}(), i, Val{0}())
+# @inline vmul(i, ::_MM{W,Zero}) where {W} = svrangemul(Val{W}(), i, Val{0}())
+
+@inline vmul(::_MM{W,Static{N}}, i) where {W,N} = svrangemul(Val{W}(), i, Val{N}())
+@inline vmul(i, ::_MM{W,Static{N}}) where {W,N} = svrangemul(Val{W}(), i, Val{N}())
 

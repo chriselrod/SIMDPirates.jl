@@ -101,8 +101,9 @@ end
 #     end
 # end
 @generated function vload(
-    ::Type{Vec{W,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,Aligned, Nontemporal}
+    ::Type{_Vec{_W,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
+) where {_W,T,Aligned, Nontemporal}
+    W = _W + 1
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -168,8 +169,9 @@ end
     end
 end
 @generated function vload(
-    ::Type{Vec{W,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
-) where {W,T,Aligned,U<:Unsigned}
+    ::Type{_Vec{_W,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
+) where {_W,T,Aligned,U<:Unsigned}
+    W = _W + 1
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
@@ -585,9 +587,10 @@ end
 
 
 @generated function gather(
-   ptr::Vec{W,Ptr{T}}, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned}
+   ptr::_Vec{_W,Ptr{T}}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -614,9 +617,10 @@ end
 end
 
 @generated function gather(
-   ptr::Vec{W,Ptr{T}}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned}
+   ptr::_Vec{_W,Ptr{T}}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
@@ -650,9 +654,10 @@ end
     end
 end
 @generated function vload(
-   ptr::Ptr{T}, i::Vec{W,I}, ::Val{Aligned}# = Val{false}()
-) where {W,T,I<:Integer,Aligned}
+   ptr::Ptr{T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -690,8 +695,9 @@ end
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask, Val{Aligned}()))
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask.u, Val{Aligned}()))
 @generated function vload(
-   ptr::Ptr{T}, i::Vec{W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,I<:Integer,Aligned,U<:Unsigned}
+   ptr::Ptr{T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,I<:Integer,Aligned,U<:Unsigned}
+    W = _W + 1
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
@@ -730,9 +736,10 @@ end
     end
 end
 @generated function scatter!(
-    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned}
+    ptr::_Vec{_W,Ptr{T}}, v::_Vec{_W,T}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -758,9 +765,10 @@ end
     end
 end
 @generated function scatter!(
-    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned}
+    ptr::_Vec{_W,Ptr{T}}, v::_Vec{_W,T}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
@@ -798,9 +806,10 @@ end
     end
 end
 @generated function vstore!(
-    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned, I<:Integer}
+    ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned, I<:Integer}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -832,9 +841,10 @@ end
     end
 end
 @generated function vstore!(
-    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned,I<:Integer}
+    ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
@@ -877,17 +887,17 @@ end
         )
     end
 end
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType
@@ -1150,7 +1160,8 @@ function transposeshuffle1(split, W)
     Expr(:call, Expr(:curly, :Val, tup))
 end
 
-@generated function vhaddstore!(ptr::AbstractPointer{T}, v::NTuple{N,V}, i::NTuple{D,I}) where {T,N,W,V<:AbstractSIMDVector{W,T},D,I<:Integer}
+@generated function vhaddstore!(ptr::AbstractPointer{T}, v::Tuple{V,Vararg{V,Nm1}}, i::Tuple{I,Vararg{I,Dm1}}) where {T,Nm1,W,V<:AbstractSIMDVector{W,T},Dm1,I<:Integer}
+    N = Nm1 + 1; D = Dm1 + 1
     q = Expr(:block, Expr(:meta, :inline), Expr(:(=), :bptr, Expr(:call, :gep, :ptr, :i)))
     if N > 1 && ispow2(N) && ispow2(W)
         extractblock = Expr(:block)
