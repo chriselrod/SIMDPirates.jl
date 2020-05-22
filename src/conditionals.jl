@@ -91,10 +91,12 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{W,T},
-            Tuple{Vec{W,Bool}, Vec{W,T}, Vec{W,T}},
-            v1, v2, v3)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T},
+            Tuple{Vec{$W,Bool}, Vec{$W,T}, Vec{$W,$T}},
+            v1, v2, v3
+        )
     end
 end
 @inline function vifelse(
@@ -160,6 +162,7 @@ end
 @inline vifelse(U::Unsigned, v2::AbstractStructVec{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
 @inline vifelse(U::Unsigned, s::Union{T,Int}, v2::_Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
 @inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s), extract_data(v2)))
+@inline vifelse(m::Mask{W}, v1::Vec{W}, v2::Vec{W}) where {W} = vifelse(m.u, v1, v2)
 
 @inline function vifelse(f::F, m::AbstractMask{W}, vargs::Vararg{<:Any,N}) where {F<:Function,W,N}
     vifelse(m, f(vargs...), @inbounds(vargs[N]))

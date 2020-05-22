@@ -887,17 +887,17 @@ end
         )
     end
 end
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractStructVec{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType

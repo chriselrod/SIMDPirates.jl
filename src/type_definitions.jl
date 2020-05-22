@@ -226,7 +226,7 @@ end
 end
 @inline function promote_vtype(::Type{_Vec{W,T1}}, ::Type{_Vec{W,T2}}) where {W,T1,T2}
     T = promote_type(T1, T2)
-    Vec{W,T}
+    _Vec{W,T}
 end
 @inline promote_type_vs(::Type{V}, ::Type{S}) where {V,S} = V # fallback
 @inline promote_type_vs(::Type{V}, ::Type{S}) where {V<:Signed,S<:Signed} = V
@@ -256,8 +256,8 @@ end
 end
 @inline promote_vtype(::Type{<:_MM{W}}, ::Type{T}) where {W,T<:Number} = SVec{W,T}
 @inline promote_vtype(::Type{T}, ::Type{<:_MM{W}}) where {W,T<:Number} = SVec{W,T}
-@inline promote_vtype(::Type{<:_MM{W}}, ::Type{<:Vec{W}}) where {W} = Vec{W,T}
-@inline promote_vtype(::Type{<:Vec{W}}, ::Type{<:_MM{W}}) where {W} = Vec{W,T}
+@inline promote_vtype(::Type{<:_MM{W}}, ::Type{V}) where {W,V<:Vec{W}} = V
+@inline promote_vtype(::Type{V}, ::Type{<:_MM{W}}) where {W,V<:Vec{W}} = V
 @inline promote_vtype(::Type{<:_MM{W}}, ::Type{SVec{W,T}}) where {W,T<:Number} = SVec{W,T}
 @inline promote_vtype(::Type{SVec{W,T}}, ::Type{<:_MM{W}}) where {W,T<:Number} = SVec{W,T}
 @inline promote_vtype(::Type{T1}, ::Type{T2}, ::Type{T3}) where {T1,T2,T3} = promote_vtype(promote_vtype(T1, T2), T3)

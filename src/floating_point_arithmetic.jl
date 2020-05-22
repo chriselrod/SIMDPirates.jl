@@ -138,10 +138,12 @@ for op ∈ (
     rename = VECTOR_SYMBOLS[op]
     @eval begin
         @vectordef $rename function Base.$op(s1::ScalarTypes, v2) where {W,T<:FloatingTypes}
-            $rename(vbroadcast(Vec{W,T}, s1), extract_data(v2))
+            ev2 = extract_data(v2)
+            $rename(vbroadcast(typeof(ev2), s1), ev2)
         end
         @vectordef $rename function Base.$op(v1, s2::ScalarTypes) where {W,T<:FloatingTypes}
-            $rename(extract_data(v1), vbroadcast(Vec{W,T}, s2))
+            ev1 = extract_data(v1)
+            $rename(ev1, vbroadcast(typeof(ev1), s2))
         end
         
         @inline function Base.$op(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
@@ -656,6 +658,7 @@ end
 @inline rsqrt_fast(x::SVec) = SVec(rsqrt_fast(extract_data(x)))
 @inline rsqrt(x::SVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt(x) = vinv(vsqrt(x))
+@inline vinv(x::AbstractStructVec) = SVec(vinv(extract_data(x)))
 @inline vinv(x::IntegerTypes) = vinv(float(x))
 @inline vinv(x::_Vec{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(_Vec{W,Float64}), vconvert(_Vec{W,Float64}, x))
 @inline vinv(x::AbstractStructVec{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(SVec{W,Float64}), vconvert(SVec{W,Float64}, x))
