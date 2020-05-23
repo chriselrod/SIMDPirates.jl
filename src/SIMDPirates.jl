@@ -2,7 +2,7 @@ module SIMDPirates
 
 using VectorizationBase
 using VectorizationBase:
-    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, _Vec,
+    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, _Vec, 
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
 import VectorizationBase: vload, vstore!, vnoaliasstore!, AbstractMask, tomask, IntTypes, UIntTypes, IntegerTypes, FloatingTypes, ScalarTypes, vadd, vmul, vsub
 
@@ -22,7 +22,7 @@ export  Vec, SVec, VE, _MM, stridedpointer,
     @pirate
 
 
-vecarguments(args) = [isa(arg, Symbol) ? :($arg::_Vec{W,T})             : arg for arg ∈ args]
+vecarguments(args) = [isa(arg, Symbol) ? :($arg::_Vec{W,T}) : arg for arg ∈ args]
 function structvecarguments(args)
     asa = Expr[]
     sva = Expr[]

@@ -74,6 +74,7 @@ end
         )
     end
 end
+
 @inline svrangeincr(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangeincr(Val{W}(), i, Val{O}()))
 @inline svrangemul(::Val{W}, i, ::Val{O}) where {W,O} = SVec(vrangemul(Val{W}(), i, Val{O}()))
 
@@ -180,4 +181,5 @@ using VectorizationBase: Static, Zero, One
 
 @inline vmul(::_MM{W,Static{N}}, i) where {W,N} = svrangemul(Val{W}(), i, Val{N}())
 @inline vmul(i, ::_MM{W,Static{N}}) where {W,N} = svrangemul(Val{W}(), i, Val{N}())
+
 

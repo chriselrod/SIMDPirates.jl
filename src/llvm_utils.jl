@@ -296,6 +296,18 @@ end
     """
     Base.llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
 end
+@generated function expect(i::I, ::Val{N}) where {I <: Integer, N}
+    ityp = 'i' * string(8sizeof(I))
+    decls = "declare $ityp @llvm.expect.$ityp($ityp, $ityp)"
+    instrs = """
+    %actual = call $ityp @llvm.expect.$ityp($ityp %0, $ityp $N)
+    ret $ityp %actual
+    """
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall($((decls, instrs)), $I, Tuple{$I}, i)
+    end
+end
 
 const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos))#, :inv, :muladd, :fma
 
