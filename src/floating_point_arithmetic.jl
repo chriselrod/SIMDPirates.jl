@@ -64,6 +64,29 @@ for op ∈ (
         end
     end
 end
+# Julia 1.0 was bad at resovling dispatch (it liked to pick the wrong method)
+# On Julia 1.0, this was less specific:
+# ::SVec{W,Float64}, ::SVec{W,Float64}
+# Than:
+# ::Union{Vec{W,T},AbstractStructVec{W,T}}, ::Union{Vec{W,T},AbstractStructVec{W,T}} where {T <: Union{Float64,Float32,...}
+#
+# Note that SVec{W,Float64} <: AbstractStructVec{W,Float64}.
+# We have to make the type fully concrete (e.g., SVec{8,Float64}) before
+# to get Julia 1.0 to dispatch on it.
+# I look forward to dropping support for Julia 1.0.
+@static if VERSION ≤ v"1.1"
+    for T ∈ [Float32, Float64]
+        for op ∈ (
+            :(+), :(-), :(*), :(/), :(%),# :(^),
+            :copysign#, :max, :min
+        )
+            rename = VECTOR_SYMBOLS[op]
+            for W ∈ 2:16
+                @eval @inline $rename(v1::SVec{$W,$T},v2::SVec{$W,$T}) = SVec($rename(extract_data(v1), extract_data(v2)))
+            end
+        end
+    end
+end
 @inline vfdiv(v1::_Vec{W,Int32}, v2::_Vec{W,Int32}) where {W} = vfdiv(vconvert(_Vec{W,Float32}, v1), vconvert(_Vec{W,Float32}, v2))
 @inline vfdiv(v1::_Vec{W,Int64}, v2::_Vec{W,Int64}) where {W} = vfdiv(vconvert(_Vec{W,Float64}, v1), vconvert(_Vec{W,Float64}, v2))
 @inline function Base.:(/)(v1::SVec{W,I},v2::SVec{W,I}) where {W,I<:Integer}
