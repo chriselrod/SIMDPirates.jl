@@ -72,10 +72,10 @@ end
 #
 # Note that SVec{W,Float64} <: AbstractStructVec{W,Float64}.
 # We have to make the type fully concrete (e.g., SVec{8,Float64}) before
-# to get Julia 1.0 to dispatch on it.
-# I look forward to dropping support for Julia 1.0.
-@static if VERSION ≤ v"1.1"
-    for T ∈ [Float32, Float64]
+# to get Julia 1.0 and 1.1 to dispatch on it.
+# I look forward to dropping support for Julia 1.0 and Julia 1.1.
+@static if VERSION ≤ v"1.2"
+    for T ∈ [Float32, Float64, Int16, Int32, Int64, UInt16, UInt32, UInt64]
         for op ∈ (
             :(+), :(-), :(*), :(/), :(%),# :(^),
             :copysign#, :max, :min
@@ -84,6 +84,13 @@ end
             for W ∈ 2:16
                 @eval @inline $rename(v1::SVec{$W,$T},v2::SVec{$W,$T}) = SVec($rename(extract_data(v1), extract_data(v2)))
             end
+        end
+        for W ∈ 2:16
+            U = VectorizationBase.mask_type(W)
+            @eval @inline vadd(m::Mask{$W,$U}, v::SVec{$W,$T}) = vifelse(m, vadd(v, one(v)), v)
+            @eval @inline vadd(v::SVec{$W,$T}, m::Mask{$W,$U}) = vifelse(m, vadd(v, one(v)), v)
+            @eval @inline vsub(m::Mask{$W,$U}, v::SVec{$W,$T}) = vsub(vifelse(m, one(v), zero(v)), v)
+            @eval @inline vsub(v::SVec{$W,$T}, m::Mask{$W,$U}) = vifelse(m, vsub(v, one(v)), v)
         end
     end
 end
