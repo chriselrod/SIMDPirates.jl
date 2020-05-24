@@ -73,8 +73,8 @@ end
 # Note that SVec{W,Float64} <: AbstractStructVec{W,Float64}.
 # We have to make the type fully concrete (e.g., SVec{8,Float64}) before
 # to get Julia 1.0 and 1.1 to dispatch on it.
-# I look forward to dropping support for Julia 1.0 and Julia 1.1.
-@static if VERSION ≤ v"1.2"
+# This is definitely not needed on Julia 1.4, so I place the bound there. I have not actually tested Julia 1.2 and Julia 1.3.
+@static if VERSION ≤ v"1.4"
     for T ∈ [Float32, Float64, Int16, Int32, Int64, UInt16, UInt32, UInt64]
         for op ∈ (
             :(+), :(-), :(*), :(/), :(%),# :(^),
