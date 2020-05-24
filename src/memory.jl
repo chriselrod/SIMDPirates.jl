@@ -108,12 +108,7 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decl = """
-    !1 = !{!\"noaliasdomain\"}
-    !2 = !{!\"noaliasscope\", !1}
-    !3 = !{!2}
-    """
-    # decls = String[]
+    decl = VectorizationBase.LOAD_SCOPE_TBAA
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -124,6 +119,7 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!alias.scope !3")
+    puah!(flags, "!tbaa !5")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret $vtyp %res")
@@ -140,11 +136,7 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decl = """
-    !1 = !{!\"noaliasdomain\"}
-    !2 = !{!\"noaliasscope\", !1}
-    !3 = !{!2}
-    """
+    decl = VectorizationBase.LOAD_SCOPE_TBAA
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -155,6 +147,7 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!alias.scope !3")
+    puah!(flags, "!tbaa !5")
     push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
     push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp %1")
     push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
@@ -179,8 +172,7 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
-    # decls = String[]
+    decls = String[ VectorizationBase.LOAD_SCOPE_TBAA ]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -198,7 +190,7 @@ end
         "declare $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp*, i32, <$W x i1>, $vtyp)"
     )
     push!(instrs,
-        "%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3"#undef)"# 
+        "%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3, !tbaa !5"#undef)"# 
     )
     push!(instrs, "ret $vtyp %res")
     quote
@@ -215,8 +207,7 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
-    # decls = String[]
+    decls = String[ VectorizationBase.LOAD_SCOPE_TBAA ]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -233,7 +224,7 @@ end
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
     push!(decls, "declare $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp*, i32, <$W x i1>, $vtyp)")
-    push!(instrs,"%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3")
+    push!(instrs,"%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3, !tbaa !5")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
@@ -314,16 +305,18 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
+    decl = VectorizationBase.STORE_TBAA
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!tbaa !7")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $(join(instrs, "\n")),
+            $((decl,join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}}, ptr, v
         )
     end
@@ -342,9 +335,11 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
+    decl = VectorizationBase.STORE_TBAA
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!tbaa !7")
     push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
     push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
     push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
@@ -353,7 +348,7 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $(join(instrs, "\n")),
+            $((decl,join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I}, ptr, v, i
         )
     end
@@ -374,6 +369,7 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
+    decl = VectorizationBase.STORE_TBAA
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$W x i1>")
@@ -381,9 +377,9 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    decl = "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
+    decl = VectorizationBase.STORE_TBAA * "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask)"
+        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !tbaa !7"
     )
     push!(instrs, "ret void")
     quote
@@ -418,9 +414,9 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    decl = "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
+    decl = VectorizationBase.STORE_TBAA * "\ndeclare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask)"
+        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !tbaa !7"
     )
     push!(instrs, "ret void")
     quote
@@ -439,7 +435,7 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
+    decls = String[ VectorizationBase.SCOPE_METADATA, VectorizationBase.STORE_TBAA ]
     instrs = String[]
     if Aligned# || Nontemporal
         align = Base.datatype_alignment(Vec{W,T})
@@ -450,6 +446,8 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!noalias !3")
+    push!(flags, "!tbaa !7")
+    decl = VectorizationBase.STORE_TBAA
     push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
     push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
     push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
@@ -474,7 +472,7 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
+    decls = String[ VectorizationBase.SCOPE_METADATA, VectorizationBase.STORE_TBAA ]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -495,7 +493,7 @@ end
         "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     )
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !noalias !3"
+        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !noalias !3, !tbaa !7"
     )
     push!(instrs, "ret void")
     quote
