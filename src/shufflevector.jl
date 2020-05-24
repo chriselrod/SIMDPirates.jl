@@ -16,14 +16,15 @@ end
 
 
 @generated function shufflevector(
-    v1::Vec{W,T}, v2::Vec{W,T}, ::Val{I}
-) where {W,T,I}
+    v1::_Vec{_W,T}, v2::_Vec{_W,T}, ::Val{I}
+) where {_W,T,I}
+    W = _W + 1
     M, decls, instrs = shufflevector_instrs(W, T, I, true)
     quote
         $(Expr(:meta, :inline))
-        Vec{$M,T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Vec{$M,$T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$M,T},
-            Tuple{Vec{W,T}, Vec{W,T}},
+            Tuple{Vec{$W,$T}, Vec{$W,$T}},
             v1, v2))
     end
 end
@@ -31,13 +32,14 @@ end
     SVec(shufflevector(extract_data(v1), extract_data(v2), Val(I)))
 end
 
-@generated function shufflevector(v1::Vec{W,T}, ::Val{I}) where {W,T,I}
+@generated function shufflevector(v1::_Vec{_W,T}, ::Val{I}) where {_W,T,I}
+    W = _W + 1
     M, decls, instrs = shufflevector_instrs(W, T, I, false)
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$M,T}, Tuple{Vec{$W,T}}, v1
+            Vec{$M,$T}, Tuple{Vec{$W,$T}}, v1
         )
     end
 end

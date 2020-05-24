@@ -230,16 +230,16 @@ end
 
 # Type conversion
 
-@generated function vreinterpret(::Type{Vec{N,R}},
-        v1::Vec{N1,T1}) where {N,R,N1,T1}
-    if N*sizeof(R) != N1*sizeof(T1)
-        throw("N*sizeof(R) == N1*sizeof(T1) is not true; Trying to reinterpret to a size of $N * $(sizeof(R)) from a size of $N1 * $(sizeof(T1))")
+@generated function vreinterpret(::Type{_Vec{_W,R}}, v1::_Vec{_W1,T1}) where {_W,R,_W1,T1}
+    W = _W + 1; W1 = _W1 + 1
+    if W*sizeof(R) != W1*sizeof(T1)
+        throw("W*sizeof(R) == W1*sizeof(T1) is not true; Trying to reinterpret to a size of $W * $(sizeof(R)) from a size of $W1 * $(sizeof(T1))")
     end
-    # @assert N*sizeof(R) == N1*sizeof(T1)
+    # @assert W*sizeof(R) == W1*sizeof(T1)
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N1 x $typ1>"
+    vtyp1 = "<$W1 x $typ1>"
     typr = R <: Ptr ? llvmtype(Int) : llvmtype(R)
-    vtypr = "<$N x $typr>"
+    vtypr = "<$W x $typr>"
     decls = String[]
     instrs = String[]
     push!(instrs, "%res = bitcast $vtyp1 %0 to $vtypr")
@@ -247,17 +247,17 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
+            Vec{$W,$R}, Tuple{Vec{$W1,$T1}}, v1)
     end
 end
-@generated function vreinterpret(::Type{Vec{N,R}},
-        v1::Vec{N1,UInt128}) where {N,R,N1}
+@generated function vreinterpret(::Type{_Vec{_W,R}}, v1::_Vec{_W1,UInt128}) where {_W,R,_W1}
+    W = _W + 1; W1 = _W1 + 1
     T1 = UInt128
-    @assert N*sizeof(R) == N1*sizeof(T1)
+    @assert W*sizeof(R) == W1*sizeof(T1)
     typ1 = llvmtype(T1)
-    vtyp1 = "[$N1 x $typ1]"
+    vtyp1 = "[$W1 x $typ1]"
     typr = R <: Ptr ? llvmtype(Int) : llvmtype(R)
-    vtypr = "<$N x $typr>"
+    vtypr = "<$W x $typr>"
     decls = String[]
     instrs = String[]
     push!(instrs, "%res = bitcast $vtyp1 %0 to $vtypr")
@@ -265,17 +265,17 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$N,$R}, Tuple{Vec{$N1,$T1}}, v1)
+            Vec{$W,$R}, Tuple{Vec{$W1,$T1}}, v1)
     end
 end
-@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::SVec{N1,T1}) where {N,R,N1,T1}
-    SVec(vreinterpret(Vec{N,R}, extract_data(v1)))
+@inline function Base.reinterpret(::Type{SVec{W,R}}, v1::SVec{W1,T1}) where {W,R,W1,T1}
+    SVec(vreinterpret(Vec{W,R}, extract_data(v1)))
 end
-@inline function Base.reinterpret(::Type{SVec{N,R}}, v1::SVec{N1,UInt128}) where {N,R,N1}
-    SVec(vreinterpret(Vec{N,R}, extract_data(v1)))
+@inline function Base.reinterpret(::Type{SVec{W,R}}, v1::SVec{W1,UInt128}) where {W,R,W1}
+    SVec(vreinterpret(Vec{W,R}, extract_data(v1)))
 end
-@inline vrem(v::Vec{W,I}, ::Type{Vec{W,U}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(Vec{W,U}, v), Vec{W,U})
-@inline vrem(v::Vec{W,U}, ::Type{Vec{W,I}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(Vec{W,I}, v), Vec{W,I})
+@inline vrem(v::_Vec{W,I}, ::Type{_Vec{W,U}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(_Vec{W,U}, v), _Vec{W,U})
+@inline vrem(v::_Vec{W,U}, ::Type{_Vec{W,I}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(_Vec{W,I}, v), _Vec{W,I})
 
 @inline function assume(b::Bool)
     decls = "declare void @llvm.assume(i1)"
@@ -295,6 +295,18 @@ end
     ret i8 %byte
     """
     Base.llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
+end
+@generated function expect(i::I, ::Val{N}) where {I <: Integer, N}
+    ityp = 'i' * string(8sizeof(I))
+    decls = "declare $ityp @llvm.expect.$ityp($ityp, $ityp)"
+    instrs = """
+    %actual = call $ityp @llvm.expect.$ityp($ityp %0, $ityp $N)
+    ret $ityp %actual
+    """
+    quote
+        $(Expr(:meta,:inline))
+        Base.llvmcall($((decls, instrs)), $I, Tuple{$I}, i)
+    end
 end
 
 const FASTOPS = Set((:+, :-, :*, :/, :log, :log2, :log10, :exp, :exp2, :exp10, :sqrt, :pow, :sin, :cos))#, :inv, :muladd, :fma

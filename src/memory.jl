@@ -101,18 +101,14 @@ end
 #     end
 # end
 @generated function vload(
-    ::Type{Vec{W,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,Aligned, Nontemporal}
+    ::Type{_Vec{_W,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
+) where {_W,T,Aligned, Nontemporal}
+    W = _W + 1
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decl = """
-    !1 = !{!\"noaliasdomain\"}
-    !2 = !{!\"noaliasscope\", !1}
-    !3 = !{!2}
-    """
-    # decls = String[]
+    decl = VectorizationBase.LOAD_SCOPE_TBAA
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -123,6 +119,7 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!alias.scope !3")
+    push!(flags, "!tbaa !5")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret $vtyp %res")
@@ -139,11 +136,7 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decl = """
-    !1 = !{!\"noaliasdomain\"}
-    !2 = !{!\"noaliasscope\", !1}
-    !3 = !{!2}
-    """
+    decl = VectorizationBase.LOAD_SCOPE_TBAA
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -154,9 +147,10 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!alias.scope !3")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ptyp %1")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(flags, "!tbaa !5")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp %1")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     # push!(instrs, "%offsetptr = add nsw nuw $ptyp %0, %1") # uncommenting requires *8n
     # push!(instrs, "%ptr = inttoptr $ptyp %offsetptr to $vtyp*")
     push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
@@ -168,8 +162,9 @@ end
     end
 end
 @generated function vload(
-    ::Type{Vec{W,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
-) where {W,T,Aligned,U<:Unsigned}
+    ::Type{_Vec{_W,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
+) where {_W,T,Aligned,U<:Unsigned}
+    W = _W + 1
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
@@ -177,8 +172,7 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
-    # decls = String[]
+    decls = String[ VectorizationBase.LOAD_SCOPE_TBAA ]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -196,7 +190,7 @@ end
         "declare $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp*, i32, <$W x i1>, $vtyp)"
     )
     push!(instrs,
-        "%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3"#undef)"# 
+        "%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3, !tbaa !5"#undef)"# 
     )
     push!(instrs, "ret $vtyp %res")
     quote
@@ -213,17 +207,16 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
-    # decls = String[]
+    decls = String[ VectorizationBase.LOAD_SCOPE_TBAA ]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
     else
         align = sizeof(T)   # This is overly optimistic
     end
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ptyp %1")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp %1")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$W x i1>")
     else
@@ -231,7 +224,7 @@ end
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
     push!(decls, "declare $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp*, i32, <$W x i1>, $vtyp)")
-    push!(instrs,"%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3")
+    push!(instrs,"%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3, !tbaa !5")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
@@ -312,16 +305,18 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
+    decl = VectorizationBase.STORE_TBAA
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!tbaa !7")
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $(join(instrs, "\n")),
+            $((decl,join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}}, ptr, v
         )
     end
@@ -340,18 +335,20 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
+    decl = VectorizationBase.STORE_TBAA
     flags = [""]
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(flags, "!tbaa !7")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall(
-            $(join(instrs, "\n")),
+            $((decl,join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I}, ptr, v, i
         )
     end
@@ -372,6 +369,7 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
+    decl = VectorizationBase.STORE_TBAA
     push!(instrs, "%ptr = inttoptr $ptyp %0 to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$W x i1>")
@@ -379,9 +377,9 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %2 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    decl = "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
+    decl = VectorizationBase.STORE_TBAA * "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask)"
+        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !tbaa !7"
     )
     push!(instrs, "ret void")
     quote
@@ -407,18 +405,18 @@ end
     else
         align = sizeof(T)   # This is overly optimistic
     end
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
     else
         push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    decl = "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
+    decl = VectorizationBase.STORE_TBAA * "\ndeclare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask)"
+        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !tbaa !7"
     )
     push!(instrs, "ret void")
     quote
@@ -437,7 +435,7 @@ end
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
+    decls = String[ VectorizationBase.SCOPE_METADATA, VectorizationBase.STORE_TBAA ]
     instrs = String[]
     if Aligned# || Nontemporal
         align = Base.datatype_alignment(Vec{W,T})
@@ -448,9 +446,11 @@ end
     align > 0 && push!(flags, "align $align")
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!noalias !3")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(flags, "!tbaa !7")
+    decl = VectorizationBase.STORE_TBAA
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     push!(instrs, "store $vtyp %1, $vtyp* %ptr" * join(flags, ", "))
     push!(instrs, "ret void")
     quote
@@ -472,7 +472,7 @@ end
     vtyp = "<$W x $typ>"
     mtyp_input = llvmtype(U)
     mtyp_trunc = "i$W"
-    decls = String["!1 = !{!\"noaliasdomain\"}","!2 = !{!\"noaliasscope\", !1}", "!3 = !{!2}"]
+    decls = String[ VectorizationBase.SCOPE_METADATA, VectorizationBase.STORE_TBAA ]
     instrs = String[]
     if Aligned
         align = Base.datatype_alignment(Vec{W,T})
@@ -480,9 +480,9 @@ end
         align = sizeof(T)   # This is overly optimistic
     end
     # push!(flags, "!noalias !3")
-    push!(instrs, "%typptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%offsetptr = getelementptr inbounds $typ, $typ* %typptr, $ityp %2")
-    push!(instrs, "%ptr = bitcast $typ* %offsetptr to $vtyp*")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
     else
@@ -493,7 +493,7 @@ end
         "declare void @llvm.masked.store.$(suffix(W,T))($vtyp, $vtyp*, i32, <$W x i1>)"
     )
     push!(instrs,
-        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !noalias !3"
+        "call void @llvm.masked.store.$(suffix(W,T))($vtyp %1, $vtyp* %ptr, i32 $align, <$W x i1> %mask), !noalias !3, !tbaa !7"
     )
     push!(instrs, "ret void")
     quote
@@ -585,9 +585,10 @@ end
 
 
 @generated function gather(
-   ptr::Vec{W,Ptr{T}}, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned}
+   ptr::_Vec{_W,Ptr{T}}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -614,9 +615,10 @@ end
 end
 
 @generated function gather(
-   ptr::Vec{W,Ptr{T}}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned}
+   ptr::_Vec{_W,Ptr{T}}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
@@ -650,9 +652,10 @@ end
     end
 end
 @generated function vload(
-   ptr::Ptr{T}, i::Vec{W,I}, ::Val{Aligned}# = Val{false}()
-) where {W,T,I<:Integer,Aligned}
+   ptr::Ptr{T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -666,8 +669,11 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %1")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    # push!(instrs, "%ptr = getelementptr inbounds i8, i8* %sptr, $vityp %1")
     mask = join((", i1 true" for i ∈ 2:W))
     decl = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>, $vtyp undef)")
@@ -687,8 +693,9 @@ end
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask, Val{Aligned}()))
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask.u, Val{Aligned}()))
 @generated function vload(
-   ptr::Ptr{T}, i::Vec{W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,I<:Integer,Aligned,U<:Unsigned}
+   ptr::Ptr{T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,I<:Integer,Aligned,U<:Unsigned}
+    W = _W + 1
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
@@ -706,8 +713,9 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %1")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %1")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %2 to <$W x i1>")
     else
@@ -726,9 +734,10 @@ end
     end
 end
 @generated function scatter!(
-    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned}
+    ptr::_Vec{_W,Ptr{T}}, v::_Vec{_W,T}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -754,9 +763,10 @@ end
     end
 end
 @generated function scatter!(
-    ptr::Vec{W,Ptr{T}}, v::Vec{W,T}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned}
+    ptr::_Vec{_W,Ptr{T}}, v::_Vec{_W,T}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
@@ -794,9 +804,10 @@ end
     end
 end
 @generated function vstore!(
-    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned, I<:Integer}
+    ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned, I<:Integer}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
     typ = llvmtype(T)
@@ -810,8 +821,11 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %2")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    # push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
     mask = join((", i1 true" for i ∈ 2:W))
     # push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
@@ -825,9 +839,10 @@ end
     end
 end
 @generated function vstore!(
-    ptr::Ptr{T}, v::Vec{W,T}, i::Vec{W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned,I<:Integer}
+    ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
+    W = _W + 1
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     vptyp = "<$W x $ptyp>"
@@ -844,8 +859,11 @@ end
     end
     ityp = llvmtype(I)
     vityp = "<$W x $ityp>"
-    push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
-    push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %2")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    # push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
     if mtyp_input == mtyp_trunc
         push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
     else
@@ -867,17 +885,17 @@ end
         )
     end
 end
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractSIMDVector{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType
@@ -1099,13 +1117,13 @@ vectypewidth(::Type{V}) where {W, V<:AbstractSIMDVector{W}} = W::Int
 vectypewidth(::Type{_MM{W}}) where {W} = W::Int
 vectypewidth(::Any) = 1
 
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i]))
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}) where {W,T} = @inbounds(_MM{W}(r[i[1].i]))
+@inline vload(r::AbstractRange, i::Tuple{_MM{W,T}}) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[vadd(i[1].i, one(T))]))
+@inline vload(r::UnitRange, i::Tuple{_MM{W,T}}) where {W,T} = @inbounds(_MM{W}(r[vadd(i[1].i, one(T))]))
 # Ignore masks
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i]))
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[i[1].i]))
-@inline vload(r::AbstractRange{T}, i::Tuple{_MM{W}}, ::Mask) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[i[1].i]))
-@inline vload(r::UnitRange{T}, i::Tuple{_MM{W}}, ::Mask) where {W,T} = @inbounds(_MM{W}(r[i[1].i]))
+@inline vload(r::AbstractRange, i::Tuple{_MM{W,T}}, ::Unsigned) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[vadd(i[1].i, one(T))]))
+@inline vload(r::UnitRange, i::Tuple{_MM{W,T}}, ::Unsigned) where {W,T} = @inbounds(_MM{W}(r[vadd(i[1].i, one(T))]))
+@inline vload(r::AbstractRange, i::Tuple{_MM{W,T}}, ::Mask) where {W,T} = SVec(vadd(vrangemul(Val{W}(), step(r), Val{0}()), @inbounds r[vadd(i[1].i, one(T))]))
+@inline vload(r::UnitRange, i::Tuple{_MM{W,T}}, ::Mask) where {W,T} = @inbounds(_MM{W}(r[vadd(i[1].i, one(T))]))
 
 function transposeshuffle0(split, W)
     tup = Expr(:tuple)
@@ -1140,7 +1158,8 @@ function transposeshuffle1(split, W)
     Expr(:call, Expr(:curly, :Val, tup))
 end
 
-@generated function vhaddstore!(ptr::AbstractPointer{T}, v::NTuple{N,V}, i::NTuple{D,I}) where {T,N,W,V<:AbstractSIMDVector{W,T},D,I<:Integer}
+@generated function vhaddstore!(ptr::AbstractPointer{T}, v::Tuple{V,Vararg{V,Nm1}}, i::Tuple{I,Vararg{I,Dm1}}) where {T,Nm1,W,V<:AbstractSIMDVector{W,T},Dm1,I<:Integer}
+    N = Nm1 + 1; D = Dm1 + 1
     q = Expr(:block, Expr(:meta, :inline), Expr(:(=), :bptr, Expr(:call, :gep, :ptr, :i)))
     if N > 1 && ispow2(N) && ispow2(W)
         extractblock = Expr(:block)

@@ -17,11 +17,7 @@ for op ∈ (
         end
     end
 end
-# @inline vexp10(s1::FloatingTypes) = exp10(s1)
-# @vectordef vexp10 function Base.exp10(v1) where {W,T <: FloatingTypes}
-    # vpow(vbroadcast(Vec{W,T}, 10), extract_data(v1))
-# end
-# @inline vexp10(v1::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} = vpow(vbroadcast(Vec{W,T}, 10), v1)
+
 @inline vsign(s1::FloatingTypes) = sign(s1)
 @vectordef vsign function Base.sign(v1) where {W,T<:FloatingTypes}
     vifelse(
@@ -54,31 +50,22 @@ for op ∈ (
         @inline $erename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
 
         @evectordef $erename function Base.$op(v1, v2) where {W,T <: FloatingTypes}
-            llvmwrap_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
+            # llvmwrap_notfast(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2))
+            llvmwrap_notfast(Val{$(QuoteNode(op))}(), v1, v2)
         end
 
         @inline function Base.$op(v1::SVec{W,T1}, v2::SVec{W,T2}) where {W,T1,T2}
             T = promote_type(T1, T2)
             $op(vconvert(SVec{W,T}, v1), vconvert(SVec{W,T}, v2))
         end
-        @inline function $rename(v1::V1, v2::V2) where {W,T1,T2,V1<:AbstractSIMDVector{W,T1},V2<:AbstractSIMDVector{W,T2}}
+        @inline function $rename(v1::V1, v2::V2) where {W,V1<:AbstractSIMDVector{W},V2<:AbstractSIMDVector{W}}
             V = promote_vtype(V1, V2)
             $rename(vconvert(V, v1), vconvert(V, v2))
         end
-        # @inline function $rename(v1::V1, v2::V2) where {V1,V2}
-            # V = vpromote(V1, V2)
-            # $rename(vconvert(V, v1), vconvert(V, v2))
-        # end
-        # @inline $rename(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
-        #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2)
-        # @inline $rename(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
-        # @inline Base.$op(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
     end
 end
-@inline vfdiv(v1::Vec{W,Int32}, v2::Vec{W,Int32}) where {W} = vfdiv(vconvert(Vec{W,Float32}, v1), vconvert(Vec{W,Float32}, v2))
-@inline vfdiv(v1::Vec{W,Int64}, v2::Vec{W,Int64}) where {W} = vfdiv(vconvert(Vec{W,Float64}, v1), vconvert(Vec{W,Float64}, v2))
+@inline vfdiv(v1::_Vec{W,Int32}, v2::_Vec{W,Int32}) where {W} = vfdiv(vconvert(_Vec{W,Float32}, v1), vconvert(_Vec{W,Float32}, v2))
+@inline vfdiv(v1::_Vec{W,Int64}, v2::_Vec{W,Int64}) where {W} = vfdiv(vconvert(_Vec{W,Float64}, v1), vconvert(_Vec{W,Float64}, v2))
 @inline function Base.:(/)(v1::SVec{W,I},v2::SVec{W,I}) where {W,I<:Integer}
     T = sizeequivalentfloat(I)
     SVec(vfdiv(vconvert(Vec{W,T}, v1), vconvert(Vec{W,T}, v2)))
@@ -95,52 +82,13 @@ end
 end
 
 
-# let op = :(*)
-#     rename = VECTOR_SYMBOLS[op]
-#     @eval begin
-#         @inline $rename(s1::FloatingTypes, s2::FloatingTypes) = $op(s1, s2)
-#         # @inline $rename(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
-#         #     VecProduct(v1, v2)
-#         @inline $rename(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
-#             VecProduct(extract_data(v1), extract_data(v2))
-#         @inline $rename(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
-#             SVecProduct(extract_data(v1), extract_data(v2))
-#         @inline Base.$op(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:FloatingTypes} =
-#             SVecProduct(extract_data(v1), extract_data(v2))
-#     end
-# end
-
-
-
-
-# @inline vpow(s1::FloatingTypes, x2::Integer) = s1^x2
-# @vectordef vpow function Base.:^(v1, x2::Integer) where {W,T<:FloatingTypes}
-    # llvmwrap(Val{:powi}, extract_data(v1), Int(x2))
-# end
-# @inline function vpow(v1::Vec{W,T}, x2::Integer) where {W,T<:FloatingTypes}
-#     llvmwrap(Val{:powi}, v1, Int(x2))
-# end
-# @inline function vpow(v1::SVec{W,T}, x2::Integer) where {W,T<:FloatingTypes}
-#     SVec(llvmwrap(Val{:powi}, extract_data(v1), Int(x2)))
-# end
-# @inline function Base.:^(v1::SVec{W,T}, x2::Integer) where {W,T<:FloatingTypes}
-#     SVec(llvmwrap(Val{:powi}, extract_data(v1), Int(x2)))
-# end
-
 @inline vflipsign(s1::FloatingTypes, s2::FloatingTypes) = flipsign(s1, s2)
 
 @vectordef vflipsign function Base.flipsign(v1, v2) where {W,T<:FloatingTypes}
     vifelse(vsignbit(extract_data(v2)), vsub(extract_data(v1)), extract_data(v1))
 end
 
-@inline vcopysign(v1::Vec{W,T}, v2::Vec{W,U}) where {W,T,U<:Unsigned} = vcopysign(v1, vreinterpret(Vec{W,T}, v2))
-
-# @inline vflipsign(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:FloatingTypes} =
-#     vifelse(vsignbit(v2), -v1, v1)
-# @inline vflipsign(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes} =
-#     SVec(vifelse(vsignbit(v2), -v1, v1))
-# @inline Base.flipsign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:FloatingTypes} =
-#     SVec(vifelse(vsignbit(v2), -v1, v1))
+@inline vcopysign(v1::_Vec{W,T}, v2::_Vec{W,U}) where {W,T,U<:Unsigned} = vcopysign(v1, vreinterpret(_Vec{W,T}, v2))
 
 for op ∈ (:fma, :muladd)
 # let op = :fma
@@ -172,19 +120,6 @@ for op ∈ (:fma, :muladd)
             llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), vbroadcast(Vec{W,T}, s2), vbroadcast(Vec{W,T}, s3))
         end
         @vpromote $rename 3
-        # scalar default already set in integer_arithmetic.jl
-        # @inline function $rename(v1::Vec{W,T},
-        #         v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
-        #     llvmwrap(Val{$(QuoteNode(op))}(), v1, v2, v3)
-        # end
-        # @inline function $rename(v1::AbstractSIMDVector{W,T},
-        #         v2::AbstractSIMDVector{W,T}, v3::AbstractSIMDVector{W,T}) where {W,T<:FloatingTypes}
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
-        # end
-        # @inline function Base.$op(v1::SVec{W,T},
-        #         v2::SVec{W,T}, v3::SVec{W,T}) where {W,T<:FloatingTypes}
-        #     SVec(llvmwrap(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2), extract_data(v3)))
-        # end
     end
 end
 
@@ -203,10 +138,12 @@ for op ∈ (
     rename = VECTOR_SYMBOLS[op]
     @eval begin
         @vectordef $rename function Base.$op(s1::ScalarTypes, v2) where {W,T<:FloatingTypes}
-            $rename(vbroadcast(Vec{W,T}, s1), extract_data(v2))
+            ev2 = extract_data(v2)
+            $rename(vbroadcast(typeof(ev2), s1), ev2)
         end
         @vectordef $rename function Base.$op(v1, s2::ScalarTypes) where {W,T<:FloatingTypes}
-            $rename(extract_data(v1), vbroadcast(Vec{W,T}, s2))
+            ev1 = extract_data(v1)
+            $rename(ev1, vbroadcast(typeof(ev1), s2))
         end
         
         @inline function Base.$op(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
@@ -221,11 +158,11 @@ for op ∈ (
         @inline function $rename(v1::SVec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
             SVec($rename(extract_data(v1), vbroadcast(Vec{W,T2}, s2)))
         end
-        @inline function $rename(s1::T2, v2::Vec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
-            $rename(vbroadcast(Vec{W,T2}, s1), v2)
+        @inline function $rename(s1::T2, v2::_Vec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            $rename(vbroadcast(_Vec{W,T2}, s1), v2)
         end
-        @inline function $rename(v1::Vec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
-            $rename(v1, vbroadcast(Vec{W,T2}, s2))
+        @inline function $rename(v1::_Vec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            $rename(v1, vbroadcast(_Vec{W,T2}, s2))
         end
         @vpromote $rename 2
     end
@@ -270,7 +207,8 @@ end
 
 
 @static if Base.libllvm_version >= v"9"
-    @generated function vsum(v::Vec{W,T}) where {W,T<:FloatingTypes}
+    @generated function vsum(v::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -287,7 +225,8 @@ end
             )
         end
     end
-    @generated function vprod(v::Vec{W,T}) where {W,T<:FloatingTypes}
+    @generated function vprod(v::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -304,7 +243,8 @@ end
             )
         end
     end
-    @generated function reduced_add(v::Vec{W,T}, s::T) where {W,T<:FloatingTypes}
+    @generated function reduced_add(v::_Vec{_W,T}, s::T) where {_W,T<:FloatingTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -321,7 +261,8 @@ end
             )
         end
     end
-    @generated function reduced_prod(v::Vec{W,T}, s::T) where {W,T<:FloatingTypes}
+    @generated function reduced_prod(v::_Vec{_W,T}, s::T) where {_W,T<:FloatingTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -338,7 +279,8 @@ end
             )
         end
     end
-    @generated function vsum(v::Vec{W,T}) where {W,T<:IntegerTypes}
+    @generated function vsum(v::_Vec{_W,T}) where {_W,T<:IntegerTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -355,7 +297,8 @@ end
             )
         end
     end
-    @generated function vprod(v::Vec{W,T}) where {W,T<:IntegerTypes}
+    @generated function vprod(v::_Vec{_W,T}) where {_W,T<:IntegerTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -373,8 +316,9 @@ end
         end
     end
 else
-    @generated function llvmwrapreduce(::Val{Op}, v::Vec{W,T}) where {Op,W,T}
+    @generated function llvmwrapreduce(::Val{Op}, v::_Vec{_W,T}) where {Op,_W,T}
         @assert isa(Op, Symbol)
+        W = _W + 1
         z = getneutral(Op, T)
         typ = llvmtype(T)
         decls = String[]
@@ -417,14 +361,15 @@ else
     
     for (name, rename, op) ∈ [(:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*)]
         @eval begin
-            @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+            @inline $rename(v::AbstractSIMDVector{W}) where {W} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
         end
     end
 
 end
 @static if Base.libllvm_version >= v"8"
     
-    @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
+    @generated function vsub(v::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+        W = _W + 1
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
@@ -448,7 +393,7 @@ else
                                     (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min)]
                               
         @eval begin
-            @inline $rename(v::AbstractSIMDVector{W,T}) where {W,T} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+            @inline $rename(v::AbstractSIMDVector{W}) where {W} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
         end
     end
 
@@ -457,7 +402,8 @@ end
 @inline vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
 
 @static if Base.libllvm_version >= v"6"
-    @generated function vmaximum(v::Vec{W,T}) where {W,T<:ScalarTypes}
+    @generated function vmaximum(v::_Vec{_W,T}) where {_W,T<:ScalarTypes}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -475,7 +421,8 @@ end
             )
         end
     end
-    @generated function vminimum(v::Vec{W,T}) where {W,T<:Integer}
+    @generated function vminimum(v::_Vec{_W,T}) where {_W,T<:Integer}
+        W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
@@ -505,14 +452,6 @@ for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
     end
 end
 
-# @inline vall(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:&}(), v)
-# @inline vany(v::Vec{W,T}) where {W,T<:IntegerTypes} = llvmwrapreduce(Val{:|}(), v)
-# @inline vmaximum(v::Vec{W,T}) where {W,T<:FloatingTypes} =
-#     llvmwrapreduce(Val{:max}(), v)
-# @inline vminimum(v::Vec{W,T}) where {W,T<:FloatingTypes} =
-#     llvmwrapreduce(Val{:min}(), v)
-# @inline vprod(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:*}(), v)
-# @inline vsum(v::Vec{W,T}) where {W,T} = llvmwrapreduce(Val{:+}(), v)
 
 
 # TODO: Handle cases with vectors of different lengths correctly!
@@ -527,7 +466,8 @@ end
 @inline vmuladd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 # These intrinsics are not FastMath.
 
-@generated function vfmadd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
+@generated function vfmadd(v1::_Vec{_W,T}, v2::_Vec{_W,T}, v3::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+    W = _W + 1
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     # ins = "@llvm.fma.v$(W)f$(8*sizeof(T))"
@@ -547,16 +487,17 @@ vfmadd(a::Number, b::Number, c::Number) = muladd(a, b, c)
 vfnmadd(a::Number, b::Number, c::Number) = muladd(-a, b, c)
 vfmsub(a::Number, b::Number, c::Number) = muladd(a, b, -c)
 vfnmsub(a::Number, b::Number, c::Number) = -muladd(a, b, c)
-@inline vfmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
-@inline vfnmadd(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd(vsub(a), b, c)
-@inline vfmsub(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd(a, b, vsub(c))
-@inline vfnmsub(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vsub(vfmadd(a, b, c))
+@inline vfmadd(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
+@inline vfnmadd(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T} = vfmadd(vsub(a), b, c)
+@inline vfmsub(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T} = vfmadd(a, b, vsub(c))
+@inline vfnmsub(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T} = vsub(vfmadd(a, b, c))
 @vpromote vfmadd 3
 @vpromote vfnmadd 3
 @vpromote vfmsub 3
 @vpromote vfnmsub 3
 
-@generated function vfmadd_fast(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:FloatingTypes}
+@generated function vfmadd_fast(v1::_Vec{_W,T}, v2::_Vec{_W,T}, v3::_Vec{_W,T}) where {_W,T<:FloatingTypes}
+    W = _W + 1
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     # ins = "@llvm.fmuladd.v$(W)f$(8*sizeof(T))"
@@ -579,10 +520,10 @@ vfmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastM
 vfnmadd_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
 vfmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
 vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c))
-@inline vfmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
-@inline vfnmadd_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(vsub(a), b, c)
-@inline vfmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vfmadd_fast(a, b, vsub(c))
-@inline vfnmsub_fast(a::Vec{W,T}, b::Vec{W,T}, c::Vec{W,T}) where {W,T} = vsub(vfmadd_fast(a, b, c))
+@inline vfmadd_fast(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T <: Integer} = vmuladd(a, b, c)
+@inline vfnmadd_fast(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T} = vfmadd_fast(vsub(a), b, c)
+@inline vfmsub_fast(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T} = vfmadd_fast(a, b, vsub(c))
+@inline vfnmsub_fast(a::_Vec{W,T}, b::_Vec{W,T}, c::_Vec{W,T}) where {W,T} = vsub(vfmadd_fast(a, b, c))
 @inline vfmadd_fast(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
 @inline vfmadd_fast(b::AbstractSIMDVector{W}, m::AbstractMask{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vadd(b, c), c)
 @inline vfnmadd_fast(m::AbstractMask{W}, b::AbstractSIMDVector{W}, c::AbstractSIMDVector{W}) where {W} = vifelse(m, vsub(c, b), c)
@@ -631,10 +572,10 @@ vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.Fast
 # @inline Base.:*(a::T, b::SVec{W,<:IntegerTypes}) where {W,T<:FloatingTypes} = SVec(vmul(vbroadcast(Vec{W,T}, a), vconvert(Vec{W,T}, extract_data(b))))
 
 # const Vec{W,T} = NTuple{W,Core.VecElement{T}}
-@inline vfmadd231(a::Vec, b, c) = vfmadd(a, b, c)
-@inline vfnmadd231(a::Vec, b, c) = vfnmadd(a, b, c)
-@inline vfmsub231(a::Vec, b, c) = vfmsub(a, b, c)
-@inline vfnmsub231(a::Vec, b, c) = vfnmsub(a, b, c)
+@inline vfmadd231(a::_Vec, b, c) = vfmadd(a, b, c)
+@inline vfnmadd231(a::_Vec, b, c) = vfnmadd(a, b, c)
+@inline vfmsub231(a::_Vec, b, c) = vfmsub(a, b, c)
+@inline vfnmsub231(a::_Vec, b, c) = vfnmsub(a, b, c)
 @inline vfmadd231(a::Number, b::Number, c::Number) = Base.FastMath.add_fast(Base.FastMath.mul_fast(a, b), c)
 @inline vfnmadd231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
 @inline vfmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
@@ -717,18 +658,20 @@ end
 @inline rsqrt_fast(x::SVec) = SVec(rsqrt_fast(extract_data(x)))
 @inline rsqrt(x::SVec) = SVec(rsqrt(extract_data(x)))
 @inline rsqrt(x) = vinv(vsqrt(x))
+@inline vinv(x::AbstractStructVec) = SVec(vinv(extract_data(x)))
 @inline vinv(x::IntegerTypes) = vinv(float(x))
-@inline vinv(x::Vec{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(Vec{W,Float64}), vconvert(Vec{W,Float64}, x))
-@inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(SVec{W,Float64}), vconvert(SVec{W,Float64}, x))
-@inline vinv(x::Vec{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(Vec{W,Float32}), vconvert(Vec{W,Float32}, x))
-@inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
-@inline vinv(x::Vec{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(Vec{W,Float32}), vconvert(Vec{W,Float32}, x))
-@inline vinv(x::AbstractSIMDVector{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
+@inline vinv(x::_Vec{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(_Vec{W,Float64}), vconvert(_Vec{W,Float64}, x))
+@inline vinv(x::AbstractStructVec{W,I}) where {W, I <: Union{Int64,UInt64}} = evfdiv(vone(SVec{W,Float64}), vconvert(SVec{W,Float64}, x))
+@inline vinv(x::_Vec{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(_Vec{W,Float32}), vconvert(_Vec{W,Float32}, x))
+@inline vinv(x::AbstractStructVec{W,I}) where {W, I <: Union{Int32,UInt32}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
+@inline vinv(x::_Vec{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(_Vec{W,Float32}), vconvert(_Vec{W,Float32}, x))
+@inline vinv(x::AbstractStructVec{W,I}) where {W, I <: Union{Int16,UInt16}} = evfdiv(vone(SVec{W,Float32}), vconvert(SVec{W,Float32}, x))
 @inline Base.inv(v::AbstractStructVec{W,I}) where {W, I<: IntegerTypes} = vinv(v)
 @inline Base.sqrt(v::AbstractStructVec{W,I}) where {W, I<: IntegerTypes} = vsqrt(float(v))
 
 # for accumulating vector results of different sizes.
-@generated function vadd(v1::Vec{W1,T}, v2::Vec{W2,T}) where {W1,W2,T}
+@generated function vadd(v1::_Vec{_W1,T}, v2::_Vec{_W2,T}) where {_W1,_W2,T}
+    W1 = _W1 + 1; W2 = _W2 + 1
     @assert ispow2(W1)
     @assert ispow2(W2)
     W3 = W1
@@ -752,65 +695,77 @@ end
 @inline vsum(s::FloatingTypes) = s
 @inline vprod(s::FloatingTypes) = s
 
-@inline reduced_add(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(v::_Vec{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(v::AbstractStructVec{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(s::T, v::_Vec{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(s::T, v::AbstractStructVec{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
 # @inline reduced_add(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vadd(v1, v2)
-@inline reduced_prod(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(v::_Vec{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(s::T, v::_Vec{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(v::AbstractStructVec{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(s::T, v::AbstractStructVec{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
 # @inline reduced_prod(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmul(v1, v2)
 
 @inline reduced_add(v::SVec{W,T}, s::T) where {W,T} = reduced_add(extract_data(v), s)
 @inline reduced_prod(v::SVec{W,T}, s::T) where {W,T} = reduced_prod(extract_data(v), s)
-@inline reduced_add(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
-@inline reduced_add(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
-@inline reduced_add(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vadd(v1, v2)
+@inline reduced_add(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
+@inline reduced_add(s::T2, v::AbstractSIMDVector{W}) where {W,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
+@inline reduced_add(v1::AbstractSIMDVector{W}, v2::AbstractSIMDVector{W}) where {W} = vadd(v1, v2)
 @inline reduced_add(v1::T, v2::T) where {T<:Number} = Base.FastMath.add_fast(v1,v2)
-@inline reduced_prod(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
-@inline reduced_prod(s::T2, v::AbstractSIMDVector{W,T1}) where {W,T1,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
-@inline reduced_prod(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmul(v1, v2)
+@inline reduced_prod(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
+@inline reduced_prod(s::T2, v::AbstractSIMDVector{W}) where {W,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
+@inline reduced_prod(v1::AbstractSIMDVector{W}, v2::AbstractSIMDVector{W}) where {W} = vmul(v1, v2)
 @inline reduced_prod(v1::T, v2::T) where {T<:Number} = Base.FastMath.mul_fast(v1,v2)
 
-@inline reduce_to_add(v::AbstractSIMDVector{W,T}, ::T) where {W,T} = vsum(v)
-@inline reduce_to_prod(v::AbstractSIMDVector{W,T}, ::T) where {W,T} = vprod(v)
-@inline reduce_to_add(v::AbstractSIMDVector{W,T1}, ::T2) where {W,T1,T2} = convert(T2,vsum(v))
+@inline reduce_to_add(v::_Vec{W,T}, ::T) where {W,T} = vsum(v)
+@inline reduce_to_prod(v::_Vec{W,T}, ::T) where {W,T} = vprod(v)
+@inline reduce_to_add(v::AbstractStructVec{W,T}, ::T) where {W,T} = vsum(v)
+@inline reduce_to_prod(v::AbstractStructVec{W,T}, ::T) where {W,T} = vprod(v)
+@inline reduce_to_add(v::AbstractSIMDVector{W}, ::T2) where {W,T2} = convert(T2,vsum(v))
 @inline reduce_to_add(v::T, ::T) where {T<:Number} = v
-@inline reduce_to_prod(v::AbstractSIMDVector{W,T1}, ::T2) where {W,T1,T2} = convert(T2,vprod(v))
-@inline reduce_to_add(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W}) where {W,T} = v
-@inline reduce_to_prod(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W}) where {W,T} = v
+@inline reduce_to_prod(v::AbstractSIMDVector{W}, ::T2) where {W,T2} = convert(T2,vprod(v))
+@inline reduce_to_add(v::AbstractSIMDVector{W}, ::AbstractSIMDVector{W}) where {W} = v
+@inline reduce_to_prod(v::AbstractSIMDVector{W}, ::AbstractSIMDVector{W}) where {W} = v
 @inline reduce_to_prod(s::T, ::T) where {T<:Number} = v
 
 
-# @inline reduced_all(u1::Unsigned, u1::Unsigned) where {W,T} = vall(v) & s
-# @inline reduced_any(u::Unsigned, b::Bool) where {W,T} = b || vany(v)
-# @inline reduced_all(v::AbstractSIMDVector, s::T) where {W,T} = vall(v) & s
-# @inline reduced_any(v::AbstractSIMDVector, s::T) where {W,T} = s || vany(v)
-@inline reduced_max(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = max(vmaximum(v), s)
-@inline reduced_min(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = min(vminimum(v), s)
-@inline reduced_max(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmax(v1, v2)
-@inline reduced_min(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmin(v1, v2)
-@inline reduce_to_max(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = vmaximum(v)
-@inline reduce_to_min(v::AbstractSIMDVector{W,T}, s::T) where {W,T} = vminimum(v)
-@inline reduce_to_max(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W,T}) where {W,T} = v
-@inline reduce_to_min(v::AbstractSIMDVector{W,T}, ::AbstractSIMDVector{W,T}) where {W,T} = v
+@inline reduced_max(v::_Vec{W,T}, s::T) where {W,T} = max(vmaximum(v), s)
+@inline reduced_min(v::_Vec{W,T}, s::T) where {W,T} = min(vminimum(v), s)
+@inline reduced_max(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T} = vmax(v1, v2)
+@inline reduced_min(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T} = vmin(v1, v2)
+@inline reduce_to_max(v::_Vec{W,T}, s::T) where {W,T} = vmaximum(v)
+@inline reduce_to_min(v::_Vec{W,T}, s::T) where {W,T} = vminimum(v)
+@inline reduce_to_max(v::_Vec{W,T}, ::_Vec{W,T}) where {W,T} = v
+@inline reduce_to_min(v::_Vec{W,T}, ::_Vec{W,T}) where {W,T} = v
 
-@inline reduced_max(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = max(convert(T2,vmaximum(v)), s)
-@inline reduced_min(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = min(convert(T2,vminimum(v)), s)
-@inline reduced_max(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmax(vconvert(Vec{W,T2},v1), v2)
-@inline reduced_min(v1::AbstractSIMDVector{W,T1}, v2::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vmin(vconvert(Vec{W,T2},v1), v2)
-@inline reduce_to_max(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = convert(T2,vmaximum(v))
-@inline reduce_to_min(v::AbstractSIMDVector{W,T1}, s::T2) where {W,T1,T2} = convert(T2,vminimum(v))
-@inline reduce_to_max(v::AbstractSIMDVector{W,T1}, ::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vconvert(Vec{W,T2}, v)
-@inline reduce_to_min(v::AbstractSIMDVector{W,T1}, ::AbstractSIMDVector{W,T2}) where {W,T1,T2} = vconvert(Vec{W,T2}, v)
+@inline reduced_max(v::AbstractStructVec{W,T}, s::T) where {W,T} = max(vmaximum(v), s)
+@inline reduced_min(v::AbstractStructVec{W,T}, s::T) where {W,T} = min(vminimum(v), s)
+@inline reduced_max(v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}) where {W,T} = vmax(v1, v2)
+@inline reduced_min(v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}) where {W,T} = vmin(v1, v2)
+@inline reduce_to_max(v::AbstractStructVec{W,T}, s::T) where {W,T} = vmaximum(v)
+@inline reduce_to_min(v::AbstractStructVec{W,T}, s::T) where {W,T} = vminimum(v)
+@inline reduce_to_max(v::AbstractStructVec{W,T}, ::AbstractStructVec{W,T}) where {W,T} = v
+@inline reduce_to_min(v::AbstractStructVec{W,T}, ::AbstractStructVec{W,T}) where {W,T} = v
+
+@inline reduced_max(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = max(convert(T2,vmaximum(v)), s)
+@inline reduced_min(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = min(convert(T2,vminimum(v)), s)
+@inline reduced_max(v1::AbstractSIMDVector{W}, v2::AbstractStructVec{W,T2}) where {W,T2} = vmax(vconvert(SVec{W,T2},v1), v2)
+@inline reduced_min(v1::AbstractSIMDVector{W,}, v2::AbstractStructVec{W,T2}) where {W,T2} = vmin(vconvert(SVec{W,T2},v1), v2)
+@inline reduce_to_max(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = convert(T2,vmaximum(v))
+@inline reduce_to_min(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = convert(T2,vminimum(v))
+@inline reduce_to_max(v::AbstractSIMDVector{W}, ::AbstractStructVec{W,T2}) where {W,T2} = vconvert(SVec{W,T2}, v)
+@inline reduce_to_min(v::AbstractSIMDVector{W}, ::AbstractStructVec{W,T2}) where {W,T2} = vconvert(SVec{W,T2}, v)
 
 @inline vnmul(x,y) = vsub(vmul(x, y))
 @inline vnsub(x,y) = vsub(y, x)
 @inline vmul2(x) = vadd(x,x)
 @inline vmul3(x::T) where {T <: Number} = Base.FastMath.mul_fast(T(3), x)
-@inline vmul3(v::V) where {W, T, V <: AbstractSIMDVector{W,T}} = vmul(vbroadcast(V, T(3)), v)
+@inline vmul3(v::V) where {W, V <: AbstractSIMDVector{W}} = vmul(vbroadcast(V, T(3)), v)
 @inline vadd1(x::T) where {T <: Number} = Base.FastMath.add_fast(x, one(x))
-@inline vadd1(v::V) where {W, T, V <: AbstractSIMDVector{W,T}} = vadd(vbroadcast(V, one(T)), v)
+@inline vadd1(v::V) where {W, V <: AbstractSIMDVector{W}} = vadd(vone(V), v)
 
-@generated function addscalar(v::Vec{W,T}, s::T) where {W, T <: Integer}
+@generated function addscalar(v::_Vec{_W,T}, s::T) where {_W, T <: Integer}
+    W = _W + 1
     typ = "i$(8sizeof(T))"
     vtyp = "<$W x $typ>"
     instrs = String[]
@@ -822,7 +777,8 @@ end
         Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
-@generated function addscalar(v::Vec{W,T}, s::T) where {W, T <: Union{Float16,Float32,Float64}}
+@generated function addscalar(v::_Vec{_W,T}, s::T) where {_W, T <: Union{Float16,Float32,Float64}}
+    W = _W + 1
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     instrs = String[]
@@ -835,10 +791,12 @@ end
     end
 end
 @inline addscalar(v::SVec, s) = SVec(addscalar(extract_data(v), s))
-@inline addscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = addscalar(v, s)
+@inline addscalar(s::T, v::_Vec{W,T}) where {W,T} = addscalar(v, s)
+@inline addscalar(s::T, v::AbstractStructVec{W,T}) where {W,T} = addscalar(v, s)
 @inline addscalar(a, b) = vadd(a, b)
 
-@generated function mulscalar(v::Vec{W,T}, s::T) where {W, T <: Integer}
+@generated function mulscalar(v::_Vec{_W,T}, s::T) where {_W, T <: Integer}
+    W = _W + 1
     typ = "i$(8sizeof(T))"
     vtyp = "<$W x $typ>"
     instrs = String[]
@@ -850,7 +808,8 @@ end
         Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
-@generated function mulscalar(v::Vec{W,T}, s::T) where {W, T <: Union{Float16,Float32,Float64}}
+@generated function mulscalar(v::_Vec{_W,T}, s::T) where {_W, T <: Union{Float16,Float32,Float64}}
+    W = _W + 1
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
     instrs = String[]
@@ -863,7 +822,8 @@ end
     end
 end
 @inline mulscalar(v::SVec, s) = SVec(mulscalar(extract_data(v), s))
-@inline mulscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = mulscalar(v, s)
+@inline mulscalar(s::T, v::_Vec{W,T}) where {W,T} = mulscalar(v, s)
+@inline mulscalar(s::T, v::AbstractStructVec{W,T}) where {W,T} = mulscalar(v, s)
 @inline mulscalar(a, b) = vmul(a, b)
 
 
@@ -892,14 +852,16 @@ function scalar_maxmin(W, ::Type{T}, ismax) where {T}
     push!(instrs, "ret $vtyp %v")
     instrs
 end
-@generated function maxscalar(v::Vec{W,T}, s::T) where {W, T}
+@generated function maxscalar(v::_Vec{_W,T}, s::T) where {_W, T}
+    W = _W + 1
     instrs = scalar_maxmin(W, T, true)
     quote
         $(Expr(:meta,:inline))
         Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
-@generated function minscalar(v::Vec{W,T}, s::T) where {W, T}
+@generated function minscalar(v::_Vec{_W,T}, s::T) where {_W, T}
+    W = _W + 1
     instrs = scalar_maxmin(W, T, false)
     quote
         $(Expr(:meta,:inline))
@@ -907,10 +869,12 @@ end
     end
 end
 @inline maxscalar(v::SVec, s) = SVec(maxscalar(extract_data(v), s))
-@inline maxscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = maxscalar(v, s)
+@inline maxscalar(s::T, v::_Vec{W,T}) where {W,T} = maxscalar(v, s)
+@inline maxscalar(s::T, v::AbstractStructVec{W,T}) where {W,T} = maxscalar(v, s)
 @inline maxscalar(a, b) = vmax(a, b)
 @inline minscalar(v::SVec, s) = SVec(minscalar(extract_data(v), s))
-@inline minscalar(s::T, v::AbstractSIMDVector{W,T}) where {W,T} = minscalar(v, s)
+@inline minscalar(s::T, v::_Vec{W,T}) where {W,T} = minscalar(v, s)
+@inline minscalar(s::T, v::AbstractStructVec{W,T}) where {W,T} = minscalar(v, s)
 @inline minscalar(a, b) = vmin(a, b)
 
 

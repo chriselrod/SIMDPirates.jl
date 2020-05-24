@@ -2,7 +2,7 @@ module SIMDPirates
 
 using VectorizationBase
 using VectorizationBase:
-    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM,
+    llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, _Vec, 
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
 import VectorizationBase: vload, vstore!, vnoaliasstore!, AbstractMask, tomask, IntTypes, UIntTypes, IntegerTypes, FloatingTypes, ScalarTypes, vadd, vmul, vsub
 
@@ -22,8 +22,7 @@ export  Vec, SVec, VE, _MM, stridedpointer,
     @pirate
 
 
-vecarguments(args) = [isa(arg, Symbol) ? :($arg::Vec{W,T})             : arg for arg ∈ args]
-abstractarguments(args) = [isa(arg, Symbol) ? :($arg::AbstractSIMDVector{W,T})    : arg for arg ∈ args]
+vecarguments(args) = [isa(arg, Symbol) ? :($arg::_Vec{W,T}) : arg for arg ∈ args]
 function structvecarguments(args)
     asa = Expr[]
     sva = Expr[]
@@ -51,9 +50,8 @@ function structvecarguments(args)
 end
 function vector_args(args)
     vecargs = vecarguments(args)
-    abstractargs = abstractarguments(args)
     asargs, structargs, renamedargs = structvecarguments(args)
-    vecargs, abstractargs, asargs, structargs, renamedargs
+    vecargs, asargs, structargs, renamedargs
 end
 
 function parse_func_decl(expr::Expr)
@@ -68,11 +66,10 @@ function parse_func_decl(expr::Expr)
 end
 macro vectordef(rename, expr)
     f, args, R, body = parse_func_decl(expr)
-    vecargs, abstractargs, asargs, structargs, renamedargs = vector_args(args)
+    vecargs, asargs, structargs, renamedargs = vector_args(args)
     push!(renamedargs, Expr(:call, Expr(:curly, :SVec, :W), body))
     q = quote
         @inline $rename($(vecargs...)) where {$(R...)} = $body
-        @inline $rename($(abstractargs...)) where {$(R...)} = SVec{W}($body)
         @inline function $f($(asargs...)) where {$(R...)}
             $(renamedargs...)
         end
@@ -84,10 +81,13 @@ macro vectordef(rename, expr)
 end
 macro evectordef(rename, expr)
     f, args, R, body = parse_func_decl(expr)
-    vecargs, abstractargs, structargs = vector_args(args)
+    vecargs, abstractargs, structargs, renamedargs = vector_args(args)
+    push!(renamedargs, Expr(:call, Expr(:curly, :SVec, :W), body))
     q = quote
         @inline $rename($(vecargs...)) where {$(R...)} = $body
-        @inline $rename($(abstractargs...)) where {$(R...)} = SVec{W}($body)
+        @inline function $rename($(abstractargs...)) where {$(R...)}
+            $(renamedargs...)
+        end
     end
     esc(q)
 end
@@ -122,8 +122,8 @@ include("special.jl")
 include("contract_pass.jl")
 include("pirate.jl")
 include("arithmeticwithconsts.jl")
-include("precompile.jl")
-_precompile_()
+# include("precompile.jl")
+# _precompile_()
 
 
 end # module

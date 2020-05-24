@@ -16,7 +16,7 @@ end
 # @inline Base.:!(v1::SVec{N,Bool}) where {N} = SVec(vbitwise_not(extract_data(v1)))
 
 @inline vabs(s1::IntTypes) = abs(s1)
-@inline function vabs(v1::Vec{W,T}) where {W,T<:IntTypes}
+@inline function vabs(v1::_Vec{W,T}) where {W,T<:IntTypes}
     # s = -vbroadcast(Vec{W,T}, signbit(v1))
     s = vright_bitshift(v1, Val{8*sizeof(T)}())
     # Note: -v1 == ~v1 + 1
@@ -25,7 +25,8 @@ end
 @inline vabs(v1::SVec{W,T}) where {W,T<:IntTypes} = SVec(vabs(extract_data(v1)))
 @inline Base.abs(v1::SVec{W,T}) where {W,T<:IntTypes} = SVec(vabs(extract_data(v1)))
 
-@inline vabs(v1::AbstractSIMDVector{W,T}) where {W,T<:UIntTypes} = v1
+@inline vabs(v1::_Vec{W,T}) where {W,T<:UIntTypes} = v1
+@inline vabs(v1::AbstractStructVec{W,T}) where {W,T<:UIntTypes} = v1
 @inline Base.abs(v1::SVec{W,T}) where {W,T<:UIntTypes} = v1
 
 # TODO: Try T(v1>0) - T(v1<0)
@@ -33,24 +34,24 @@ end
 #       evaluate v1>0 as -v1<0 ?
 
 @inline vsign(s1::IntTypes) = sign(s1)
-@inline vsign(v1::Vec{W,T}) where {W,T<:IntTypes} =
-    vifelse(visequal(v1, vbroadcast(Vec{W,T},0)), vbroadcast(Vec{W,T},0),
-        vifelse(vless(v1, vbroadcast(Vec{W,T},0)), vbroadcast(Vec{W,T},-1), vbroadcast(Vec{W,T},1)))
-@inline vsign(v1::Vec{W,T}) where {W,T<:UIntTypes} =
-    vifelse(visequal(v1, vbroadcast(Vec{W,T},0)), vbroadcast(Vec{W,T},0), vbroadcast(Vec{W,T},1))
-    @inline vsign(v1::SVec) = SVec(vsign(extract_data(v1)))
-    @inline Base.sign(v1::SVec) = SVec(vsign(extract_data(v1)))
+@inline vsign(v1::_Vec{W,T}) where {W,T<:IntTypes} =
+    vifelse(visequal(v1, vbroadcast(_Vec{W,T},0)), vbroadcast(_Vec{W,T},0),
+        vifelse(vless(v1, vbroadcast(_Vec{W,T},0)), vbroadcast(_Vec{W,T},-1), vbroadcast(_Vec{W,T},1)))
+@inline vsign(v1::_Vec{W,T}) where {W,T<:UIntTypes} =
+    vifelse(visequal(v1, vbroadcast(_Vec{W,T},0)), vbroadcast(_Vec{W,T},0), vbroadcast(_Vec{W,T},1))
+@inline vsign(v1::SVec) = SVec(vsign(extract_data(v1)))
+@inline Base.sign(v1::SVec) = SVec(vsign(extract_data(v1)))
 
 
 @inline vsignbit(s1::IntegerTypes) = signbit(s1)
-@inline vsignbit(v1::Vec{W,T}) where {W,T<:IntTypes} = vless(v1, vbroadcast(Vec{W,T}, 0))
+@inline vsignbit(v1::_Vec{W,T}) where {W,T<:IntTypes} = vless(v1, vbroadcast(_Vec{W,T}, 0))
 @inline vsignbit(v1::SVec{W,T}) where {W,T<:IntTypes} = SVec(vsignbit(extract_data(v1)))
 @inline Base.signbit(v1::SVec{W,T}) where {W,T<:IntTypes} = SVec(vsignbit(extract_data(v1)))
 
 
-@inline vsignbit(v1::Vec{W,T}) where {W,T<:UIntTypes} = vbroadcast(Vec{N,Bool}, false)
-@inline vsignbit(v1::SVec{W,T}) where {W,T<:UIntTypes} = vbroadcast(SVec{N,Bool}, false)
-@inline Base.signbit(v1::SVec{W,T}) where {W,T<:UIntTypes} = vbroadcast(SVec{N,Bool}, false)
+@inline vsignbit(v1::_Vec{W,T}) where {W,T<:UIntTypes} = vsignbit(SVec(v1))
+@inline vsignbit(v1::SVec{W,T}) where {W,T<:UIntTypes} = zero(Mask{W})
+@inline Base.signbit(v1::SVec{W,T}) where {W,T<:UIntTypes} = zero(Mask{W})
 
 for op ∈ (:(&), :(|), :(⊻), :(+), :(-), :(*), :(÷), :(%) )
     rename = VECTOR_SYMBOLS[op]
@@ -79,7 +80,7 @@ Base.:%(v::SVec{W,I1}, ::Type{I2}) where {W,I1,I2} =  SVec(vconvert(Vec{W,I2}, e
 
 
 @inline vcopysign(s1::IntegerTypes, s2::IntegerTypes) = copysign(s1, s2)
-@inline vcopysign(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntTypes} =
+@inline vcopysign(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T<:IntTypes} =
     vifelse(vsignbit(v2), -abs(v1), abs(v1))
 # @inline function vcopysign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T}
     # SVec(vcopysign(extract_data(v1), extract_data(v2)))
@@ -87,12 +88,12 @@ Base.:%(v::SVec{W,I1}, ::Type{I2}) where {W,I1,I2} =  SVec(vconvert(Vec{W,I2}, e
 @inline function Base.copysign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T}
     SVec(vcopysign(extract_data(v1), extract_data(v2)))
 end
-@inline vcopysign(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:UIntTypes} = v1
+@inline vcopysign(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T<:UIntTypes} = v1
+@inline vcopysign(v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}) where {W,T<:UIntTypes} = v1
 @inline Base.copysign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:UIntTypes} = v1
 
 @inline vflipsign(s1::IntegerTypes, s2::IntegerTypes) = flipsign(s1, s2)
-@inline vflipsign(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntTypes} =
-    vifelse(vsignbit(v2), -v1, v1)
+@inline vflipsign(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T<:IntTypes} = vifelse(vsignbit(v2), -v1, v1)
 @inline function vflipsign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:IntTypes}
     SVec(vflipsign(extract_data(v1), extract_data(V2)))
 end
@@ -100,13 +101,14 @@ end
     SVec(vflipsign(extract_data(v1), extract_data(V2)))
 end
 
-@inline vflipsign(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T<:UIntTypes} = v1
+@inline vflipsign(v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}) where {W,T<:UIntTypes} = v1
+@inline vflipsign(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T<:UIntTypes} = v1
 @inline Base.flipsign(v1::SVec{W,T}, v2::SVec{W,T}) where {W,T<:UIntTypes} = v1
 
 @inline vmax(s1::IntegerTypes, s2::IntegerTypes) = max(s1, s2)
 @inline vmin(s1::IntegerTypes, s2::IntegerTypes) = min(s1, s2)
-@inline vmax(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} = vifelse(vless(v2, v1), v1, v2)
-@inline vmin(v1::Vec{W,T}, v2::Vec{W,T}) where {W,T<:IntegerTypes} = vifelse(vless(v1, v2), v1, v2)
+@inline vmax(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T<:IntegerTypes} = vifelse(vless(v2, v1), v1, v2)
+@inline vmin(v1::_Vec{W,T}, v2::_Vec{W,T}) where {W,T<:IntegerTypes} = vifelse(vless(v1, v2), v1, v2)
 @inline function Base.max(v1::AbstractStructVec, v2::AbstractStructVec)
     V = promote_vtype(typeof(v1), typeof(v2))
     SVec(vmax(extract_data(vconvert(V, v1)), extract_data(vconvert(V, v2))))
@@ -133,28 +135,32 @@ end
 end
 
 vmuladd(s1::ScalarTypes, s2::ScalarTypes, s3::ScalarTypes) = muladd(s1,s2,s3)
-@inline function vmuladd(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:IntegerTypes}
+@inline function vmuladd(v1::_Vec{W,T}, v2::_Vec{W,T}, v3::_Vec{W,T}) where {W,T<:IntegerTypes}
     vadd(vmul(v1,v2),v3)
 end
-@inline function vmuladd(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T},
-        v3::AbstractSIMDVector{W,T}) where {W,T<:IntegerTypes}
+@inline function vmuladd(
+    v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}, v3::AbstractStructVec{W,T}
+) where {W,T<:IntegerTypes}
     SVec(vadd(vmul(extract_data(v1),extract_data(v2)),extract_data(v3)))
 end
-@inline function Base.muladd(v1::SVec{W,T}, v2::SVec{W,T},
-        v3::SVec{W,T}) where {W,T<:IntegerTypes}
+@inline function Base.muladd(
+    v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}, v3::AbstractStructVec{W,T}
+) where {W,T<:IntegerTypes}
     SVec(vadd(vmul(extract_data(v1),extract_data(v2)),extract_data(v3)))
 end
 
 vfma(s1::ScalarTypes, s2::ScalarTypes, s3::ScalarTypes) = fma(s1,s2,s3)
-@inline function vfma(v1::Vec{W,T}, v2::Vec{W,T}, v3::Vec{W,T}) where {W,T<:IntegerTypes}
+@inline function vfma(v1::_Vec{W,T}, v2::_Vec{W,T}, v3::_Vec{W,T}) where {W,T<:IntegerTypes}
     vadd(vmul(v1,v2),v3)
 end
-@inline function vfma(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T},
-        v3::AbstractSIMDVector{W,T}) where {W,T<:IntegerTypes}
+@inline function vfma(
+    v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}, v3::AbstractStructVec{W,T}
+) where {W,T<:IntegerTypes}
     SVec(vadd(vmul(extract_data(v1),extract_data(v2)),extract_data(v3)))
 end
-@inline function Base.fma(v1::SVec{W,T}, v2::SVec{W,T},
-        v3::SVec{W,T}) where {W,T<:IntegerTypes}
+@inline function Base.fma(
+    v1::AbstractStructVec{W,T}, v2::AbstractStructVec{W,T}, v3::AbstractStructVec{W,T}
+) where {W,T<:IntegerTypes}
     SVec(vadd(vmul(extract_data(v1),extract_data(v2)),extract_data(v3)))
 end
 # TODO: Handle negative shift counts
@@ -208,10 +214,10 @@ for op ∈ (
         @inline $rename(s1::ScalarTypes, s2::ScalarTypes) = $op(s1, s2)
 
         @vectordef $rename function Base.$op(s1::IntegerTypes, v2) where {W, T <: IntegerTypes}
-            $rename(vbroadcast(Vec{W,T}, s1), extract_data(v2))
+            $rename(vbroadcast(typeof(v2), s1), extract_data(v2))
         end
         @vectordef $rename function Base.$op(v1, s2::IntegerTypes) where {W, T <: IntegerTypes}
-            $rename(extract_data(v1), vbroadcast(Vec{W,T}, s2))
+            $rename(extract_data(v1), vbroadcast(typeof(v1), s2))
         end
     end
 end
@@ -241,7 +247,8 @@ end
     end
 end
 
-@generated function vleading_zeros(v::NTuple{W,Core.VecElement{I}}) where {W, I <: Integer}
+@generated function vleading_zeros(v::_Vec{_W,I}) where {_W, I <: Integer}
+    W = _W + 1
     typ = "i$(8sizeof(I))"
     vtyp = "<$W x $typ>"
     instr = "@llvm.ctlz.v$(W)$(typ)"
@@ -261,7 +268,8 @@ end
 @inline vleading_zeros(v::SVec{<:Any,<:Integer}) = SVec(vleading_zeros(extract_data(v)))
 @inline Base.leading_zeros(v::SVec{<:Any,<:Integer}) = SVec(vleading_zeros(extract_data(v)))
 
-@generated function vtrailing_zeros(v::NTuple{W,Core.VecElement{I}}) where {W, I <: Integer}
+@generated function vtrailing_zeros(v::_Vec{_W,I}) where {_W, I <: Integer}
+    W = _W + 1
     typ = "i$(8sizeof(I))"
     vtyp = "<$W x $typ>"
     instr = "@llvm.cttz.v$(W)$(typ)"
@@ -302,7 +310,6 @@ end
 #         ))
 #     end    
 # end
-# @inline vadd(v::AbstractSIMDVector{W,I}, m::Mask{W}) where {W,I<:IntegerTypes} = vadd(m, v)
 # @inline vadd(m::Mask{W}, v::AbstractStructVec{W,I}) where {W,I<:IntegerTypes} = vadd(m, extract_data(v))
 
 @inline Base.:(<<)(i::_MM{W}, j::SVec{W,T}) where {W,T<:Integer} = svrange(_MM{W}(i.i %T)) << j
@@ -314,7 +321,6 @@ end
 @inline Base.:(<<)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) << svrange(j)
 @inline Base.:(>>)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) >> svrange(j)
 @inline Base.:(>>>)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) >>> svrange(j)
-
 
 
 

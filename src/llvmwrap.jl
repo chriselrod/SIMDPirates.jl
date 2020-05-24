@@ -1,13 +1,17 @@
 # Generic function wrappers
 
 # Functions taking one argument
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1}, ::Type{R} = T1) where {Op,N,T1,R}
+@inline function llvmwrap(::Val{Op}, v1::_Vec{_W,T1}) where {Op,_W,T1}
+    llvmwrap(Val{Op}(), v1, T1)
+end
+@generated function llvmwrap(::Val{Op}, v1::_Vec{_W,T1}, ::Type{R}) where {Op,_W,T1,R}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     typr = llvmtype(R)
-    vtypr = "<$N x $typr>"
-    ins = llvmins(Op, N, T1)
+    vtypr = "<$W x $typr>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
     flags = [""]
@@ -27,49 +31,53 @@
         else
             otherval = 0
         end
-        otherarg = llvmconst(N, T1, otherval)
+        otherarg = llvmconst(W, T1, otherval)
         push!(instrs, "%res = $ins" * join(flags, " ") * " $vtyp1 $otherarg, %0")
     end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,R}, Tuple{Vec{N,T1}}, v1)
+        Base.llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$R}, Tuple{Vec{$W,$T1}}, v1
+        )
     end
 end
 
 # Functions taking one Bool argument
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,Bool}, ::Type{Bool} = Bool) where {Op,N}
+@generated function llvmwrap(::Val{Op}, v1::_Vec{_W,Bool}, ::Type{Bool}) where {Op,_W}
+    W = _W + 1
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
-    ins = llvmins(Op, N, Bool)
+    vbtyp = "<$W x $btyp>"
+    ins = llvmins(Op, W, Bool)
     decls = String[]
     instrs = String[]
-    push!(instrs, "%arg1 = trunc $vbtyp %0 to <$N x i1>")
-    otherarg = llvmconst(N, Bool, true)
-    push!(instrs, "%res = $ins <$N x i1> $otherarg, %arg1")
-    push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
+    push!(instrs, "%arg1 = trunc $vbtyp %0 to <$W x i1>")
+    otherarg = llvmconst(W, Bool, true)
+    push!(instrs, "%res = $ins <$W x i1> $otherarg, %arg1")
+    push!(instrs, "%resb = zext <$W x i1> %res to $vbtyp")
     push!(instrs, "ret $vbtyp %resb")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,Bool}, Tuple{Vec{N,Bool}}, v1)
+            Vec{$W,Bool}, Tuple{Vec{$W,Bool}}, v1)
     end
 end
 
 # Functions taking two arguments
 @generated function llvmwrap(
-    ::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T2}, ::Type{R} = T1
-) where {Op,N,T1,T2,R}
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, ::Type{R} = T1
+) where {Op,_W,T1,T2,R}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     typ2 = llvmtype(T2)
-    vtyp2 = "<$N x $typ2>"
+    vtyp2 = "<$W x $typ2>"
     typr = llvmtype(R)
-    vtypr = "<$N x $typr>"
-    ins = llvmins(Op, N, T1)
+    vtypr = "<$W x $typr>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
     flags = [""]
@@ -87,20 +95,22 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,R}, Tuple{Vec{N,T1}, Vec{N,T2}},
+            Vec{$W,$R}, Tuple{Vec{$W,$T1}, Vec{$W,$T2}},
             v1, v2)
     end
 end
-@generated function llvmwrap_notfast(::Val{Op}, v1::Vec{N,T1},
-        v2::Vec{N,T2}, ::Type{R} = T1) where {Op,N,T1,T2,R}
+@generated function llvmwrap_notfast(
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, ::Type{R} = T1
+) where {Op,_W,T1,T2,R}
     @assert isa(Op, Symbol)
+    W = _W + 1
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     typ2 = llvmtype(T2)
-    vtyp2 = "<$N x $typ2>"
+    vtyp2 = "<$W x $typ2>"
     typr = llvmtype(R)
-    vtypr = "<$N x $typr>"
-    ins = llvmins(Op, N, T1)
+    vtypr = "<$W x $typr>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
     if ins[1] == '@'
@@ -113,74 +123,78 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,R}, Tuple{Vec{N,T1}, Vec{N,T2}},
+            Vec{$W,$R}, Tuple{Vec{$W,$T1}, Vec{$W,$T2}},
             v1, v2)
     end
 end
 
 # Functions taking two arguments, returning Bool
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
-        v2::Vec{N,T2}, ::Type{Bool}) where {Op,N,T1,T2}
+@generated function llvmwrap(
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, ::Type{Bool}
+) where {Op,_W,T1,T2}
     @assert isa(Op, Symbol)
+    W = _W + 1
     btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
+    vbtyp = "<$W x $btyp>"
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     typ2 = llvmtype(T2)
-    vtyp2 = "<$N x $typ2>"
-    ins = llvmins(Op, N, T1)
+    vtyp2 = "<$W x $typ2>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
-    # if false && N == 1
-        # append!(instrs, array2vector("%arg1", N, typ1, "%0", "%arg1arr"))
-        # append!(instrs, array2vector("%arg2", N, typ2, "%1", "%arg2arr"))
+    # if false && W == 1
+        # append!(instrs, array2vector("%arg1", W, typ1, "%0", "%arg1arr"))
+        # append!(instrs, array2vector("%arg2", W, typ2, "%1", "%arg2arr"))
         # push!(instrs, "%cond = $ins $vtyp1 %arg1, %arg2")
-        # push!(instrs, "%res = zext <$N x i1> %cond to $vbtyp")
-        # append!(instrs, vector2array("%resarr", N, btyp, "%res"))
+        # push!(instrs, "%res = zext <$W x i1> %cond to $vbtyp")
+        # append!(instrs, vector2array("%resarr", W, btyp, "%res"))
         # push!(instrs, "ret $abtyp %resarr")
     # else
     push!(instrs, "%res = $ins $vtyp1 %0, %1")
-    push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
+    push!(instrs, "%resb = zext <$W x i1> %res to $vbtyp")
     push!(instrs, "ret $vbtyp %resb")
     # end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,Bool}, Tuple{Vec{N,T1}, Vec{N,T2}},
+            Vec{$W,Bool}, Tuple{Vec{$W,$T1}, Vec{$W,$T2}},
             v1, v2)
     end
 end
 # Functions taking two arguments, returning a bitmask
-@generated function llvmwrap_bitmask(::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T1}) where {Op,N,T1}
+@generated function llvmwrap_bitmask(::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T1}) where {Op,_W,T1}
     @assert isa(Op, Symbol)
+    W = _W + 1
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
-    ins = llvmins(Op, N, T1)
+    vtyp1 = "<$W x $typ1>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
     # if T1 <: FloatingTypes && T2 <: FloatingTypes
         # push!(instrs, "%res = $ins reassoc $vtyp1 %0, %1")
     # else
     push!(instrs, "%res = $ins $vtyp1 %0, %1")
-    maskbits = max(8, VectorizationBase.nextpow2(N))
-    bitcastname = maskbits == N ? "resu" : "resutrunc"
-    push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
-    if maskbits != N
-        push!(instrs, "%resu = zext i$N %$(bitcastname) to i$maskbits")
+    maskbits = max(8, VectorizationBase.nextpow2(W))
+    bitcastname = maskbits == W ? "resu" : "resutrunc"
+    push!(instrs, "%$(bitcastname) = bitcast <$W x i1> %res to i$W")
+    if maskbits != W
+        push!(instrs, "%resu = zext i$W %$(bitcastname) to i$maskbits")
     end
     push!(instrs, "ret i$maskbits %resu")
     julia_mask_type = VectorizationBase.mask_type(maskbits)
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            $julia_mask_type, Tuple{Vec{N,T1}, Vec{N,T1}},
+            $julia_mask_type, Tuple{Vec{$W,$T1}, Vec{$W,$T1}},
             v1, v2)
     end
 end
-@generated function llvmwrap_bitmask_notfast(::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T1}) where {Op,N,T1}
+@generated function llvmwrap_bitmask_notfast(::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T1}) where {Op,_W,T1}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     ins = if Op == :(==)
         "fcmp oeq"
     elseif Op == :(!=)
@@ -203,58 +217,60 @@ end
     # else
     push!(instrs, "%res = $ins $vtyp1 %0, %1")
     # end
-    # push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
-    maskbits = max(8, VectorizationBase.nextpow2(N))
-    bitcastname = maskbits == N ? "resu" : "resutrunc"
-    push!(instrs, "%$(bitcastname) = bitcast <$N x i1> %res to i$N")
-    if maskbits != N
-        push!(instrs, "%resu = zext i$N %$(bitcastname) to i$maskbits")
+    # push!(instrs, "%resb = zext <$W x i1> %res to $vbtyp")
+    maskbits = max(8, VectorizationBase.nextpow2(W))
+    bitcastname = maskbits == W ? "resu" : "resutrunc"
+    push!(instrs, "%$(bitcastname) = bitcast <$W x i1> %res to i$W")
+    if maskbits != W
+        push!(instrs, "%resu = zext i$W %$(bitcastname) to i$maskbits")
     end
     push!(instrs, "ret i$maskbits %resu")
     julia_mask_type = VectorizationBase.mask_type(maskbits)
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            $julia_mask_type, Tuple{Vec{N,T1}, Vec{N,T1}},
+            $julia_mask_type, Tuple{Vec{$W,$T1}, Vec{$W,$T1}},
             v1, v2)
     end
 end
 
 # Functions taking two Bool arguments, returning Bool
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,Bool},
-        v2::Vec{N,Bool}, ::Type{Bool} = Bool) where {Op,N}
+@generated function llvmwrap(::Val{Op}, v1::_Vec{_W,Bool}, v2::_Vec{_W,Bool}, ::Type{Bool} = Bool) where {Op,_W}
+    W = _W + 1
     @assert isa(Op, Symbol)
     btyp = llvmtype(Bool)
-    vbtyp = "<$N x $btyp>"
-    ins = llvmins(Op, N, Bool)
+    vbtyp = "<$W x $btyp>"
+    ins = llvmins(Op, W, Bool)
     decls = String[]
     instrs = String[]
-    push!(instrs, "%arg1 = trunc $vbtyp %0 to <$N x i1>")
-    push!(instrs, "%arg2 = trunc $vbtyp %1 to <$N x i1>")
-    push!(instrs, "%res = $ins <$N x i1> %arg1, %arg2")
-    push!(instrs, "%resb = zext <$N x i1> %res to $vbtyp")
+    push!(instrs, "%arg1 = trunc $vbtyp %0 to <$W x i1>")
+    push!(instrs, "%arg2 = trunc $vbtyp %1 to <$W x i1>")
+    push!(instrs, "%res = $ins <$W x i1> %arg1, %arg2")
+    push!(instrs, "%resb = zext <$W x i1> %res to $vbtyp")
     push!(instrs, "ret $vbtyp %resb")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,Bool}, Tuple{Vec{N,Bool}, Vec{N,Bool}},
+            Vec{$W,Bool}, Tuple{Vec{$W,Bool}, Vec{$W,Bool}},
             v1, v2)
     end
 end
 
 # Functions taking three arguments
-@generated function llvmwrap(::Val{Op}, v1::Vec{N,T1},
-        v2::Vec{N,T2}, v3::Vec{N,T3}, ::Type{R} = T1) where {Op,N,T1,T2,T3,R}
+@generated function llvmwrap(
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, v3::_Vec{_W,T3}, ::Type{R} = T1
+) where {Op,_W,T1,T2,T3,R}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     typ2 = llvmtype(T2)
-    vtyp2 = "<$N x $typ2>"
+    vtyp2 = "<$W x $typ2>"
     typ3 = llvmtype(T3)
-    vtyp3 = "<$N x $typ3>"
+    vtyp3 = "<$W x $typ3>"
     typr = llvmtype(R)
-    vtypr = "<$N x $typr>"
-    ins = llvmins(Op, N, T1)
+    vtypr = "<$W x $typr>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
     if ins[1] == '@'
@@ -268,24 +284,25 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,R},
-            Tuple{Vec{N,T1}, Vec{N,T2}, Vec{N,T3}},
+            Vec{$W,R},
+            Tuple{Vec{$W,$T1}, Vec{$W,$T2}, Vec{$W,$T3}},
             v1, v2, v3)
     end
 end
 @generated function llvmwrap_fast(
-    ::Val{Op}, v1::Vec{N,T1}, v2::Vec{N,T2}, v3::Vec{N,T3}, ::Type{R} = T1
-) where {Op,N,T1,T2,T3,R}
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, v3::_Vec{_W,T3}, ::Type{R} = T1
+) where {Op,_W,T1,T2,T3,R}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ1 = llvmtype(T1)
-    vtyp1 = "<$N x $typ1>"
+    vtyp1 = "<$W x $typ1>"
     typ2 = llvmtype(T2)
-    vtyp2 = "<$N x $typ2>"
+    vtyp2 = "<$W x $typ2>"
     typ3 = llvmtype(T3)
-    vtyp3 = "<$N x $typ3>"
+    vtyp3 = "<$W x $typ3>"
     typr = llvmtype(R)
-    vtypr = "<$N x $typr>"
-    ins = llvmins(Op, N, T1)
+    vtypr = "<$W x $typr>"
+    ins = llvmins(Op, W, T1)
     decls = String[]
     instrs = String[]
     if ins[1] == '@'
@@ -299,16 +316,17 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,R},
-            Tuple{Vec{N,T1}, Vec{N,T2}, Vec{N,T3}},
+            Vec{$W,$R},
+            Tuple{Vec{$W,$T1}, Vec{$W,$T2}, Vec{$W,$T3}},
             v1, v2, v3)
     end
 end
 
 
 @generated function llvmwrapshift(
-    ::Val{Op}, v1::Vec{N,T}, ::Val{I}
-) where {Op,N,T,I}
+    ::Val{Op}, v1::_Vec{_W,T}, ::Val{I}
+) where {Op,_W,T,I}
+    W = _W + 1
     @assert isa(Op, Symbol)
     if I >= 0
         op = Op
@@ -329,13 +347,13 @@ end
     @assert op in (:<<, :>>, :>>>)
     @assert i >= 0
     typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    ins = llvmins(op, N, T)
+    vtyp = "<$W x $typ>"
+    ins = llvmins(op, W, T)
     decls = String[]
     instrs = String[]
     nbits = 8*sizeof(T)
     if (op === :>> && T <: IntTypes) || i < nbits
-        count = llvmconst(N, T, min(nbits-1, i))
+        count = llvmconst(W, T, min(nbits-1, i))
         push!(instrs, "%res = $ins $vtyp %0, $count")
         push!(instrs, "ret $vtyp %res")
     else
@@ -344,25 +362,26 @@ end
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,T}, Tuple{Vec{N,T}}, v1)
+            Vec{$W,$T}, Tuple{Vec{$W,$T}}, v1)
     end
 end
 
 @generated function llvmwrapshift(
-    ::Val{Op}, v1::Vec{N,T}, x2::Unsigned
-) where {Op,N,T}
+    ::Val{Op}, v1::_Vec{_W,T}, x2::Unsigned
+) where {Op,_W,T}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    ins = llvmins(Op, N, T)
+    vtyp = "<$W x $typ>"
+    ins = llvmins(Op, W, T)
     decls = String[]
     instrs = String[]
-    append!(instrs, scalar2vector("%count", N, typ, "%1"))
+    append!(instrs, scalar2vector("%count", W, typ, "%1"))
     nbits = 8*sizeof(T)
     push!(instrs, "%res = $ins $vtyp %0, %count")
     # push!(instrs, "%inbounds = icmp ult $typ %1, $nbits")
     # if Op === :>> && T <: IntTypes
-    #     nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+    #     nbits1 = llvmconst(W, T, 8*sizeof(T)-1)
     #     push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
     #     push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp %limit")
     # else
@@ -371,16 +390,17 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        # Note that this function might be called with out-of-bounds
+        # Wote that this function might be called with out-of-bounds
         # values for x2, assuming that the results are then ignored
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,T}, Tuple{Vec{N,T}, T}, v1, x2 % T)
+            Vec{$W,$T}, Tuple{Vec{$W,$T}, $T}, v1, x2 % $T)
     end
 end
 
 @generated function llvmwrapshift(
-    ::Val{Op}, v1::Vec{N,T}, x2::Integer
-) where {Op,N,T}
+    ::Val{Op}, v1::_Vec{_W,T}, x2::Integer
+) where {Op,_W,T}
+    W = _W + 1
     if Op === :>> || Op === :>>>
         NegOp = :<<
     else
@@ -401,42 +421,44 @@ end
 
 @generated function llvmwrapshift(
     ::Val{Op},
-    v1::Vec{N,T},
-    v2::Vec{N,U}
-) where {Op,N,T,U<:UIntTypes}
+    v1::_Vec{_W,T},
+    v2::_Vec{_W,U}
+) where {Op,_W,T,U<:UIntTypes}
+    W = _W + 1
     @assert isa(Op, Symbol)
     typ = llvmtype(T)
-    vtyp = "<$N x $typ>"
-    ins = llvmins(Op, N, T)
+    vtyp = "<$W x $typ>"
+    ins = llvmins(Op, W, T)
     decls = String[]
     instrs = String[]
     push!(instrs, "%res = $ins $vtyp %0, %1")
     # push!(instrs, "%tmp = $ins $vtyp %0, %1")
-    # nbits = llvmconst(N, T, 8*sizeof(T))
+    # nbits = llvmconst(W, T, 8*sizeof(T))
     # push!(instrs, "%inbounds = icmp ult $vtyp %1, $nbits")
     # if Op === :>> && T <: IntTypes
-    #     nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+    #     nbits1 = llvmconst(W, T, 8*sizeof(T)-1)
     #     push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
     #     push!(instrs,
-    #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
+    #         "%res = select <$W x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
     # else
     #     push!(instrs,
-    #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
+    #         "%res = select <$W x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
     # end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{N,T}, Tuple{Vec{N,T}, Vec{N,T}},
-            v1, vrem(v2, Vec{N,T}))
+            Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}},
+            v1, vrem(v2, Vec{$W,$T}))
     end
 end
 
 @generated function llvmwrapshift(
     ::Val{Op},
-    v1::Vec{N,T},
-    v2::Vec{N,U}
-) where {Op,N,T,U<:IntegerTypes}
+    v1::_Vec{_W,T},
+    v2::_Vec{_W,U}
+) where {Op,_W,T,U<:IntegerTypes}
+    W = _W + 1
     if Op === :>> || Op === :>>>
         NegOp = :<<
     else
@@ -453,16 +475,16 @@ end
         $(Expr(:meta, :inline))
         vifelse(
             vgreater_or_equal(v2, 0),
-            llvmwrapshift($ValOp, v1, vrem(v2, Vec{N,unsigned(U)})),
-            llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{N,unsigned(U)}))
+            llvmwrapshift($ValOp, v1, vrem(v2, Vec{$W,unsigned(U)})),
+            llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{$W,unsigned(U)}))
         )
     end
 end
 
 
 # @generated function llvmwrapshift(
-#     ::Val{Op}, v1::Vec{N,T}, ::Val{I}
-# ) where {Op,N,T,I}
+#     ::Val{Op}, v1::_Vec{_W,T}, ::Val{I}
+# ) where {Op,W,T,I}
 #     @assert isa(Op, Symbol)
 #     if I >= 0
 #         op = Op
@@ -483,13 +505,13 @@ end
 #     @assert op in (:<<, :>>, :>>>)
 #     @assert i >= 0
 #     typ = llvmtype(T)
-#     vtyp = "<$N x $typ>"
-#     ins = llvmins(op, N, T)
+#     vtyp = "<$W x $typ>"
+#     ins = llvmins(op, W, T)
 #     decls = String[]
 #     instrs = String[]
 #     nbits = 8*sizeof(T)
 #     if (op === :>> && T <: IntTypes) || i < nbits
-#         count = llvmconst(N, T, min(nbits-1, i))
+#         count = llvmconst(W, T, min(nbits-1, i))
 #         push!(instrs, "%res = $ins $vtyp %0, $count")
 #         push!(instrs, "ret $vtyp %res")
 #     else
@@ -498,25 +520,25 @@ end
 #     quote
 #         $(Expr(:meta, :inline))
 #         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-#             Vec{N,T}, Tuple{Vec{N,T}}, v1)
+#             Vec{W,T}, Tuple{Vec{W,T}}, v1)
 #     end
 # end
 
 # @generated function llvmwrapshift(
-#     ::Val{Op}, v1::Vec{N,T}, x2::Unsigned
-# ) where {Op,N,T}
+#     ::Val{Op}, v1::_Vec{_W,T}, x2::Unsigned
+# ) where {Op,W,T}
 #     @assert isa(Op, Symbol)
 #     typ = llvmtype(T)
-#     vtyp = "<$N x $typ>"
-#     ins = llvmins(Op, N, T)
+#     vtyp = "<$W x $typ>"
+#     ins = llvmins(Op, W, T)
 #     decls = String[]
 #     instrs = String[]
-#     append!(instrs, scalar2vector("%count", N, typ, "%1"))
+#     append!(instrs, scalar2vector("%count", W, typ, "%1"))
 #     nbits = 8*sizeof(T)
 #     push!(instrs, "%tmp = $ins $vtyp %0, %count")
 #     push!(instrs, "%inbounds = icmp ult $typ %1, $nbits")
 #     if Op === :>> && T <: IntTypes
-#         nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+#         nbits1 = llvmconst(W, T, 8*sizeof(T)-1)
 #         push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
 #         push!(instrs, "%res = select i1 %inbounds, $vtyp %tmp, $vtyp %limit")
 #     else
@@ -528,13 +550,13 @@ end
 #         # Note that this function might be called with out-of-bounds
 #         # values for x2, assuming that the results are then ignored
 #         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-#             Vec{N,T}, Tuple{Vec{N,T}, T}, v1, x2 % T)
+#             Vec{W,T}, Tuple{Vec{W,T}, T}, v1, x2 % T)
 #     end
 # end
 
 # @generated function llvmwrapshift(
-#     ::Val{Op}, v1::Vec{N,T}, x2::Integer
-# ) where {Op,N,T}
+#     ::Val{Op}, v1::_Vec{_W,T}, x2::Integer
+# ) where {Op,W,T}
 #     if Op === :>> || Op === :>>>
 #         NegOp = :<<
 #     else
@@ -555,42 +577,42 @@ end
 
 # @generated function llvmwrapshift(
 #     ::Val{Op},
-#     v1::Vec{N,T},
-#     v2::Vec{N,U}
-# ) where {Op,N,T,U<:UIntTypes}
+#     v1::_Vec{_W,T},
+#     v2::_Vec{_W,U}
+# ) where {Op,W,T,U<:UIntTypes}
 #     @assert isa(Op, Symbol)
 #     typ = llvmtype(T)
-#     vtyp = "<$N x $typ>"
-#     ins = llvmins(Op, N, T)
+#     vtyp = "<$W x $typ>"
+#     ins = llvmins(Op, W, T)
 #     decls = String[]
 #     instrs = String[]
 #     push!(instrs, "%res = $ins $vtyp %0, %1")
 #     # push!(instrs, "%tmp = $ins $vtyp %0, %1")
-#     # nbits = llvmconst(N, T, 8*sizeof(T))
+#     # nbits = llvmconst(W, T, 8*sizeof(T))
 #     # push!(instrs, "%inbounds = icmp ult $vtyp %1, $nbits")
 #     # if Op === :>> && T <: IntTypes
-#     #     nbits1 = llvmconst(N, T, 8*sizeof(T)-1)
+#     #     nbits1 = llvmconst(W, T, 8*sizeof(T)-1)
 #     #     push!(instrs, "%limit = $ins $vtyp %0, $nbits1")
 #     #     push!(instrs,
-#     #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
+#     #         "%res = select <$W x i1> %inbounds, $vtyp %tmp, $vtyp %limit")
 #     # else
 #     #     push!(instrs,
-#     #         "%res = select <$N x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
+#     #         "%res = select <$W x i1> %inbounds, $vtyp %tmp, $vtyp zeroinitializer")
 #     # end
 #     push!(instrs, "ret $vtyp %res")
 #     quote
 #         $(Expr(:meta, :inline))
 #         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-#             Vec{N,T}, Tuple{Vec{N,T}, Vec{N,T}},
-#             v1, vrem(v2, Vec{N,T}))
+#             Vec{W,T}, Tuple{Vec{W,T}, Vec{W,T}},
+#             v1, vrem(v2, Vec{W,T}))
 #     end
 # end
 
 # @generated function llvmwrapshift(
 #     ::Val{Op},
-#     v1::Vec{N,T},
-#     v2::Vec{N,U}
-# ) where {Op,N,T,U<:IntegerTypes}
+#     v1::_Vec{_W,T},
+#     v2::_Vec{_W,U}
+# ) where {Op,W,T,U<:IntegerTypes}
 #     if Op === :>> || Op === :>>>
 #         NegOp = :<<
 #     else
@@ -607,8 +629,8 @@ end
 #         $(Expr(:meta, :inline))
 #         vifelse(
 #             vgreater_or_equal(v2, 0),
-#             llvmwrapshift($ValOp, v1, vrem(v2, Vec{N,unsigned(U)})),
-#             llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{N,unsigned(U)}))
+#             llvmwrapshift($ValOp, v1, vrem(v2, Vec{W,unsigned(U)})),
+#             llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{W,unsigned(U)}))
 #         )
 #     end
 # end
