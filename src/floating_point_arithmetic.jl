@@ -81,11 +81,11 @@ end
             :copysign#, :max, :min
         )
             rename = VECTOR_SYMBOLS[op]
-            for W ∈ 2:16
+            for W ∈ 1:16
                 @eval @inline $rename(v1::SVec{$W,$T},v2::SVec{$W,$T}) = SVec($rename(extract_data(v1), extract_data(v2)))
             end
         end
-        for W ∈ 2:16
+        for W ∈ 1:16
             U = VectorizationBase.mask_type(W)
             @eval @inline vadd(m::Mask{$W,$U}, v::SVec{$W,$T}) = vifelse(m, vadd(v, one(v)), v)
             @eval @inline vadd(v::SVec{$W,$T}, m::Mask{$W,$U}) = vifelse(m, vadd(v, one(v)), v)
