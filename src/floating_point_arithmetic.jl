@@ -310,7 +310,7 @@ end
     end
 end
 
-@static if Base.libllvm_version >= v"8"
+@static if Base.libllvm_version >= v"9"
     @generated function vsum(v::Vec{W,T}) where {W,T<:FloatingTypes}
         decls = String[]
         instrs = String[]
@@ -419,17 +419,6 @@ end
             )
         end
     end
-    @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
-        typ = llvmtype(T)
-        vtyp = "<$W x $typ>"
-        instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
-        quote
-            $(Expr(:meta, :inline))
-            Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
-        end
-    end
-    Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
-    vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
 else
     # @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
     #     typ = llvmtype(T)
@@ -448,6 +437,19 @@ else
             llvmwrap(Val{:(-)}(), extract_data(v1))
         end
     end
+end
+@static if Base.libllvm_version >= v"8"
+    @generated function vsub(v::Vec{W,T}) where {W,T<:FloatingTypes}
+        typ = llvmtype(T)
+        vtyp = "<$W x $typ>"
+        instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
+        quote
+            $(Expr(:meta, :inline))
+            Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
+        end
+    end
+    Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
+    vsub(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
 end
 vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
 
