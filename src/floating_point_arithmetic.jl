@@ -54,7 +54,7 @@ for op ∈ (
             llvmwrap_notfast(Val{$(QuoteNode(op))}(), v1, v2)
         end
 
-        @inline function Base.$op(v1::SVec{W,T1}, v2::SVec{W,T2}) where {W,T1,T2}
+        @inline function Base.$op(v1::AbstractStructVec{W,T1}, v2::AbstractStructVec{W,T2}) where {W,T1,T2}
             T = promote_type(T1, T2)
             $op(vconvert(SVec{W,T}, v1), vconvert(SVec{W,T}, v2))
         end
@@ -91,6 +91,8 @@ end
             @eval @inline vadd(v::SVec{$W,$T}, m::Mask{$W,$U}) = vifelse(m, vadd(v, one(v)), v)
             @eval @inline vsub(m::Mask{$W,$U}, v::SVec{$W,$T}) = vsub(vifelse(m, one(v), zero(v)), v)
             @eval @inline vsub(v::SVec{$W,$T}, m::Mask{$W,$U}) = vifelse(m, vsub(v, one(v)), v)
+            @eval @inline vmul(m::Mask{$W,$U}, v::SVec{$W,$T}) = vifelse(m, v, vzero(SVec{$W,$T}))
+            @eval @inline vmul(v::SVec{$W,$T}, m::Mask{$W,$U}) = vifelse(m, v, vzero(SVec{$W,$T}))
         end
     end
 end
@@ -591,6 +593,14 @@ vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.Fast
 @inline Base.:(-)(v::AbstractStructVec{W}, m::AbstractMask{W}) where {W} = vifelse(m, vsub(v, one(v)), v)
 @inline vsub(m::AbstractMask{W}, v::AbstractSIMDVector{W}) where {W} = vsub(vifelse(m, one(v), zero(v)), v)
 @inline vsub(v::AbstractSIMDVector{W}, m::AbstractMask{W}) where {W} = vifelse(m, vsub(v, one(v)), v)
+@inline Base.:(*)(v::AbstractStructVec{W,T}, m::Mask{W}) where {W,T} = SVec(vifelse(m, extract_data(v), vzero(Vec{W,T})))
+@inline Base.:(*)(m::Mask{W}, v::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(m, extract_data(v), vzero(Vec{W,T})))
+@inline vmul(v::AbstractStructVec{W,T}, m::Mask{W}) where {W,T} = SVec(vifelse(m, extract_data(v), vzero(Vec{W,T})))
+@inline vmul(m::Mask{W}, v::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(m, extract_data(v), vzero(Vec{W,T})))
+@inline Base.:(*)(v::AbstractStructVec{W,T}, m::SVec{W,Bool}) where {W,T} = SVec(vifelse(extract_data(m), extract_data(v), vzero(Vec{W,T})))
+@inline Base.:(*)(m::SVec{W,Bool}, v::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(extract_data(m), extract_data(v), vzero(Vec{W,T})))
+@inline vmul(v::AbstractStructVec{W,T}, m::SVec{W,Bool}) where {W,T} = SVec(vifelse(extract_data(m), extract_data(v), vzero(Vec{W,T})))
+@inline vmul(m::SVec{W,Bool}, v::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(extract_data(m), extract_data(v), vzero(Vec{W,T})))
 
 # Lowers to same split mul-add llvm as the 
 # @inline vfmadd(a, b, c) = vadd(vmul( a, b), c)
