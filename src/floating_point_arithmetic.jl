@@ -438,8 +438,13 @@ end
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        prefix = T <: FloatingTypes ? 'f' : (T <: Signed ? 's' : 'u')
-        ins = "@llvm.experimental.vector.reduce.$(prefix)max.v$(W)i$(bits)"
+        if T <: FloatingTypes
+            prefix = prefix2 = 'f'
+        else
+            prefix2 = 'i'
+            prefix = T <: Signed ? 's' : 'u'
+        end
+        ins = "@llvm.experimental.vector.reduce.$(prefix)max.v$(W)$(prefix2)$(bits)"
         decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -457,8 +462,13 @@ end
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
         bits = 8sizeof(T)
-        prefix = T <: FloatingTypes ? 'f' : (T <: Signed ? 's' : 'u')
-        ins = "@llvm.experimental.vector.reduce.$(prefix)min.v$(W)i$(bits)"
+        if T <: FloatingTypes
+            prefix = prefix2 = 'f'
+        else
+            prefix2 = 'i'
+            prefix = T <: Signed ? 's' : 'u'
+        end
+        ins = "@llvm.experimental.vector.reduce.$(prefix)max.v$(W)$(prefix2)$(bits)"
         decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
