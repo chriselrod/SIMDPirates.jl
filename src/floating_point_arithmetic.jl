@@ -421,15 +421,6 @@ else
         end
     end
 
-    for (name, rename, op) ∈ [(:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
-                                    (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min)]
-                              
-        @eval begin
-            @inline $rename(v::AbstractSIMDVector{W}) where {W} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
-        end
-    end
-
-
 end
 @inline vsub(x::FloatingTypes) = Base.FastMath.sub_fast(x)
 
@@ -458,7 +449,7 @@ end
             )
         end
     end
-    @generated function vminimum(v::_Vec{_W,T}) where {_W,T<:Integer}
+    @generated function vminimum(v::_Vec{_W,T}) where {_W,T<:ScalarTypes}
         W = _W + 1
         instrs = String[]
         typ = llvmtype(T)
@@ -470,7 +461,7 @@ end
             prefix2 = 'i'
             prefix = T <: Signed ? 's' : 'u'
         end
-        ins = "@llvm.experimental.vector.reduce.$(prefix)max.v$(W)$(prefix2)$(bits)"
+        ins = "@llvm.experimental.vector.reduce.$(prefix)min.v$(W)$(prefix2)$(bits)"
         decl = "declare $(typ) $(ins)($(vtyp))"
         push!(instrs, "%res = call $typ $ins($vtyp %0)")
         push!(instrs, "ret $typ %res")
@@ -482,11 +473,16 @@ end
             )
         end
     end
+else
+    for (name, rename, op) ∈ [(:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min)]
+                              
+        @eval begin
+            @inline $rename(v::AbstractSIMDVector{W}) where {W} = llvmwrapreduce(Val{$(QuoteNode(op))}(), extract_data(v))
+        end
+    end
+
 end
-for (name, rename, op) ∈ ((:(Base.all),:vall,:&), (:(Base.any),:vany,:|),
-                                    (:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min),
-                          (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*))
-    
+for (name, rename, op) ∈ [(:(Base.maximum), :vmaximum, :max), (:(Base.minimum), :vminimum, :min), (:(Base.sum),:vsum,:+), (:(Base.prod),:vprod,:*)]
     @eval begin
         @inline $name(v::SVec{W,T}) where {W,T} = $rename(extract_data(v))
         @inline $rename(v::SVec{W,T}) where {W,T} = $rename(extract_data(v))
