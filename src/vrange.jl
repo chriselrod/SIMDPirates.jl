@@ -99,6 +99,12 @@ end
 @inline vmul(i::_MM{W}, j::AbstractStructVec{W}) where {W} = SVec(vmul(vrange(i), extract_data(j)))
 @inline vmul(j::Vec{W}, i::_MM{W}) where {W} = vmul(j, vrange(i))
 @inline vmul(j::AbstractStructVec{W}, i::_MM{W}) where {W} = SVec(vmul(extract_data(j), vrange(i)))
+@inline Base.:(/)(i::_MM, j::T) where {T<:Number} = SVec(vfdiv(vrange(i,T), j))
+@inline Base.:(/)(j::T, i::_MM) where {T<:Number} = SVec(vfdiv(j, vrange(i,T)))
+@inline Base.:(/)(i::_MM, j::SVec{W,T}) where {W,T<:Number} = SVec(vfdiv(vrange(i,T), j))
+@inline Base.:(/)(j::SVec{W,T}, i::_MM) where {W,T<:Number} = SVec(vfdiv(j, vrange(i,T)))
+@inline Base.:(/)(i::_MM, j::_MM) = SVec(vfdiv(vrange(i), vrange(j)))
+@inline Base.inv(i::_MM) = inv(svrange(i))
 
 
 @inline vrange(::Val{W}) where {W} = vrange(Val{W}(), Float64)
