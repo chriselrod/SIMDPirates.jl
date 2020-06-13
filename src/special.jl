@@ -209,7 +209,7 @@ attributes #0 = { nounwind readnone speculatable }
 attributes #1 = { nounwind readnone }
 declare <8 x double> @llvm.fma.v8f64(<8 x double>, <8 x double>, <8 x double>) #0
 declare <8 x double> @llvm.x86.avx512.mask.rndscale.pd.512(<8 x double>, i32, <8 x double>, i8, i32) #1
-declare <8 x i32> @llvm.x86.avx512.mask.cvttpd2dq.512(<8 x double>, <8 x i32>, i8, i32) #0
+declare <8 x i64> @llvm.x86.avx512.mask.cvttpd2qq.512(<8 x double>, <8 x i64>, i8, i32) #0
 ""","""
   %2 = bitcast <8 x double> %0 to <8 x i64>
   %3 = and <8 x i64> %2, <i64 9223372036854775807, i64 9223372036854775807, i64 9223372036854775807, i64 9223372036854775807, i64 9223372036854775807, i64 9223372036854775807, i64 9223372036854775807, i64 9223372036854775807>
@@ -262,9 +262,9 @@ declare <8 x i32> @llvm.x86.avx512.mask.cvttpd2dq.512(<8 x double>, <8 x i32>, i
   %46 = fadd fast <8 x double> %45, %32
   %47 = fadd fast <8 x double> %46, %44
   %48 = fcmp fast ole <8 x double> %29, <double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2, double 0xC086232BDD7ABCD2>
-  %49 = tail call <8 x i32> @llvm.x86.avx512.mask.cvttpd2dq.512(<8 x double> %31, <8 x i32> zeroinitializer, i8 -1, i32 4) #0
-  %50 = zext <8 x i32> %49 to <8 x i64>
-  %51 = shl <8 x i64> %50, <i64 52, i64 52, i64 52, i64 52, i64 52, i64 52, i64 52, i64 52>
+  %49 = tail call <8 x i64> @llvm.x86.avx512.mask.cvttpd2qq.512(<8 x double> %31, <8 x i64> zeroinitializer, i8 -1, i32 4) #0
+  %50 = trunc <8 x i64> %49 to <8 x i32>
+  %51 = shl <8 x i64> %49, <i64 52, i64 52, i64 52, i64 52, i64 52, i64 52, i64 52, i64 52>
   %52 = add <8 x i64> %51, <i64 4607182418800017408, i64 4607182418800017408, i64 4607182418800017408, i64 4607182418800017408, i64 4607182418800017408, i64 4607182418800017408, i64 4607182418800017408, i64 4607182418800017408>
   %53 = bitcast <8 x i64> %52 to <8 x double>
   %54 = fmul fast <8 x double> %47, %53
