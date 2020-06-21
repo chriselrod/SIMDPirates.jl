@@ -91,7 +91,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T},
             Tuple{Vec{$W,Bool}, Vec{$W,T}, Vec{$W,$T}},
@@ -148,7 +148,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T},
             Tuple{$U, Vec{$W,$T}, Vec{$W,$T}},
             mask, v2, v3)

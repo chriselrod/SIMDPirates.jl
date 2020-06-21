@@ -17,7 +17,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs,"\n")), Vec{$W,$jtypesym}, Tuple{$jtypesym}, $iexpr
         )
     end
@@ -33,7 +33,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs,"\n")), Vec{$W,$T}, Tuple{$T}, i
         )
     end
@@ -53,7 +53,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs,"\n")), Vec{$W,$jtypesym}, Tuple{$jtypesym}, $iexpr
         )
     end
@@ -69,7 +69,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs,"\n")), Vec{$W,$T}, Tuple{$T}, i
         )
     end

@@ -246,7 +246,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$R}, Tuple{Vec{$W1,$T1}}, v1)
     end
 end
@@ -264,7 +264,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$R}, Tuple{Vec{$W1,$T1}}, v1)
     end
 end
@@ -284,7 +284,7 @@ end
     call void @llvm.assume(i1 %b)
     ret void
     """
-    Base.llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
+    llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
 end
 @inline function expect(b::Bool)
     decls = "declare i1 @llvm.expect.i1(i1, i1)"
@@ -294,7 +294,7 @@ end
     %byte = zext i1 %actual to i8
     ret i8 %byte
     """
-    Base.llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
+    llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
 end
 @generated function expect(i::I, ::Val{N}) where {I <: Integer, N}
     ityp = 'i' * string(8sizeof(I))
@@ -305,7 +305,7 @@ end
     """
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall($((decls, instrs)), $I, Tuple{$I}, i)
+        llvmcall($((decls, instrs)), $I, Tuple{$I}, i)
     end
 end
 

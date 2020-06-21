@@ -37,7 +37,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$R}, Tuple{Vec{$W,$T1}}, v1
         )
@@ -60,7 +60,7 @@ end
     push!(instrs, "ret $vbtyp %resb")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,Bool}, Tuple{Vec{$W,Bool}}, v1)
     end
 end
@@ -94,7 +94,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$R}, Tuple{Vec{$W,$T1}, Vec{$W,$T2}},
             v1, v2)
     end
@@ -122,7 +122,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$R}, Tuple{Vec{$W,$T1}, Vec{$W,$T2}},
             v1, v2)
     end
@@ -157,7 +157,7 @@ end
     # end
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,Bool}, Tuple{Vec{$W,$T1}, Vec{$W,$T2}},
             v1, v2)
     end
@@ -185,7 +185,7 @@ end
     julia_mask_type = VectorizationBase.mask_type(maskbits)
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             $julia_mask_type, Tuple{Vec{$W,$T1}, Vec{$W,$T1}},
             v1, v2)
     end
@@ -228,7 +228,7 @@ end
     julia_mask_type = VectorizationBase.mask_type(maskbits)
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             $julia_mask_type, Tuple{Vec{$W,$T1}, Vec{$W,$T1}},
             v1, v2)
     end
@@ -250,7 +250,7 @@ end
     push!(instrs, "ret $vbtyp %resb")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,Bool}, Tuple{Vec{$W,Bool}, Vec{$W,Bool}},
             v1, v2)
     end
@@ -283,7 +283,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,R},
             Tuple{Vec{$W,$T1}, Vec{$W,$T2}, Vec{$W,$T3}},
             v1, v2, v3)
@@ -315,7 +315,7 @@ end
     push!(instrs, "ret $vtypr %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$R},
             Tuple{Vec{$W,$T1}, Vec{$W,$T2}, Vec{$W,$T3}},
             v1, v2, v3)
@@ -361,7 +361,7 @@ end
     end
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,$T}}, v1)
     end
 end
@@ -392,7 +392,7 @@ end
         $(Expr(:meta, :inline))
         # Wote that this function might be called with out-of-bounds
         # values for x2, assuming that the results are then ignored
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, $T}, v1, x2 % $T)
     end
 end
@@ -447,7 +447,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}},
             v1, vrem(v2, Vec{$W,$T}))
     end
@@ -519,7 +519,7 @@ end
 #     end
 #     quote
 #         $(Expr(:meta, :inline))
-#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#         llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
 #             Vec{W,T}, Tuple{Vec{W,T}}, v1)
 #     end
 # end
@@ -549,7 +549,7 @@ end
 #         $(Expr(:meta, :inline))
 #         # Note that this function might be called with out-of-bounds
 #         # values for x2, assuming that the results are then ignored
-#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#         llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
 #             Vec{W,T}, Tuple{Vec{W,T}, T}, v1, x2 % T)
 #     end
 # end
@@ -602,7 +602,7 @@ end
 #     push!(instrs, "ret $vtyp %res")
 #     quote
 #         $(Expr(:meta, :inline))
-#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#         llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
 #             Vec{W,T}, Tuple{Vec{W,T}, Vec{W,T}},
 #             v1, vrem(v2, Vec{W,T}))
 #     end

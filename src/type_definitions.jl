@@ -51,7 +51,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, $T}, extract_data(v), $T(x))
     end
 end
@@ -68,7 +68,7 @@ end
     quote
         $(Expr(:meta, :inline))
         @boundscheck 1 <= i <= $W || throw(BoundsError())
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, Int, $T},
             extract_data(v), i-1, $T(x))
     end
@@ -96,7 +96,7 @@ ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+        llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
     end
 end
 @generated function vconvert(::Type{_Vec{_W,T1}}, v::_Vec{_W,T2}) where {_W,T1 <: FloatingTypes, T2 <: Unsigned}
@@ -111,7 +111,7 @@ ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+        llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
     end
 end
 @generated function vconvert(::Type{_Vec{_W,T1}}, v::_Vec{_W,T2}) where {_W,T1 <: Signed, T2 <: FloatingTypes}
@@ -126,7 +126,7 @@ ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+        llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
     end
 end
 @generated function vconvert(::Type{_Vec{_W,T1}}, v::_Vec{_W,T2}) where {_W,T1 <: Unsigned, T2 <: FloatingTypes}
@@ -141,7 +141,7 @@ ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+        llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
     end
 end
 @generated function vconvert(::Type{_Vec{_W,I1}}, v::_Vec{_W,I2}) where {_W,I1<:Integer,I2<:Integer}
@@ -163,7 +163,7 @@ end
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($instrs, Vec{$W,$I1}, Tuple{Vec{$W,$I2}}, v)
+        llvmcall($instrs, Vec{$W,$I1}, Tuple{Vec{$W,$I2}}, v)
     end
 end
 @generated function vconvert(::Type{_Vec{_W,T1}}, v::_Vec{_W,T2}) where {_W, T1 <: FloatingTypes, T2 <: FloatingTypes}
@@ -183,7 +183,7 @@ end
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
+        llvmcall($instrs, Vec{$W,$T1}, Tuple{Vec{$W,$T2}}, v)
     end
 end
 @inline vconvert(::Type{_Vec{_W,T}}, v::_Vec{_W,T}) where {_W,T<:Integer} = v # specific definition
@@ -284,7 +284,7 @@ end
     %res = shufflevector <$W x $typ> %0, <$W x $typ> zeroinitializer, <$W2 x i32> <i32 $(sv)>
     ret <$W2 x $typ> %res
 """
-    :(Base.llvmcall($instr, Vec{$W2,$T}, Tuple{Vec{$W,$T}}, v))
+    :(llvmcall($instr, Vec{$W2,$T}, Tuple{Vec{$W,$T}}, v))
 end
 
 
@@ -336,7 +336,7 @@ sign_mask(::Type{T}) where {T<:FloatingTypes} =
 #     push!(instrs, "ret i$Nout %uout")
 #     quote
 #         $(Expr(:meta,:inline))
-#         Base.llvmcall($(join(instrs, "\n")), $Utype, Tuple{Vec{$N,Bool}}, vb)
+#         llvmcall($(join(instrs, "\n")), $Utype, Tuple{Vec{$N,Bool}}, vb)
 #     end
 # end
 
