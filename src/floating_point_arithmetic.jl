@@ -251,7 +251,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -269,7 +269,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -287,7 +287,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T},$T}, v, s
             )
@@ -305,7 +305,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T},$T}, v, s
             )
@@ -323,7 +323,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -341,7 +341,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -383,7 +383,7 @@ else
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((join(decls, "\n"), join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -407,7 +407,7 @@ end
         instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
+            llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
         end
     end
     @inline Base.:(-)(v::SVec{W,T}) where {W,T} = SVec(vsub(extract_data(v)))
@@ -443,7 +443,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -467,7 +467,7 @@ end
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
-            Base.llvmcall(
+            llvmcall(
                 $((decl, join(instrs, "\n"))),
                 $T, Tuple{Vec{$W,$T}}, v
             )
@@ -514,7 +514,7 @@ end
     instrs = "%res = call $vtyp $ins($vtyp %0, $vtyp %1, $vtyp %2)\nret $vtyp %res"
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl,instrs)),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}},
             v1, v2, v3
@@ -549,7 +549,7 @@ vfnmsub(a::Number, b::Number, c::Number) = -muladd(a, b, c)
     """
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}, Vec{$W,$T}}, v1, v2, v3
         )
     end
@@ -660,16 +660,16 @@ if VectorizationBase.FMA3
                 ret <$W x $(typ)> %res"""
             @eval begin
                 @inline function vfmadd231(a::Vec{$W,$T}, b::Vec{$W,$T}, c::Vec{$W,$T})
-                    Base.llvmcall($vfmadd_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
+                    llvmcall($vfmadd_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
                 end
                 @inline function vfnmadd231(a::Vec{$W,$T}, b::Vec{$W,$T}, c::Vec{$W,$T})
-                    Base.llvmcall($vfnmadd_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
+                    llvmcall($vfnmadd_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
                 end
                 @inline function vfmsub231(a::Vec{$W,$T}, b::Vec{$W,$T}, c::Vec{$W,$T})
-                    Base.llvmcall($vfmsub_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
+                    llvmcall($vfmsub_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
                 end
                 @inline function vfnmsub231(a::Vec{$W,$T}, b::Vec{$W,$T}, c::Vec{$W,$T})
-                    Base.llvmcall($vfnmsub_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
+                    llvmcall($vfnmsub_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
                 end
             end
             W += W
@@ -681,7 +681,7 @@ end
 #     if VectorizationBase.REGISTER_SIZE == 64
 #         return quote
 #             $(Expr(:meta,:inline))
-#             Base.llvmcall(
+#             llvmcall(
 #             """ %rs = call <16 x float> asm "vrsqrt14ps \$1, \$0", "=x,x"(<16 x float> %0)
 #                 ret <16 x float> %rs""",
 #             NTuple{16,Core.VecElement{Float32}}, Tuple{NTuple{16,Core.VecElement{Float32}}}, x)
@@ -820,7 +820,7 @@ end
     push!(instrs, "ret $vtyp %v")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+        llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
 @generated function addscalar(v::_Vec{_W,T}, s::T) where {_W, T <: Union{Float16,Float32,Float64}}
@@ -833,7 +833,7 @@ end
     push!(instrs, "ret $vtyp %v")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+        llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
 @inline addscalar(v::SVec, s) = SVec(addscalar(extract_data(v), s))
@@ -851,7 +851,7 @@ end
     push!(instrs, "ret $vtyp %v")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+        llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
 @generated function mulscalar(v::_Vec{_W,T}, s::T) where {_W, T <: Union{Float16,Float32,Float64}}
@@ -864,7 +864,7 @@ end
     push!(instrs, "ret $vtyp %v")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+        llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
 @inline mulscalar(v::SVec, s) = SVec(mulscalar(extract_data(v), s))
@@ -903,7 +903,7 @@ end
     instrs = scalar_maxmin(W, T, true)
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+        llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
 @generated function minscalar(v::_Vec{_W,T}, s::T) where {_W, T}
@@ -911,7 +911,7 @@ end
     instrs = scalar_maxmin(W, T, false)
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
+        llvmcall( $(join(instrs,"\n")), NTuple{$W,Core.VecElement{$T}}, Tuple{NTuple{$W,Core.VecElement{$T}},$T}, v, s )
     end
 end
 @inline maxscalar(v::SVec, s) = SVec(maxscalar(extract_data(v), s))
@@ -974,7 +974,7 @@ Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
 #         push!(instrs, "ret $vtyp %res")
 #         quote
 #             $(Expr(:meta,:inline))
-#             Base.llvmcall(
+#             llvmcall(
 #                 $((decl, join(instrs, "\n"))),
 #                 Vec{$W, $T}, Tuple{Ptr{$T}, UInt32},
 #                 ptr, stride % UInt32
@@ -996,7 +996,7 @@ Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
 #         push!(instrs, "ret void")
 #         quote
 #             $(Expr(:meta,:inline))
-#             Base.llvmcall(
+#             llvmcall(
 #                 $((decl, join(instrs, "\n"))),
 #                 Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, UInt32},
 #                 ptr, v, stride % UInt32
@@ -1018,7 +1018,7 @@ Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
 #         push!(instrs, "ret $vtypC %res")
 #         quote
 #             $(Expr(:meta, :inline))
-#             Base.llvmcall(
+#             llvmcall(
 #                 $((decl, join(instrs, "\n"))),
 #                 Vec{$WC,$T}, Tuple{Vec{$WA,$T}, Vec{$WB,$T}},
 #                 vA, vB

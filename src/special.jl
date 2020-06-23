@@ -69,7 +69,7 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
 """
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             ($decls, $instr),
             Vec{$W,Float64}, Tuple{Vec{$W,Float64}}, v
         )
@@ -80,7 +80,7 @@ end
 @inline vexp(x::Float64) = exp(x)
 
 # @inline function vexp(v::Vec{8,Float64})
-#     Base.llvmcall(("""
+#     llvmcall(("""
 # attributes #0 = { nounwind readnone }
 # attributes #1 = { nounwind readnone speculatable }
 # declare <8 x double> @llvm.x86.avx512.mask.rndscale.pd.512(<8 x double>, i32, <8 x double>, i8, i32) #0
@@ -194,7 +194,7 @@ declare <$(W) x double> @llvm.fmuladd.v$(W)f64(<$(W) x double>, <$(W) x double>,
 """
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(($declr,$instr), Vec{$W,Float64}, Tuple{Vec{$W,Float64}}, v)
+        llvmcall(($declr,$instr), Vec{$W,Float64}, Tuple{Vec{$W,Float64}}, v)
     end
 end
 @inline vlog(v::SVec) = SVec(vlog(extract_data(v)))
@@ -203,7 +203,7 @@ end
 
 
 @inline function verf(v::Vec{8,Float64})
-    Base.llvmcall(
+    llvmcall(
         ("""
 attributes #0 = { nounwind readnone speculatable }
 attributes #1 = { nounwind readnone }
@@ -333,7 +333,7 @@ declare <8 x i64> @llvm.x86.avx512.mask.cvttpd2qq.512(<8 x double>, <8 x i64>, i
 end
 
 @inline function verf(v::Vec{4,Float64})
-    Base.llvmcall(("""
+    llvmcall(("""
 attributes #7 = { nounwind readnone }
 attributes #8 = { nounwind readnone speculatable }
 declare <4 x double> @llvm.fma.v4f64(<4 x double>, <4 x double>, <4 x double>) #8
@@ -472,7 +472,7 @@ declare <4 x i32> @llvm.x86.avx.cvtt.pd2dq.256(<4 x double>) #7
 end
 
 @inline function verf(v::Vec{2,Float64})
-    Base.llvmcall(("""
+    llvmcall(("""
 attributes #7 = { nounwind readnone }
 attributes #8 = { nounwind readnone speculatable }
 declare <2 x double> @llvm.fma.v2f64(<2 x double>, <2 x double>, <2 x double>) #8
@@ -688,7 +688,7 @@ end
 
 
 # @inline function lgamma(v::Vec{8,Float64})
-#     Base.llvmcall(("""
+#     llvmcall(("""
 # attributes #1 = { argmemonly nounwind }
 # attributes #3 = { nounwind readnone }
 # attributes #4 = { nounwind readnone speculatable }

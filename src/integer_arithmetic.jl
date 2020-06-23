@@ -238,7 +238,7 @@ end
     ]
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl,join(instrs,"\n"))),
             NTuple{$Wh,Core.VecElement{Int32}},
             Tuple{NTuple{$W,Core.VecElement{Int16}},NTuple{$W,Core.VecElement{Int16}}},
@@ -259,7 +259,7 @@ end
     ]
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$I}, Tuple{Vec{$W,$I}}, v
         )
@@ -280,7 +280,7 @@ end
     ]
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$I}, Tuple{Vec{$W,$I}}, v
         )
@@ -304,7 +304,7 @@ end
 #     push!(instrs, "ret $vityp %res")
 #     quote
 #         $(Expr(:meta, :inline))
-#         SVec(Base.llvmcall(
+#         SVec(llvmcall(
 #             $(join(instrs, "\n")),
 #             Vec{$W,$I}, Tuple{$U, Vec{$W,$I}}, m.u, v
 #         ))

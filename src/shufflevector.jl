@@ -22,7 +22,7 @@ end
     M, decls, instrs = shufflevector_instrs(W, T, I, true)
     quote
         $(Expr(:meta, :inline))
-        Vec{$M,$T}(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        Vec{$M,$T}(llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$M,T},
             Tuple{Vec{$W,$T}, Vec{$W,$T}},
             v1, v2))
@@ -37,7 +37,7 @@ end
     M, decls, instrs = shufflevector_instrs(W, T, I, false)
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$M,$T}, Tuple{Vec{$W,$T}}, v1
         )

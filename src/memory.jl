@@ -29,7 +29,7 @@ This is very likely not what someone writing the above intended, but I do not ye
     push!(instrs, "ret $ptyp %iptr")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs, "\n")),
             Ptr{$T}, Tuple{}
         )
@@ -46,7 +46,7 @@ end
     push!(instrs, "ret $ptyp %iptr")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs, "\n")),
             Ptr{$T}, Tuple{Int32}, N
         )
@@ -70,7 +70,7 @@ corresponds to prefetch0 on x86 (extreme locality)
     ret void"""
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             ("declare void @llvm.prefetch(i8*, i32, i32, i32)",
              $prefetch_call_string), Cvoid, Tuple{Ptr{$T}}, ptr
         )
@@ -134,7 +134,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall($((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}}, ptr)
     end
 end
@@ -166,7 +166,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(Base.llvmcall($((decl, join(instrs, "\n"))),
+        SVec(llvmcall($((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, (i.i % Int)))
     end
 end
@@ -204,7 +204,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
     end
 end
@@ -237,7 +237,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        SVec(llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}, Int, $U}, ptr, i.i, mask))
     end
 end
@@ -324,7 +324,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl,join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}}, ptr, v
         )
@@ -356,7 +356,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl,join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I}, ptr, v, i
         )
@@ -393,7 +393,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $U},
             ptr, v, mask)
     end
@@ -430,7 +430,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I, $U},
             ptr, v, i, mask)
     end
@@ -464,7 +464,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((join(decls, "\n"), join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I}, ptr, v, i
         )
@@ -507,7 +507,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I, $U},
             ptr, v, i, mask)
     end
@@ -587,7 +587,7 @@ end
 #     push!(instrs, "ret $vtyp %res")
 #     quote
 #         $(Expr(:meta, :inline))
-#         Base.llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+#         llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
 #             Vec{$W,$T}, Tuple{Ptr{$T}}, ptr)
 #     end
 # end
@@ -616,7 +616,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}}, ptr
         )
@@ -654,7 +654,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}, $U}, ptr, mask
         )
@@ -689,7 +689,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T},Vec{$W,$I}}, ptr, i
         )
@@ -736,7 +736,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T},Vec{$W,$I},$U}, ptr, i, mask
         )
@@ -767,7 +767,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}}, v, ptr)
     end
 end
@@ -806,12 +806,19 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}, $U}, v, ptr, mask
         )
     end
 end
+
+
+
+
+
+
+
 @generated function vstore!(
     ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
 ) where {_W,T,Aligned, I<:Integer}
@@ -843,7 +850,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall($((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i)
     end
 end
@@ -888,23 +895,113 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}, $U}, ptr, v, i, mask
         )
     end
 end
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned) where {W,T,I<:Integer} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{false}())
+@generated function vnoaliasstore!(
+    ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
+) where {_W,T, I<:Integer,Aligned}
+    @assert isa(Aligned, Bool)
+    W = _W + 1
+    ptyp = JuliaPointerType
+    vptyp = "<$W x $ptyp>"
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    vptrtyp = "<$W x $typ*>"
+    instrs = String[]
+    decls = String[ VectorizationBase.SCOPE_METADATA, VectorizationBase.STORE_TBAA, "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)" ]
+    if Aligned
+        align = Base.datatype_alignment(Vec{W,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    ityp = llvmtype(I)
+    vityp = "<$W x $ityp>"
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %2")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    # push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    mask = join((", i1 true" for i ∈ 2:W))
+    # push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
+    # push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
+    decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
+    push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>), !noalias !3, !tbaa !7")
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i)
+    end
+end
+@generated function vnoaliasstore!(
+    ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
+) where {_W,T,U<:Unsigned,I<:Integer,Aligned}
+    @assert isa(Aligned, Bool)
+    W = _W + 1
+    @assert 8sizeof(U) >= W
+    ptyp = JuliaPointerType
+    vptyp = "<$W x $ptyp>"
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    vptrtyp = "<$W x $typ*>"
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$W"
+    instrs = String[]
+    decls = String[ VectorizationBase.SCOPE_METADATA, VectorizationBase.STORE_TBAA, "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)" ]
+    if Aligned
+        align = Base.datatype_alignment(Vec{W,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    ityp = llvmtype(I)
+    vityp = "<$W x $ityp>"
+    push!(instrs, "%sptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%iptr = getelementptr inbounds i8, i8* %sptr, $vityp %2")
+    push!(instrs, "%ptr = bitcast <$W x i8*> %iptr to $vptrtyp")
+    # push!(instrs, "%sptr = inttoptr $ptyp %0 to $typ*")
+    # push!(instrs, "%ptr = getelementptr inbounds $typ, $typ* %sptr, $vityp %2")
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%mask = bitcast $mtyp_input %3 to <$W x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $mtyp_input %3 to $mtyp_trunc")
+        push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
+    end
+    # push!(decls,
+        # "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
+    # push!(instrs,
+        # "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> %mask)")
+    push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$W x i1> %mask), !noalias !3, !tbaa !7")
+    push!(instrs, "ret void")
+    quote
+        $(Expr(:meta, :inline))
+        llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}, $U}, ptr, v, i, mask
+        )
+    end
+end
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
 
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
-@inline vstore!(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = vstore!(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+
+for storeop ∈ [:vstore!, :vnoaliasstore!]
+
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}) where {W,T,I<:Integer} = $storeop(ptr, extract_data(v), extract_data(i), Val{false}())
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}) where {W,T,I<:Integer} = $storeop(ptr, extract_data(v), extract_data(i), mask.u, Val{false}())
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned) where {W,T,I<:Integer} = $storeop(ptr, extract_data(v), extract_data(i), mask, Val{false}())
+
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = $storeop(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = $storeop(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}) where {W,T,I<:Integer,Aligned} = $storeop(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = $storeop(ptr, extract_data(v), extract_data(i), Val{Aligned}())
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = $storeop(ptr, extract_data(v), extract_data(i), mask.u, Val{Aligned}())
+    @eval @inline $storeop(ptr::Ptr{T}, v::AbstractSIMDVector{W,T}, i::AbstractStructVec{W,I}, mask::Unsigned, ::Val{Aligned}, ::Val{false}) where {W,T,I<:Integer,Aligned} = $storeop(ptr, extract_data(v), extract_data(i), mask, Val{Aligned}())
+    
+end
 
 @generated function lifetime_start!(ptr::Ptr{T}, ::Val{L}) where {L,T}
     ptyp = JuliaPointerType
@@ -916,7 +1013,7 @@ end
     ]
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}}, ptr
         )
@@ -932,7 +1029,7 @@ end
     ]
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}}, ptr
         )
@@ -984,7 +1081,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Ptr{$T}, $U}, v, ptr, mask
         )
@@ -1015,7 +1112,7 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        Base.llvmcall(
+        llvmcall(
             $((decl, join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask
         )
@@ -1040,7 +1137,7 @@ end
 #     ]
 #     quote
 #         $(Expr(:meta,:inline))
-#         ivp = Base.llvmcall(
+#         ivp = llvmcall(
 #             $((decls, join(instrs, "\n"))),
 #             Ptr{Cvoid}, Tuple{Ptr{$T}}, ptr
 #         )
@@ -1058,7 +1155,7 @@ end
 #     ]
 #     quote
 #         $(Expr(:meta,:inline))
-#         Base.llvmcall(
+#         llvmcall(
 #             $((decls, join(instrs, "\n"))),
 #             Cvoid, Tuple{Ptr{$T}}, ivp.ivp, ivp.ptr
 #         )
@@ -1295,7 +1392,7 @@ end
     push!(instrs, "ret $utype %mask")
     quote
         $(Expr(:meta,:inline))
-        Mask{$W}(Base.llvmcall(
+        Mask{$W}(llvmcall(
             $(join(instrs,"\n")),
             $U,
             Tuple{Ptr{Bool},$I},
@@ -1333,7 +1430,7 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta,:inline))
-        Base.llvmcall(
+        llvmcall(
             $(join(instrs,"\n")),
             Cvoid,
             Tuple{Ptr{Bool}, $U, $I},
