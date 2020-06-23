@@ -57,9 +57,14 @@ end
 end
 
 """
-ReadOrWrite: 0 for read, 1 for write
+ReadOrWrite: 0 for read, 1 for write.
+Function follows the LLVM definition
+https://llvm.org/docs/LangRef.html#llvm-prefetch-intrinsic
+such that
+prefetch(ptr, Val(3), Val(0))
+corresponds to prefetch0 on x86 (extreme locality)
 """
-@generated function prefetch(ptr::Ptr{T}, ::Val{Locality} = Val(1), ::Val{ReadOrWrite} = Val(0)) where {T, Locality, ReadOrWrite}
+@generated function prefetch(ptr::Ptr{T}, ::Val{Locality}, ::Val{ReadOrWrite}) where {T, Locality, ReadOrWrite}
     prefetch_call_string = """%addr = inttoptr i$(8sizeof(Int)) %0 to i8*
     call void @llvm.prefetch(i8* %addr, i32 $ReadOrWrite, i32 $Locality, i32 1)
     ret void"""
@@ -71,9 +76,13 @@ ReadOrWrite: 0 for read, 1 for write
         )
     end
 end
-@inline function prefetch(ptr::Union{VectorizationBase.AbstractStridedPointer,Ptr}, i, ::Val{Locality} = Val(1), ::Val{ReadOrWrite} = Val(0)) where {Locality, ReadOrWrite}
+@inline function prefetch(ptr::Union{VectorizationBase.AbstractStridedPointer,Ptr}, i, ::Val{Locality}, ::Val{ReadOrWrite}) where {Locality, ReadOrWrite}
     prefetch(gep(ptr, i), Val{Locality}(), Val{ReadOrWrite}())
 end
+@inline prefetch(ptr::Ptr) = prefetch(ptr, Val{3}(), Val{0}())
+@inline prefetch(ptr::Ptr, ::Val{L}) where {L} = prefetch(ptr, Val{L}(), Val{0}())
+@inline prefetch(ptr::Ptr, i) = prefetch(ptr, i, Val{3}(), Val{0}())
+@inline prefetch(ptr::Ptr, i, ::Val{L}) where {L} = prefetch(ptr, i, Val{L}(), Val{0}())
 
 
 function valloc(::Type{T}, N::Int) where {T}
