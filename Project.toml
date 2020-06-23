@@ -7,5 +7,5 @@ version = "0.8.8"
 VectorizationBase = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
 
 [compat]
-VectorizationBase = "0.12"
+VectorizationBase = "0.12.10"
 julia = "1"
