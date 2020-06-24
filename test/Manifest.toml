@@ -6,12 +6,6 @@ git-tree-sha1 = "051c95d6836228d120f5f4b984dd5aba1624f716"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 version = "0.5.0"
 
-[[AccurateArithmetic]]
-deps = ["JSON", "LinearAlgebra", "Random", "SIMDPirates", "VectorizationBase"]
-git-tree-sha1 = "4335752771c2d005c8a023d00ba54349c3c59deb"
-uuid = "22286c92-06ac-501d-9306-4abd417d9753"
-version = "0.3.3"
-
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
