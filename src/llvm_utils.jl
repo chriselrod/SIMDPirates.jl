@@ -278,23 +278,19 @@ end
 @inline vrem(v::_Vec{W,U}, ::Type{_Vec{W,I}}) where {W,I<:Signed,U<:Unsigned} = vrem(vreinterpret(_Vec{W,I}, v), _Vec{W,I})
 
 @inline function assume(b::Bool)
-    decls = "declare void @llvm.assume(i1)"
-    instrs = """
+    llvmcall(("declare void @llvm.assume(i1)", """
     %b = trunc i8 %0 to i1
     call void @llvm.assume(i1 %b)
     ret void
-    """
-    llvmcall((decls, instrs), Nothing, Tuple{Bool}, b)
+    """), Nothing, Tuple{Bool}, b)
 end
 @inline function expect(b::Bool)
-    decls = "declare i1 @llvm.expect.i1(i1, i1)"
-    instrs = """
+    llvmcall(("declare i1 @llvm.expect.i1(i1, i1)", """
     %b = trunc i8 %0 to i1
     %actual = call i1 @llvm.expect.i1(i1 %b, i1 true)
     %byte = zext i1 %actual to i8
     ret i8 %byte
-    """
-    llvmcall((decls, instrs), Bool, Tuple{Bool}, b)
+    """), Bool, Tuple{Bool}, b)
 end
 @generated function expect(i::I, ::Val{N}) where {I <: Integer, N}
     ityp = 'i' * string(8sizeof(I))

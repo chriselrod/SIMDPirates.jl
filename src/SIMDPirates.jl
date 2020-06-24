@@ -121,7 +121,7 @@ include("memory.jl")
 include("shufflevector.jl")
 include("special.jl")
 include("contract_pass.jl")
-include("pirate.jl")
+include("pirate.jl") #TODO: remove this in a future release
 include("arithmeticwithconsts.jl")
 # include("precompile.jl")
 # _precompile_()

@@ -287,6 +287,7 @@ end
     :(llvmcall($instr, Vec{$W2,$T}, Tuple{Vec{$W,$T}}, v))
 end
 
+@inline Base.trunc(::Type{I}, v::SVec{W,T}) where {W,I<:Integer,T<:FloatingTypes} = vconvert(SVec{W,I}, v)
 
 
 # Floating point formats

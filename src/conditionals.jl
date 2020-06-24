@@ -157,10 +157,16 @@ end
 
 @vpromote vifelse 3
 
+@inline vifelse(b::Bool, v2::_Vec{W,T}, s::Union{T,Int}) where {W,T} = ifelse(b, extract_data(v2), vbroadcast(_Vec{W,T}, s))
+@inline vifelse(b::Bool, v2::AbstractStructVec{W,T}, s::Union{T,Int}) where {W,T} = SVec(ifelse(b, extract_data(v2), vbroadcast(Vec{W,T}, s)))
+@inline vifelse(b::Bool, s::Union{T,Int}, v2::_Vec{W,T}) where {W,T} = ifelse(b, vbroadcast(_Vec{W,T}, s), v2)
+@inline vifelse(b::Bool, s::Union{T,Int}, v2::AbstractStructVec{W,T}) where {W,T} = SVec(ifelse(b, vbroadcast(Vec{W,T}, s), extract_data(v2)))
+
+
 @inline vifelse(U::Unsigned, v2::AbstractSIMDVector, v3::AbstractSIMDVector) = SVec(vifelse(U, extract_data(v2), extract_data(v3)))
-@inline vifelse(U::Unsigned, v2::_Vec{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
+@inline vifelse(U::Unsigned, v2::_Vec{W,T}, s::Union{T,Int}) where {W,T} = vifelse(U, extract_data(v2), vbroadcast(_Vec{W,T}, s))
 @inline vifelse(U::Unsigned, v2::AbstractStructVec{W,T}, s::Union{T,Int}) where {W,T} = SVec(vifelse(U, extract_data(v2), vbroadcast(Vec{W,T}, s)))
-@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::_Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(Vec{W,T}, s), v2)
+@inline vifelse(U::Unsigned, s::Union{T,Int}, v2::_Vec{W,T}) where {W,T} = vifelse(U, vbroadcast(_Vec{W,T}, s), v2)
 @inline vifelse(U::Unsigned, s::Union{T,Int}, v2::AbstractStructVec{W,T}) where {W,T} = SVec(vifelse(U, vbroadcast(Vec{W,T}, s), extract_data(v2)))
 @inline vifelse(m::Mask{W}, v1::Vec{W}, v2::Vec{W}) where {W} = vifelse(m.u, v1, v2)
 
