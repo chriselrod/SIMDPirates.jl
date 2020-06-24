@@ -112,7 +112,7 @@ LLVM_INS[:/] = "fdiv"
 LLVM_INS[:inv] = "fdiv"
 LLVM_INS[:rem] = "frem"
 
-LLVM_INS[:(==)] = "fcmp fast oeq"
+LLVM_INS[:(==)] = "fcmp contract reassoc nsz oeq"
 LLVM_INS[:(!=)] = "fcmp fast une"
 LLVM_INS[:(>)] = "fcmp fast ogt"
 LLVM_INS[:(>=)] = "fcmp fast oge"

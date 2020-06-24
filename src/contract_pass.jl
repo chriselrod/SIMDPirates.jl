@@ -57,10 +57,6 @@ end
 function recursive_muladd_search!(call, argv, cnmul::Bool = false, csub::Bool = false)
     length(argv) < 3 && return length(call.args) == 4, cnmul, csub
     fun = first(argv)
-    if fun === :ifelse
-        argv[1] = :vifelse
-        return length(call.args) == 4, cnmul, csub
-    end
     isadd = fun === :+ || fun === :vadd! || fun === :vadd || fun == :(Base.FastMath.add_fast)
     issub = fun === :- || fun === :vsub! || fun === :vsub || fun == :(Base.FastMath.sub_fast)
     if !(isadd | issub)
