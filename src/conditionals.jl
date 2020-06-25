@@ -28,7 +28,8 @@ end
     U = uint_type(T)
     em = vbroadcast(Vec{W,U}, exponent_mask(T))
     iv = vreinterpret(Vec{W,U}, v1)
-    evnot_equal(vand(iv, em), em)
+    # evnot_equal(vand(iv, em), em)
+    vnot_equal(vand(iv, em), em)
 end
 @inline visfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
 @inline Base.isfinite(v1::SVec{W}) where {W} = SVec{W}(visfinite(extract_data(v1)))
@@ -39,7 +40,8 @@ end
 @inline Base.isinf(v1::SVec{W}) where {W} = SVec{W}(visinf(extract_data(v1)))
 
 @inline visnan(s1::ScalarTypes) = isnan(s1)
-@inline visnan(v1::_Vec{W,T}) where {W,T<:FloatingTypes} = evnot_equal(v1, v1)
+# @inline visnan(v1::_Vec{W,T}) where {W,T<:FloatingTypes} = evnot_equal(v1, v1)
+@inline visnan(v1::_Vec{W,T}) where {W,T<:FloatingTypes} = vnot_equal(v1, v1)
 @inline visnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 @inline Base.isnan(v1::SVec{W}) where {W} = SVec{W}(visnan(extract_data(v1)))
 
