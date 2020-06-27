@@ -171,6 +171,38 @@ end
     end
 end
 @generated function vload(
+    ptr::Ptr{T}, i::_MM{W,VectorizationBase.Static{N}}, ::Val{Aligned}, ::Val{Nontemporal}
+) where {W,T,Aligned, Nontemporal,N}
+    @assert isa(Aligned, Bool)
+    ptyp = JuliaPointerType
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    decl = VectorizationBase.LOAD_SCOPE_TBAA
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{W,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    flags = [""]
+    align > 0 && push!(flags, "align $align")
+    Nontemporal && push!(flags, "!nontemporal !{i32 1}")
+    push!(flags, "!alias.scope !3")
+    push!(flags, "!tbaa !5")
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp $N")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
+    # push!(instrs, "%offsetptr = add nsw nuw $ptyp %0, %1") # uncommenting requires *8n
+    # push!(instrs, "%ptr = inttoptr $ptyp %offsetptr to $vtyp*")
+    push!(instrs, "%res = load $vtyp, $vtyp* %ptr" * join(flags, ", "))
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        SVec(llvmcall($((decl, join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}}, ptr))
+    end
+end
+@generated function vload(
     ::Type{_Vec{_W,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
 ) where {_W,T,Aligned,U<:Unsigned}
     W = _W + 1
@@ -239,6 +271,39 @@ end
         $(Expr(:meta, :inline))
         SVec(llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Ptr{$T}, Int, $U}, ptr, i.i, mask))
+    end
+end
+@generated function vload(
+    ptr::Ptr{T}, i::_MM{W,VectorizationBase.Static{N}}, mask::U, ::Val{Aligned}
+) where {W,T,U<:Unsigned,Aligned,N}
+    ptyp = JuliaPointerType
+    typ = llvmtype(T)
+    vtyp = "<$W x $typ>"
+    mtyp_input = llvmtype(U)
+    mtyp_trunc = "i$W"
+    decls = String[ VectorizationBase.LOAD_SCOPE_TBAA ]
+    instrs = String[]
+    if Aligned
+        align = Base.datatype_alignment(Vec{W,T})
+    else
+        align = sizeof(T)   # This is overly optimistic
+    end
+    push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
+    push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ptyp $N")
+    push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
+    if mtyp_input == mtyp_trunc
+        push!(instrs, "%mask = bitcast $mtyp_input %1 to <$W x i1>")
+    else
+        push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
+        push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
+    end
+    push!(decls, "declare $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp*, i32, <$W x i1>, $vtyp)")
+    push!(instrs,"%res = call $vtyp @llvm.masked.load.$(suffix(W,T))($vtyp* %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer), !alias.scope !3, !tbaa !5")
+    push!(instrs, "ret $vtyp %res")
+    quote
+        $(Expr(:meta, :inline))
+        SVec(llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask))
     end
 end
 
@@ -520,10 +585,10 @@ let pargs = Union{Symbol,Expr}[:(ptr::Ptr{T}), :(v::AbstractSIMDVector{W,T})]
             icall = Union{Symbol,Expr}[:ptr, :(extract_data(v))]
             iargs = pargs
         elseif index == 1
-            icall = Union{Symbol,Expr}[:ptr, :(extract_data(v)), :i]
+            icall = Union{Symbol,Expr}[:ptr, :(extract_data(v)), :(VectorizationBase.unwrap(i))]
             iargs = push!(copy(pargs), :(i::Integer))
         else#if index == 2
-            icall = Union{Symbol,Expr}[:ptr, :(extract_data(v)), :(i.i)]
+            icall = Union{Symbol,Expr}[:ptr, :(extract_data(v)), :(VectorizationBase.unwrap(i.i))]
             iargs = push!(copy(pargs), :(i::_MM{W}))
         # else
             # icall = Union{Symbol,Expr}[:ptr, :(extract_data(v)), Expr(:(.), :i, QuoteNode(:i))]

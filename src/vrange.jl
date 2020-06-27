@@ -123,6 +123,8 @@ end
 @inline Base.:(*)(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
 @inline vmul(i::_MM{W}, j::T) where {W,T} = vmul(svrange(i), j)
 @inline vmul(j::T, i::_MM{W}) where {W,T} = vmul(svrange(i), j)
+@inline vmul(i::_MM{W}, ::Static{j}) where {W,j} = vmul(svrange(i), j)
+@inline vmul(::Static{j}, i::_MM{W}) where {W,j} = vmul(svrange(i), j)
 @inline vconvert(::Type{SVec{W,T}}, i::_MM{W}) where {W,T} = svrange(i, T)
 
 
