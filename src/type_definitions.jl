@@ -45,14 +45,13 @@ end
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$W x $typ>"
-    decls = String[]
+    # decls = String[]
     instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %1, $ityp $(I-1)")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Vec{$W,$T}, $T}, extract_data(v), $T(x))
+        llvmcall($(join(instrs, "\n")), Vec{$W,$T}, Tuple{Vec{$W,$T}, $T}, extract_data(v), $T(x))
     end
 end
 
@@ -61,16 +60,14 @@ end
     typ = llvmtype(T)
     ityp = llvmtype(Int)
     vtyp = "<$W x $typ>"
-    decls = String[]
+    # decls = String[]
     instrs = String[]
     push!(instrs, "%res = insertelement $vtyp %0, $typ %2, $ityp %1")
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
         @boundscheck 1 <= i <= $W || throw(BoundsError())
-        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Vec{$W,$T}, Int, $T},
-            extract_data(v), i-1, $T(x))
+        llvmcall($(join(instrs, "\n")), Vec{$W,$T}, Tuple{Vec{$W,$T}, Int, $T}, extract_data(v), i-1, $T(x))
     end
 end
 
@@ -91,8 +88,8 @@ Base.@propagate_inbounds Base.setindex(v::AbstractStructVec{W,T}, x::Number, i) 
     vtyp1 = "<$W x $typ1>"
     vtyp2 = "<$W x $typ2>"
     instrs = """
-%res = sitofp $vtyp2 %0 to $vtyp1
-ret $vtyp1 %res
+    %res = sitofp $vtyp2 %0 to $vtyp1
+    ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
@@ -106,8 +103,8 @@ end
     vtyp1 = "<$W x $typ1>"
     vtyp2 = "<$W x $typ2>"
     instrs = """
-%res = uitofp $vtyp2 %0 to $vtyp1
-ret $vtyp1 %res
+    %res = uitofp $vtyp2 %0 to $vtyp1
+    ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
@@ -121,8 +118,8 @@ end
     vtyp1 = "<$W x $typ1>"
     vtyp2 = "<$W x $typ2>"
     instrs = """
-%res = fptosi $vtyp2 %0 to $vtyp1
-ret $vtyp1 %res
+    %res = fptosi $vtyp2 %0 to $vtyp1
+    ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
@@ -136,8 +133,8 @@ end
     vtyp1 = "<$W x $typ1>"
     vtyp2 = "<$W x $typ2>"
     instrs = """
-%res = fptoui $vtyp2 %0 to $vtyp1
-ret $vtyp1 %res
+    %res = fptoui $vtyp2 %0 to $vtyp1
+    ret $vtyp1 %res
     """
     quote
         $(Expr(:meta, :inline))
