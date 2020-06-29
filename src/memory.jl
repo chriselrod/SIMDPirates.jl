@@ -18,7 +18,7 @@ ptr4 = alloca(500)
 will result in allocating 2000 doubles, and ptr1 == ptr2 == ptr3 == ptr4.
 This is very likely not what someone writing the above intended, but I do not yet know a workaround.
 """
-@generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T, Align}
+@generated function alloca(::Val{N}, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {N, T <: NativeTypes, Align}
     typ = llvmtype(T)
     ptyp = JuliaPointerType
     instrs = String[]
@@ -35,14 +35,12 @@ This is very likely not what someone writing the above intended, but I do not ye
         )
     end
 end
-@generated function alloca(N::Int32, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T, Align}
+@generated function alloca(N::Int32, ::Type{T} = Float64, ::Val{Align} = Val{64}()) where {T <: NativeTypes, Align}
     typ = llvmtype(T)
     ptyp = JuliaPointerType
     instrs = String[]
     push!(instrs, "%ptr = alloca $typ, i32 %0, align $Align")
     push!(instrs, "%iptr = ptrtoint $typ* %ptr to $ptyp")
-    # push!(instrs, "%ptr = alloca i8, i32 $(N*sizeof(T)), align $Align")
-    # push!(instrs, "%iptr = ptrtoint i8* %ptr to $ptyp")
     push!(instrs, "ret $ptyp %iptr")
     quote
         $(Expr(:meta,:inline))
@@ -111,7 +109,7 @@ end
 # end
 @generated function vload(
     ::Type{_Vec{_W,T}}, ptr::Ptr{T}, ::Val{Aligned}, ::Val{Nontemporal}
-) where {_W,T,Aligned, Nontemporal}
+) where {_W,T <: NativeTypes,Aligned, Nontemporal}
     W = _W + 1
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
@@ -134,13 +132,15 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((decl, join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T}}, ptr)
+        llvmcall(
+            $((decl, join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}}, ptr
+        )
     end
 end
 @generated function vload(
-    ptr::Ptr{T}, i::_MM{W}, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,Aligned, Nontemporal}
+    ptr::Ptr{T}, i::_MM{W,<:Integer}, ::Val{Aligned}, ::Val{Nontemporal}
+) where {W,T <: NativeTypes,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -166,13 +166,15 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(llvmcall($((decl, join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, (i.i % Int)))
+        SVec(llvmcall(
+            $((decl, join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T},Int}, ptr, (i.i % Int)
+        ))
     end
 end
 @generated function vload(
     ptr::Ptr{T}, i::_MM{W,VectorizationBase.Static{N}}, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,Aligned, Nontemporal,N}
+) where {W,T <: NativeTypes,Aligned, Nontemporal,N}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -198,13 +200,15 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(llvmcall($((decl, join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T}}, ptr))
+        SVec(llvmcall(
+            $((decl, join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}}, ptr
+        ))
     end
 end
 @generated function vload(
     ::Type{_Vec{_W,T}}, ptr::Ptr{T}, mask::U, ::Val{Aligned}
-) where {_W,T,Aligned,U<:Unsigned}
+) where {_W,T <: NativeTypes,Aligned,U<:Unsigned}
     W = _W + 1
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
@@ -236,13 +240,15 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask)
+        llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask
+        )
     end
 end
 @generated function vload(
-    ptr::Ptr{T}, i::_MM{W}, mask::U, ::Val{Aligned}
-) where {W,T,U<:Unsigned,Aligned}
+    ptr::Ptr{T}, i::_MM{W,<:Integer}, mask::U, ::Val{Aligned}
+) where {W,T <: NativeTypes,U<:Unsigned,Aligned}
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
@@ -269,13 +275,15 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T}, Int, $U}, ptr, i.i, mask))
+        SVec(llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}, Int, $U}, ptr, i.i % Int, mask
+        ))
     end
 end
 @generated function vload(
     ptr::Ptr{T}, i::_MM{W,VectorizationBase.Static{N}}, mask::U, ::Val{Aligned}
-) where {W,T,U<:Unsigned,Aligned,N}
+) where {W,T <: NativeTypes,U<:Unsigned,Aligned,N}
     ptyp = JuliaPointerType
     typ = llvmtype(T)
     vtyp = "<$W x $typ>"
@@ -302,8 +310,10 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        SVec(llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask))
+        SVec(llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Vec{$W,$T}, Tuple{Ptr{$T}, $U}, ptr, mask
+        ))
     end
 end
 
@@ -368,7 +378,7 @@ end
 
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{W,T}, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,Aligned, Nontemporal}
+) where {W,T <: NativeTypes,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -397,7 +407,7 @@ end
 end
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{W,T}, i::I, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,I,Aligned, Nontemporal}
+) where {W,T <: NativeTypes,I<:Integer,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ityp = llvmtype(I)
     ptyp = JuliaPointerType
@@ -430,7 +440,7 @@ end
 
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{W,T}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned}
+) where {W,T <: NativeTypes,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -458,14 +468,16 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall(
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $U},
-            ptr, v, mask)
+            ptr, v, mask
+        )
     end
 end
 @generated function vstore!(
     ptr::Ptr{T}, v::Vec{W,T}, i::I, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned,I<:Integer}
+) where {W,T <: NativeTypes,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
     ityp = llvmtype(I)
     ptyp = JuliaPointerType
@@ -495,15 +507,17 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall(
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I, $U},
-            ptr, v, i, mask)
+            ptr, v, i, mask
+        )
     end
 end
 
 @generated function vnoaliasstore!(
     ptr::Ptr{T}, v::Vec{W,T}, i::I, ::Val{Aligned}, ::Val{Nontemporal}
-) where {W,T,I,Aligned, Nontemporal}
+) where {W,T <: NativeTypes, I <: Integer,Aligned, Nontemporal}
     @assert isa(Aligned, Bool)
     ityp = llvmtype(I)
     ptyp = JuliaPointerType
@@ -521,7 +535,7 @@ end
     Nontemporal && push!(flags, "!nontemporal !{i32 1}")
     push!(flags, "!noalias !3")
     push!(flags, "!tbaa !7")
-    decl = VectorizationBase.STORE_TBAA
+    # decl = VectorizationBase.STORE_TBAA
     push!(instrs, "%typptr = inttoptr $ptyp %0 to i8*")
     push!(instrs, "%offsetptr = getelementptr inbounds i8, i8* %typptr, $ityp %2")
     push!(instrs, "%ptr = bitcast i8* %offsetptr to $vtyp*")
@@ -538,7 +552,7 @@ end
 
 @generated function vnoaliasstore!(
     ptr::Ptr{T}, v::Vec{W,T}, i::I, mask::U, ::Val{Aligned}# = Val{false}()
-) where {W,T,Aligned,U<:Unsigned,I<:Integer}
+) where {W,T <: NativeTypes,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
     ityp = llvmtype(I)
     ptyp = JuliaPointerType
@@ -572,9 +586,11 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
             Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, $I, $U},
-            ptr, v, i, mask)
+            ptr, v, i, mask
+        )
     end
 end
 
@@ -660,7 +676,7 @@ end
 
 @generated function gather(
    ptr::_Vec{_W,Ptr{T}}, ::Val{Aligned}# = Val{false}()
-) where {_W,T,Aligned}
+) where {_W,T <: NativeTypes,Aligned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     ptyp = JuliaPointerType
@@ -690,7 +706,7 @@ end
 
 @generated function gather(
    ptr::_Vec{_W,Ptr{T}}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {_W,T,Aligned,U<:Unsigned}
+) where {_W,T <: NativeTypes,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     @assert 8sizeof(U) >= W
@@ -714,7 +730,7 @@ end
         push!(instrs, "%masktrunc = trunc $mtyp_input %1 to $mtyp_trunc")
         push!(instrs, "%mask = bitcast $mtyp_trunc %masktrunc to <$W x i1>")
     end
-    decls = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
+    decl = "declare $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp, i32, <$W x i1>, $vtyp)"
     push!(instrs, "%res = call $vtyp @llvm.masked.gather.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vptrtyp %ptr, i32 $align, <$W x i1> %mask, $vtyp zeroinitializer)")#undef)")
     push!(instrs, "ret $vtyp %res")
     quote
@@ -727,7 +743,7 @@ end
 end
 @generated function vload(
    ptr::Ptr{T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
-) where {_W,T,I<:Integer,Aligned}
+) where {_W,T <: NativeTypes,I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     ptyp = JuliaPointerType
@@ -768,7 +784,7 @@ end
 @inline vload(ptr::Ptr, i::SVec{W,I}, mask::Mask{W}, ::Val{Aligned}, ::Val{false}) where {W,I<:Integer,Aligned} = SVec(vload(ptr, extract_data(i), mask.u, Val{Aligned}()))
 @generated function vload(
    ptr::Ptr{T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {_W,T,I<:Integer,Aligned,U<:Unsigned}
+) where {_W,T <: NativeTypes,I<:Integer,Aligned,U<:Unsigned}
     W = _W + 1
     @assert isa(Aligned, Bool)
     @assert 8sizeof(U) >= W
@@ -809,7 +825,7 @@ end
 end
 @generated function scatter!(
     ptr::_Vec{_W,Ptr{T}}, v::_Vec{_W,T}, ::Val{Aligned}# = Val{false}()
-) where {_W,T,Aligned}
+) where {_W,T <: NativeTypes,Aligned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     ptyp = JuliaPointerType
@@ -832,13 +848,14 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((decl, join(instrs, "\n"))),
+        llvmcall(
+            $((decl, join(instrs, "\n"))),
             Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}}, v, ptr)
     end
 end
 @generated function scatter!(
     ptr::_Vec{_W,Ptr{T}}, v::_Vec{_W,T}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {_W,T,Aligned,U<:Unsigned}
+) where {_W,T <: NativeTypes,Aligned,U<:Unsigned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     @assert 8sizeof(U) >= W
@@ -886,7 +903,7 @@ end
 
 @generated function vstore!(
     ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
-) where {_W,T,Aligned, I<:Integer}
+) where {_W,T <: NativeTypes,Aligned, I<:Integer}
     @assert isa(Aligned, Bool)
     W = _W + 1
     ptyp = JuliaPointerType
@@ -915,13 +932,15 @@ end
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((decl, join(instrs, "\n"))),
-            Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i)
+        llvmcall(
+            $((decl, join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i
+        )
     end
 end
 @generated function vstore!(
     ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {_W,T,Aligned,U<:Unsigned,I<:Integer}
+) where {_W,T <: NativeTypes,Aligned,U<:Unsigned,I<:Integer}
     @assert isa(Aligned, Bool)
     W = _W + 1
     @assert 8sizeof(U) >= W
@@ -968,7 +987,7 @@ end
 end
 @generated function vnoaliasstore!(
     ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, ::Val{Aligned}# = Val{false}()
-) where {_W,T, I<:Integer,Aligned}
+) where {_W,T <: NativeTypes, I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     ptyp = JuliaPointerType
@@ -993,18 +1012,20 @@ end
     mask = join((", i1 true" for i ∈ 2:W))
     # push!(decls, "declare void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp, $vptrtyp, i32, <$W x i1>)")
     # push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T)).$(suffix(W,Ptr{T}))($vtyp %0, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>)")
-    decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
+    # decl = "declare void @llvm.masked.scatter.$(suffix(W,T))($vtyp, $vptrtyp, i32, <$W x i1>)"
     push!(instrs, "call void @llvm.masked.scatter.$(suffix(W,T))($vtyp %1, $vptrtyp %ptr, i32 $align, <$W x i1> <i1 true$(mask)>), !noalias !3, !tbaa !7")
     push!(instrs, "ret void")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i)
+        llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            Cvoid, Tuple{Ptr{$T}, Vec{$W,$T}, Vec{$W,$I}}, ptr, v, i
+        )
     end
 end
 @generated function vnoaliasstore!(
     ptr::Ptr{T}, v::_Vec{_W,T}, i::_Vec{_W,I}, mask::U, ::Val{Aligned}# = Val{false}()
-) where {_W,T,U<:Unsigned,I<:Integer,Aligned}
+) where {_W,T <: NativeTypes,U<:Unsigned,I<:Integer,Aligned}
     @assert isa(Aligned, Bool)
     W = _W + 1
     @assert 8sizeof(U) >= W
@@ -1126,7 +1147,7 @@ end
 
 @generated function compressstore!(
     ptr::Ptr{T}, v::Vec{W,T}, mask::U
-) where {W,T,U<:Unsigned}
+) where {W,T <: NativeTypes,U<:Unsigned}
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -1156,7 +1177,7 @@ end
 
 @generated function expandload!(
     ::Type{Vec{W,T}}, ptr::Ptr{T}, mask::U
-) where {W,T,U<:Unsigned}
+) where {W,T <: NativeTypes,U<:Unsigned}
     @assert 8sizeof(U) >= W
     ptyp = JuliaPointerType
     typ = llvmtype(T)
@@ -1262,10 +1283,10 @@ using VectorizationBase: AbstractColumnMajorStridedPointer, PackedStridedPointer
 
 
 @inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{Vec{W,I2},Any}) where {W,I1,I2}
-    @inbounds vmul(first(a) % I2,first(b)) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+    @inbounds vadd(vmul(first(a) % I2,first(b)), vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b))))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1,Any}, b::Tuple{SVec{W,I2},Any}) where {W,I1,I2}
-    @inbounds vmul(first(a) % I2,extract_data(first(b))) + vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b)))
+    @inbounds vadd(vmul(first(a) % I2,extract_data(first(b))), vconvert(Vec{W,I2},tdot(Base.tail(a),Base.tail(b))))
 end
 @inline function VectorizationBase.tdot(a::Tuple{I1}, b::Tuple{Vec{W,I2}}) where {W,I1,I2}
     @inbounds vmul(first(a) % I2,first(b))
