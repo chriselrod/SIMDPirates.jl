@@ -67,7 +67,7 @@ end
     quote
         $(Expr(:meta, :inline))
         @boundscheck 1 <= i <= $W || throw(BoundsError())
-        llvmcall($(join(instrs, "\n")), Vec{$W,$T}, Tuple{Vec{$W,$T}, Int, $T}, extract_data(v), i-1, $T(x))
+        llvmcall($(join(instrs, "\n")), Vec{$W,$T}, Tuple{Vec{$W,$T}, Int, $T}, extract_data(v), vsub(i, 1), $T(x))
     end
 end
 
@@ -280,7 +280,7 @@ end
     instr = """
     %res = shufflevector <$W x $typ> %0, <$W x $typ> zeroinitializer, <$W2 x i32> <i32 $(sv)>
     ret <$W2 x $typ> %res
-"""
+    """
     :(llvmcall($instr, Vec{$W2,$T}, Tuple{Vec{$W,$T}}, v))
 end
 
