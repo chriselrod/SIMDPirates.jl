@@ -5,9 +5,9 @@ using VectorizationBase:
     llvmtype, AbstractSIMDVector, SVec, vbroadcast, vzero, vone, _MM, _Vec, 
     AbstractPointer, AbstractInitializedPointer, AbstractStridedPointer, JuliaPointerType, AbstractStructVec
 import VectorizationBase: vload, vstore!, vnoaliasstore!, AbstractMask, tomask, IntTypes, UIntTypes, IntegerTypes, FloatingTypes, ScalarTypes, vadd, vmul, vsub, vleft_bitshift, NativeTypes#, vright_bitshift
-# using Base: llvmcall
-@inline llvmcall(s::String, args...) = Base.llvmcall(s, args...)
-@inline llvmcall(s::Tuple{String,String}, args...) = Base.llvmcall(s, args...)
+using Base: llvmcall
+# @inline llvmcall(s::String, args...) = Base.llvmcall(s, args...)
+# @inline llvmcall(s::Tuple{String,String}, args...) = Base.llvmcall(s, args...)
 
 export  Vec, SVec, VE, _MM, stridedpointer,
     extract_data, vbroadcast, vconvert,
