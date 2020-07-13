@@ -626,17 +626,29 @@ vfnmsub_fast(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.Fast
 @inline vfnmadd231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(c, Base.FastMath.mul_fast(a, b))
 @inline vfmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.mul_fast(a, b), c)
 @inline vfnmsub231(a::Number, b::Number, c::Number) = Base.FastMath.sub_fast(Base.FastMath.sub_fast(c), Base.FastMath.mul_fast(a, b))
-@inline function vifelse(f::typeof(vfmadd231), m::AbstractMask{W}, a, b, c) where {W}
-    vifelse(m, vfmadd_fast(a, b, c), c)
+@inline function vifelse(::typeof(vfmadd231), m::AbstractMask, a, b, c)
+    vifelse(m, vfmadd(a, b, c), c)
 end
-@inline function vifelse(f::typeof(vfnmadd231), m::AbstractMask{W}, a, b, c) where {W}
-    vifelse(m, vfnmadd_fast(a, b, c), c)
+@inline function vifelse(::typeof(vfnmadd231), m::AbstractMask, a, b, c)
+    vifelse(m, vfnmadd(a, b, c), c)
 end
-@inline function vifelse(f::typeof(vfmsub231), m::AbstractMask{W}, a, b, c) where {W}
-    vifelse(m, vfmsub_fast(a, b, c), c)
+@inline function vifelse(::typeof(vfmsub231), m::AbstractMask, a, b, c)
+    vifelse(m, vfmsub(a, b, c), c)
 end
-@inline function vifelse(f::typeof(vfnmsub231), m::AbstractMask{W}, a, b, c) where {W}
-    vifelse(m, vfnmsub_fast(a, b, c), c)
+@inline function vifelse(::typeof(vfnmsub231), m::AbstractMask, a, b, c)
+    vifelse(m, vfnmsub(a, b, c), c)
+end
+@inline function vifelse(::typeof(vfmadd_fast), m::AbstractMask, a, b, c)
+    vifelse(m, vfmadd(a, b, c), c)
+end
+@inline function vifelse(::typeof(vfnmadd_fast), m::AbstractMask, a, b, c)
+    vifelse(m, vfnmadd(a, b, c), c)
+end
+@inline function vifelse(::typeof(vfmsub_fast), m::AbstractMask, a, b, c)
+    vifelse(m, vfmsub(a, b, c), c)
+end
+@inline function vifelse(::typeof(vfnmsub_fast), m::AbstractMask, a, b, c)
+    vifelse(m, vfnmsub(a, b, c), c)
 end
 
 @vpromote vfmadd231 3
@@ -670,6 +682,31 @@ if VectorizationBase.FMA3
                 end
                 @inline function vfnmsub231(a::Vec{$W,$T}, b::Vec{$W,$T}, c::Vec{$W,$T})
                     llvmcall($vfnmsub_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T}}, a, b, c)
+                end
+            end
+            if VectorizationBase.AVX512BW && W ≥ 8
+                vfmaddmask_str = """%res = call <$W x $(typ)> asm "vfmadd231$(suffix) \$3, \$2, \$1 {\$4}", "=v,0,v,v,^Yk"(<$W x $(typ)> %2, <$W x $(typ)> %1, <$W x $(typ)> %0, i$W %3)
+                    ret <$W x $(typ)> %res"""
+                vfnmaddmask_str = """%res = call <$W x $(typ)> asm "vfnmadd231$(suffix) \$3, \$2, \$1 {\$4}", "=v,0,v,v,^Yk"(<$W x $(typ)> %2, <$W x $(typ)> %1, <$W x $(typ)> %0, i$W %3)
+                    ret <$W x $(typ)> %res"""
+                vfmsubmask_str = """%res = call <$W x $(typ)> asm "vfmsub231$(suffix) \$3, \$2, \$1 {\$4}", "=v,0,v,v,^Yk"(<$W x $(typ)> %2, <$W x $(typ)> %1, <$W x $(typ)> %0, i$W %3)
+                    ret <$W x $(typ)> %res"""
+                vfnmsubmask_str = """%res = call <$W x $(typ)> asm "vfnmsub231$(suffix) \$3, \$2, \$1 {\$4}", "=v,0,v,v,^Yk"(<$W x $(typ)> %2, <$W x $(typ)> %1, <$W x $(typ)> %0, i$W %3)
+                    ret <$W x $(typ)> %res"""
+                U = VectorizationBase.mask_type(W)
+                @eval begin
+                    @inline function vifelse(::typeof(vfmadd231), m::Mask{$W,$U}, a::SVec{$W,$T}, b::SVec{$W,$T}, c::SVec{$W,$T})
+                        SVec(llvmcall($vfmaddmask_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T},$U}, extract_data(a), extract_data(b), extract_data(c), extract_data(m)))
+                    end
+                    @inline function vifelse(::typeof(vfnmadd231), m::Mask{$W,$U}, a::SVec{$W,$T}, b::SVec{$W,$T}, c::SVec{$W,$T})
+                        SVec(llvmcall($vfnmaddmask_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T},$U}, extract_data(a), extract_data(b), extract_data(c), extract_data(m)))
+                    end
+                    @inline function vifelse(::typeof(vfmsub231), m::Mask{$W,$U}, a::SVec{$W,$T}, b::SVec{$W,$T}, c::SVec{$W,$T})
+                        SVec(llvmcall($vfmsubmask_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T},$U}, extract_data(a), extract_data(b), extract_data(c), extract_data(m)))
+                    end
+                    @inline function vifelse(::typeof(vfnmsub231), m::Mask{$W,$U}, a::SVec{$W,$T}, b::SVec{$W,$T}, c::SVec{$W,$T})
+                        SVec(llvmcall($vfnmsubmask_str, Vec{$W,$T}, Tuple{Vec{$W,$T},Vec{$W,$T},Vec{$W,$T},$U}, extract_data(a), extract_data(b), extract_data(c), extract_data(m)))
+                    end
                 end
             end
             W += W
