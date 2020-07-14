@@ -241,7 +241,7 @@ end
   %13 = select <$(W) x i1> %4, <$(W) x i32> $v5, <$(W) x i32> $v6
   %14 = select i1 %6, <$(W) x i32> $v6, <$(W) x i32> %13
   %15 = add nsw <$(W) x i32> %12, %14
-  %$(W) = and <$(W) x i32> %11, $v7
+  %16 = and <$(W) x i32> %11, $v7
   %17 = add nuw nsw <$(W) x i32> %$(W), $v8
   %18 = bitcast <$(W) x i32> %17 to <$(W) x float>
   %19 = fsub <$(W) x float> %18, $v1
