@@ -192,9 +192,9 @@ for op ∈ (:(<<), :(>>), :(>>>))
         @vectordef $rename function Base.$op(x1::I, v2) where {W,I<:Integer,T<:IntegerTypes}
             $rename(vbroadcast(Vec{W,I}, x1), vconvert(Vec{W,I},extract_data(v2)))
         end
+        @eval @inline Base.$op(v1::SVec{W,I1}, v2::SVec{W,I2}) where {W,I1,I2<:IntegerTypes} = SVec(llvmwrapshift(Val{$(QuoteNode(op))}(), extract_data(v1), extract_data(v2)))
     end
 end
-
 @inline function Base.:(<<)(v1::AbstractStructVec{W,I1}, v2::AbstractStructVec{W,I2}) where {W, I1 <: Unsigned, I2}
     v2pos = v2 > 0
     v2abs = vconvert(SVec{W, I1}, abs(v2))
