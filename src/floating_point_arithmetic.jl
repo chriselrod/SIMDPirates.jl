@@ -795,6 +795,10 @@ end
 @inline reduced_add(s::T2, v::AbstractSIMDVector{W}) where {W,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
 @inline reduced_add(v1::AbstractSIMDVector{W}, v2::AbstractSIMDVector{W}) where {W} = vadd(v1, v2)
 @inline reduced_add(v1::T, v2::T) where {T<:Number} = Base.FastMath.add_fast(v1,v2)
+# @inline function reduced_add(v1::T, v2::T) where {T<:Number}
+#     @show v1, v2 typeof(v1), typeof(v2)
+#     vadd(v1,v2)
+# end
 @inline reduced_prod(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
 @inline reduced_prod(s::T2, v::AbstractSIMDVector{W}) where {W,T2} = Base.FastMath.mul_fast(s, convert(T2,vprod(v)))
 @inline reduced_prod(v1::AbstractSIMDVector{W}, v2::AbstractSIMDVector{W}) where {W} = vmul(v1, v2)

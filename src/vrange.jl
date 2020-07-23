@@ -140,42 +140,13 @@ end
 @inline vsub(i::_MM{W}) where {W} = -svrange(i)
 
 
-
-@inline Base.:(<)(i::_MM, j::Integer) = svrange(i) < j
-@inline Base.:(<)(i::Integer, j::_MM) = i < svrange(j)
-@inline Base.:(<)(i::_MM, ::Static{j}) where {j} = svrange(i) < j
-@inline Base.:(<)(::Static{i}, j::_MM) where {i} = i < svrange(j)
-@inline Base.:(<)(i::_MM, j::_MM) = svrange(i) < svrange(j)
-@inline Base.:(>)(i::_MM, j::Integer) = svrange(i) > j
-@inline Base.:(>)(i::Integer, j::_MM) = i > svrange(j)
-@inline Base.:(>)(i::_MM, ::Static{j}) where {j} = svrange(i) > j
-@inline Base.:(>)(::Static{i}, j::_MM) where {i} = i > svrange(j)
-@inline Base.:(>)(i::_MM, j::_MM) = svrange(i) > svrange(j)
-@inline Base.:(==)(i::_MM, j::Integer) = svrange(i) == j
-@inline Base.:(==)(i::Integer, j::_MM) = i == svrange(j)
-@inline Base.:(==)(i::_MM, ::Static{j}) where {j} = svrange(i) == j
-@inline Base.:(==)(::Static{i}, j::_MM) where {i} = i == svrange(j)
-@inline Base.:(==)(i::_MM, j::_MM) = svrange(i) == svrange(j)
-@inline Base.:(!=)(i::_MM, j::Integer) = svrange(i) != j
-@inline Base.:(!=)(i::Integer, j::_MM) = i != svrange(j)
-@inline Base.:(!=)(i::_MM, ::Static{j}) where {j} = svrange(i) != j
-@inline Base.:(!=)(::Static{i}, j::_MM) where {i} = i != svrange(j)
-@inline Base.:(!=)(i::_MM, j::_MM) = svrange(i) != svrange(j)
-@inline Base.:(&)(i::_MM, j::Integer) = svrange(i) & j
-@inline Base.:(&)(i::Integer, j::_MM) = i & svrange(j)
-@inline Base.:(&)(i::_MM, ::Static{j}) where {j} = svrange(i) & j
-@inline Base.:(&)(::Static{i}, j::_MM) where {i} = i & svrange(j)
-@inline Base.:(&)(i::_MM, j::_MM) = svrange(i) & svrange(j)
-@inline Base.:(|)(i::_MM, j::Integer) = svrange(i) | j
-@inline Base.:(|)(i::Integer, j::_MM) = i | svrange(j)
-@inline Base.:(|)(i::_MM, ::Static{j}) where {j} = svrange(i) | j
-@inline Base.:(|)(::Static{i}, j::_MM) where {i} = i | svrange(j)
-@inline Base.:(|)(i::_MM, j::_MM) = svrange(i) | svrange(j)
-@inline Base.:(⊻)(i::_MM, j::Integer) = svrange(i) ⊻ j
-@inline Base.:(⊻)(i::Integer, j::_MM) = i ⊻ svrange(j)
-@inline Base.:(⊻)(i::_MM, ::Static{j}) where {j} = svrange(i) ⊻ j
-@inline Base.:(⊻)(::Static{i}, j::_MM) where {i} = i ⊻ svrange(j)
-@inline Base.:(⊻)(i::_MM, j::_MM) = svrange(i) ⊻ svrange(j)
+for op ∈ [:(<), :(>), :(≥), :(≤), :(==), :(!=), :(&), :(|), :(⊻), :(%)]
+    @eval @inline Base.$op(i::_MM, j::Integer) = $op(svrange(i), j)
+    @eval @inline Base.$op(i::Integer, j::_MM) = $op(i, svrange(j))
+    @eval @inline Base.$op(i::_MM, ::Static{j}) where {j} = $op(svrange(i), j)
+    @eval @inline Base.$op(::Static{i}, j::_MM) where {i} = $op(i, svrange(j))
+    @eval @inline Base.$op(i::_MM, j::_MM) = $op(svrange(i), svrange(j))
+end
 @inline Base.:(*)(i::_MM, j::_MM) = SVec(vmul(vrange(i), vrange(j)))
 @inline vmul(i::_MM, j::_MM) = SVec(vmul(vrange(i), vrange(j)))
 

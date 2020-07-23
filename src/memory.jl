@@ -699,7 +699,8 @@ end
         $(Expr(:meta, :inline))
         llvmcall(
             $((decl, join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}}, ptr
+            # Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}}, ptr
+            Vec{$W,$T}, Tuple{NTuple{$W,Core.VecElement{Ptr{$T}}}}, ptr
         )
     end
 end
@@ -737,7 +738,8 @@ end
         $(Expr(:meta, :inline))
         llvmcall(
             $((decl, join(instrs, "\n"))),
-            Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}, $U}, ptr, mask
+            # Vec{$W,$T}, Tuple{Vec{$W,Ptr{$T}}, $U}, ptr, mask
+            Vec{$W,$T}, Tuple{NTuple{$W,Core.VecElement{Ptr{$T}}}, $U}, ptr, mask
         )
     end
 end
@@ -850,7 +852,9 @@ end
         $(Expr(:meta, :inline))
         llvmcall(
             $((decl, join(instrs, "\n"))),
-            Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}}, v, ptr)
+            # Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}}, v, ptr)
+            Cvoid, Tuple{Vec{$W,$T}, NTuple{$W,Core.VecElement{Ptr{$T}}}}, v, ptr
+        )
     end
 end
 @generated function scatter!(
@@ -890,7 +894,7 @@ end
         $(Expr(:meta, :inline))
         llvmcall(
             $((decl, join(instrs, "\n"))),
-            Cvoid, Tuple{Vec{$W,$T}, Vec{$W,Ptr{$T}}, $U}, v, ptr, mask
+            Cvoid, Tuple{Vec{$W,$T}, NTuple{$W,Core.VecElement{Ptr{$T}}}, $U}, v, ptr, mask
         )
     end
 end
