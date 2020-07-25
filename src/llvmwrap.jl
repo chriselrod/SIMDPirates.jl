@@ -477,8 +477,8 @@ end
         $(Expr(:meta, :inline))
         vifelse(
             vgreater_or_equal(v2, 0),
-            llvmwrapshift($ValOp, v1, extract_data(v2 % unsigned(U))),
-            llvmwrapshift($ValNegOp, v1, extract_data(vsub(v2) % unsigned(U)))
+            llvmwrapshift($ValOp, v1, extract_data(SVec(v2) % unsigned(U))),
+            llvmwrapshift($ValNegOp, v1, extract_data(SVec(vsub(v2)) % unsigned(U)))
         )
     end
 end
