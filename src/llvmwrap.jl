@@ -447,9 +447,11 @@ end
     push!(instrs, "ret $vtyp %res")
     quote
         $(Expr(:meta, :inline))
-        llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
+        llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
             Vec{$W,$T}, Tuple{Vec{$W,$T}, Vec{$W,$T}},
-            v1, vrem(v2, Vec{$W,$T}))
+            v1, extract_data(SVec(v2) % $T)
+        )
     end
 end
 
@@ -475,8 +477,8 @@ end
         $(Expr(:meta, :inline))
         vifelse(
             vgreater_or_equal(v2, 0),
-            llvmwrapshift($ValOp, v1, vrem(v2, Vec{$W,unsigned(U)})),
-            llvmwrapshift($ValNegOp, v1, vrem(vsub(v2), Vec{$W,unsigned(U)}))
+            llvmwrapshift($ValOp, v1, extract_data(v2 % unsigned(U))),
+            llvmwrapshift($ValNegOp, v1, extract_data(vsub(v2) % unsigned(U)))
         )
     end
 end

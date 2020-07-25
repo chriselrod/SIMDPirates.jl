@@ -268,6 +268,9 @@ end
             Vec{$W,$R}, Tuple{Vec{$W1,$T1}}, v1)
     end
 end
+@inline function Base.reinterpret(::Type{T1}, x::SVec{W,T2}) where {W, T1 <: Union{Float64,Int64,UInt64}, T2 <: Union{Float64,Int64,UInt64}}
+    reinterpret(SVec{W,T1}, x)
+end
 @inline function Base.reinterpret(::Type{SVec{W,R}}, v1::SVec{W1,T1}) where {W,R,W1,T1}
     SVec(vreinterpret(Vec{W,R}, extract_data(v1)))
 end
