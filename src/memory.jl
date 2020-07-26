@@ -900,6 +900,12 @@ end
 end
 
 
+@inline vload(ptr::_Vec{_W,Ptr{T}}) where {_W,T} = SVec(gather(ptr, Val{false}()))
+@inline vload(ptr::_Vec{_W,Ptr{T}}, m::AbstractMask) where {_W,T} = SVec(gather(ptr, extract_data(m), Val{false}()))
+@inline vstore!(ptr::_Vec{_W,Ptr{T}}, v) where {_W,T} = scatter!(ptr, extract_data(v), Val{false}())
+@inline vstore!(ptr::_Vec{_W,Ptr{T}}, v, m::AbstractMask) where {_W,T} = scatter!(ptr, extract_data(v), extract_data(m), Val{false}())
+@inline vnoaliasstore!(ptr::_Vec{_W,Ptr{T}}, v) where {_W,T} = scatter!(ptr, extract_data(v), Val{false}())
+@inline vnoaliasstore!(ptr::_Vec{_W,Ptr{T}}, v, m::AbstractMask) where {_W,T} = scatter!(ptr, extract_data(v), extract_data(m), Val{false}())
 
 
 
