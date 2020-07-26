@@ -177,7 +177,35 @@ for op ∈ (
             ev1 = extract_data(v1)
             $rename(ev1, vbroadcast(typeof(ev1), s2))
         end
-        
+        @inline function $rename(s1::T2, v2::_Vec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            $rename(vbroadcast(_Vec{W,T2}, s1), v2)
+        end
+        @inline function $rename(v1::_Vec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            $rename(v1, vbroadcast(_Vec{W,T2}, s2))
+        end
+        @vpromote $rename 2
+    end
+end
+for op ∈ (:(==), :(!=), :(<), :(<=), :(>), :(>=))
+    rename = VECTOR_SYMBOLS[op]
+    @eval begin
+        @inline function Base.$op(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            Mask{W}($rename(vbroadcast(Vec{W,T2}, s1), vconvert(Vec{W,T2}, extract_data(v2))))
+        end
+        @inline function Base.$op(v1::SVec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            Mask{W}($rename(vconvert(Vec{W,T2}, extract_data(v1)), vbroadcast(Vec{W,T2}, s2)))
+        end
+        @inline function $rename(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
+            Mask{W}($rename(vbroadcast(Vec{W,T2}, s1), extract_data(v2)))
+        end
+        @inline function $rename(v1::SVec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
+            Mask{W}($rename(extract_data(v1), vbroadcast(Vec{W,T2}, s2)))
+        end
+    end
+end
+for op ∈ (:+, :-, :*, :/, :copysign, :flipsign, :max, :min, :%)
+    rename = VECTOR_SYMBOLS[op]
+    @eval begin
         @inline function Base.$op(s1::T2, v2::SVec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
             SVec($rename(vbroadcast(Vec{W,T2}, s1), vconvert(Vec{W,T2}, extract_data(v2))))
         end
@@ -190,15 +218,9 @@ for op ∈ (
         @inline function $rename(v1::SVec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
             SVec($rename(extract_data(v1), vbroadcast(Vec{W,T2}, s2)))
         end
-        @inline function $rename(s1::T2, v2::_Vec{W,T}) where {W,T<:Integer,T2<:FloatingTypes}
-            $rename(vbroadcast(_Vec{W,T2}, s1), v2)
-        end
-        @inline function $rename(v1::_Vec{W,T}, s2::T2) where {W,T<:Integer,T2<:FloatingTypes}
-            $rename(v1, vbroadcast(_Vec{W,T2}, s2))
-        end
-        @vpromote $rename 2
     end
 end
+
 for op ∈ (
         :(+), :(-), :(*), :(/), :(%),# :(^),
         :copysign#, :max, :min
