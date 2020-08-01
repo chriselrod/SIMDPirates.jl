@@ -34,9 +34,9 @@ const INVLOG10 = 1 / log(10)
 @inline vfmaddaddone(x::T1, y::T2) where {T1,T2} = vfmadd(x, y, VectorizationBase.vone(promote_type(T1,T2)))
 
 
-@inline vadd!(y, x) = vadd(y, x)
+@inline vadd!(y, x) = reduced_add(x, y)
 @inline vsub!(y, x) = vsub(y, x)
-@inline vmul!(y, x) = vmul(y, x)
+@inline vmul!(y, x) = reduced_mul(x, y)
 @inline vfdiv!(y, x) = vfdiv(y, x)
 @inline vfmadd!(c, a, b) = vfmadd(a, b, c)
 @inline vfnmadd!(c, a, b) = vfnmadd(a, b, c)
