@@ -274,14 +274,17 @@ end
 @inline function Base.reinterpret(::Type{T1}, x::SVec{W,T2}) where {W, T1 <: Union{Float32,Int32,UInt32}, T2 <: Union{Float32,Int32,UInt32}}
     reinterpret(SVec{W,T1}, x)
 end
+@inline function Base.reinterpret(::Type{T1}, x::SVec{W,T2}) where {W, T1 <: Union{Float16,Int16,UInt16}, T2 <: Union{Float16,Int16,UInt16}}
+    reinterpret(SVec{W,T1}, x)
+end
 for lWh in 1:3
     Wh = 1 << lWh
     W = 1 << (lWh+1)
     @eval begin
-        @inline function Base.reinterpret(::Type{T1}, x::SVec{$Wh,T2}) where {W, T1 <: Union{Float32,Int32,UInt32}, T2 <: Union{Float64,Int64,UInt64}}
+        @inline function Base.reinterpret(::Type{T1}, x::SVec{$Wh,T2}) where {T1 <: Union{Float32,Int32,UInt32}, T2 <: Union{Float64,Int64,UInt64}}
             reinterpret(SVec{$W,T1}, x)
         end
-        @inline function Base.reinterpret(::Type{T1}, x::SVec{$W,T2}) where {W, T1 <: Union{Float64,Int64,UInt64}, T2 <: Union{Float32,Int32,UInt32}}
+        @inline function Base.reinterpret(::Type{T1}, x::SVec{$W,T2}) where {T1 <: Union{Float64,Int64,UInt64}, T2 <: Union{Float32,Int32,UInt32}}
             reinterpret(SVec{$Wh,T1}, x)
         end
     end

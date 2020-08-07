@@ -227,7 +227,7 @@ end
 @generated function vpmaddwd(a::NTuple{W,Core.VecElement{Int16}}, b::NTuple{W,Core.VecElement{Int16}}) where {W}
     Wh = W >>> 1
     @assert 2Wh == W
-    @assert (REGISTER_SIZE >> 1) ≥ W
+    @assert (VectorizationBase.REGISTER_SIZE >> 1) ≥ W
     S = W * 16
     # decl = "@llvm.x86.avx512.pmaddw.d.512"
     instr = "@llvm.x86.avx512.pmaddw.d.$S"
