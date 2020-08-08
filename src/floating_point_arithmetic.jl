@@ -1031,6 +1031,7 @@ end
 Base.literal_pow(::typeof(^), x::AbstractStructVec, ::Val{P}) where {P} = x ^ P
 # @inline literal_power(x, ::Val{P}) = Base.literal_pow(Base.^, x, Val{P}())
 
+@inline relu(x) = max(x,zero(x))
 
 # These don't work yet.
 # @static if Base.libllvm_version ≥ v"10.0.0"
