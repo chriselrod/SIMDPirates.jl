@@ -800,19 +800,31 @@ end
 @inline vsum(s::FloatingTypes) = s
 @inline vprod(s::FloatingTypes) = s
 
-@inline reduced_add(v::_Vec{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(v::AbstractStructVec{W,T}, s::T) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(s::T, v::_Vec{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
-@inline reduced_add(s::T, v::AbstractStructVec{W,T}) where {W,T} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(v::_Vec{W,T}, s::T) where {W,T<:IntegerTypes} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(v::AbstractStructVec{W,T}, s::T) where {W,T<:IntegerTypes} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(s::T, v::_Vec{W,T}) where {W,T<:IntegerTypes} = Base.FastMath.add_fast(s, vsum(v))
+@inline reduced_add(s::T, v::AbstractStructVec{W,T}) where {W,T<:IntegerTypes} = Base.FastMath.add_fast(s, vsum(v))
+
+@inline reduced_add(v::AbstractStructVec{W,T}, s::T) where {W,T<:FloatingTypes} = reduced_add(extract_data(v), s)
+@inline reduced_add(s::T, v::_Vec{W,T}) where {W,T<:FloatingTypes} = reduced_add(v, s)
+@inline reduced_add(s::T, v::AbstractStructVec{W,T}) where {W,T<:FloatingTypes} = reduced_add(extract_data(v), s)
+
 # @inline reduced_add(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vadd(v1, v2)
-@inline reduced_prod(v::_Vec{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(s::T, v::_Vec{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(v::AbstractStructVec{W,T}, s::T) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
-@inline reduced_prod(s::T, v::AbstractStructVec{W,T}) where {W,T} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(v::_Vec{W,T}, s::T) where {W,T<:IntegerTypes} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(s::T, v::_Vec{W,T}) where {W,T<:IntegerTypes} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(v::AbstractStructVec{W,T}, s::T) where {W,T<:IntegerTypes} = Base.FastMath.mul_fast(s, vprod(v))
+@inline reduced_prod(s::T, v::AbstractStructVec{W,T}) where {W,T<:IntegerTypes} = Base.FastMath.mul_fast(s, vprod(v))
+
+@inline reduced_prod(s::T, v::_Vec{W,T}) where {W,T<:FloatingTypes} = reduced_prod(v, s)
+@inline reduced_prod(v::AbstractStructVec{W,T}, s::T) where {W,T<:FloatingTypes} = reduced_prod(extract_data(v), s)
+@inline reduced_prod(s::T, v::AbstractStructVec{W,T}) where {W,T<:FloatingTypes} = reduced_prod(extract_data(v), s)
 # @inline reduced_prod(v1::AbstractSIMDVector{W,T}, v2::AbstractSIMDVector{W,T}) where {W,T} = vmul(v1, v2)
 
-@inline reduced_add(v::SVec{W,T}, s::T) where {W,T} = reduced_add(extract_data(v), s)
-@inline reduced_prod(v::SVec{W,T}, s::T) where {W,T} = reduced_prod(extract_data(v), s)
+@inline reduced_add(v::SVec{W,T}, s::T) where {W,T<:IntegerTypes} = reduced_add(extract_data(v), s)
+@inline reduced_prod(v::SVec{W,T}, s::T) where {W,T<:IntegerTypes} = reduced_prod(extract_data(v), s)
+@inline reduced_add(v::SVec{W,T}, s::T) where {W,T<:FloatingTypes} = reduced_add(extract_data(v), s)
+@inline reduced_prod(v::SVec{W,T}, s::T) where {W,T<:FloatingTypes} = reduced_prod(extract_data(v), s)
+
 @inline reduced_add(v::AbstractSIMDVector{W}, s::T2) where {W,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
 @inline reduced_add(s::T2, v::AbstractSIMDVector{W}) where {W,T2} = Base.FastMath.add_fast(s, convert(T2,vsum(v)))
 @inline reduced_add(v1::AbstractSIMDVector{W}, v2::AbstractSIMDVector{W}) where {W} = vadd(v1, v2)
