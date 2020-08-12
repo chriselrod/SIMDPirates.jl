@@ -203,7 +203,7 @@ end
 @inline vconvert(::Type{<:Vec{W}}, m::Mask{W}) where {W} = m
 @inline vconvert(::Type{<:Vec{W}}, u::Unsigned) where {W} = Mask{W}(u)
 @inline vconvert(::Type{SVec{W,T}}, m::Mask{W}) where {W,T} = m
-@inline vconvert(::Type{SVec{W,T1}}, s::T1) where {W, T1 <: Unsigned} = vbroadcast(Vec{W,T1}, s)
+@inline vconvert(::Type{SVec{W,T1}}, s::T1) where {W, T1 <: Unsigned} = vbroadcast(SVec{W,T1}, s)
 @inline vconvert(::Type{SVec{W,T}}, u::Unsigned) where {W,T} = Mask{W}(u)
 
 @inline promote_vtype(::Type{T}, ::Type{T}) where {T} = T
@@ -262,6 +262,11 @@ end
 @inline promote_vtype(::Type{T}, ::Type{T}, ::Type{T}) where {T} = T
 @inline promote_vtype(::Type{_Vec{W,T}}, ::Type{_Vec{W,T}}) where {W,T} = _Vec{W,T}
 @inline promote_vtype(::Type{SVec{W,T}}, ::Type{SVec{W,T}}) where {W,T} = SVec{W,T}
+
+@inline function vpromote(args::Vararg{<:Any,N}) where {N}
+    V = promote_vtype(typeof.(args)...)
+    vconvert.(V, args)
+end
 
 @inline Base.float(v::AbstractStructVec{W,<:FloatingTypes}) where {W} = v
 @inline Base.float(v::AbstractStructVec{W,I}) where {W, I <: Union{Int64,UInt64}} = vconvert(SVec{W,Float64}, v)

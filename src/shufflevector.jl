@@ -47,5 +47,6 @@ end
     SVec(shufflevector(extract_data(v1), Val(I)))
 end
 
+# TODO: Drop with next version bump
 @inline rotate_vector_left(v::AbstractSIMDVector{W}) where {W} = shufflevector(v, Val(ntuple(i -> (i % W), Val(W))))
 

@@ -322,5 +322,16 @@ end
 @inline Base.:(>>)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) >> svrange(j)
 @inline Base.:(>>>)(i::_MM{W}, j::_MM{W}) where {W} = svrange(i) >>> svrange(j)
 
-
+makesvec(v::AbstractSIMDVector) = SVec(v)
+makesvec(s) = s
+@inline function funnel_shift_left(v1, v2, v3)
+    vp1, vp2, vp3 = vpromote(v1, v2, v3)
+    makesvec(llvmwrap(Val{:funnel_shift_left}(), extract_data(vp1), extract_data(vp2), extract_data(vp3)))
+end
+@inline function funnel_shift_right(v1, v2, v3)
+    vp1, vp2, vp3 = vpromote(v1, v2, v3)
+    makesvec(llvmwrap(Val{:funnel_shift_right}(), extract_data(vp1), extract_data(vp2), extract_data(vp3)))
+end
+@inline rotate_left(a, b) = funnel_shift_left(a, a, b)
+@inline rotate_right(a, b) = funnel_shift_right(a, a, b)
 

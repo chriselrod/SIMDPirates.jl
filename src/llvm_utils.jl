@@ -25,7 +25,8 @@ function suffix(N::Int, @nospecialize(T))
     else#if T <: FloatingTypes
         t = "f"
     end
-    "v$(N)$(t)$(8sizeof(T))"
+    ts = t * string(8sizeof(T)) 
+    N == -1 ? ts : 'v' * string(N) * ts
 end
 
 
@@ -139,10 +140,12 @@ LLVM_OVERLOADED_INS[:round] = "@llvm.rint."
 LLVM_OVERLOADED_INS[:sin] = "@llvm.sin."
 LLVM_OVERLOADED_INS[:sqrt] =  "@llvm.sqrt."
 LLVM_OVERLOADED_INS[:trunc] = "@llvm.trunc."
+LLVM_OVERLOADED_INS[:funnel_shift_left] = "@llvm.fshl."
+LLVM_OVERLOADED_INS[:funnel_shift_right] = "@llvm.fshr."
 
 function llvmins(func::Symbol, N::Int, T)::String
     ins = get(LLVM_OVERLOADED_INS, func, nothing)
-    ins === nothing || return ins * suffix(N, T)
+    isnothing(ins) || return ins * suffix(N, T)
     if T <: IntegerTypes
         d = T <: IntTypes ? LLVM_INS_Int : LLVM_INS_UInt
         return get(d, func) do

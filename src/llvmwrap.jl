@@ -258,7 +258,30 @@ end
 
 # Functions taking three arguments
 @generated function llvmwrap(
-    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, v3::_Vec{_W,T3}, ::Type{R} = T1
+    ::Val{Op}, s1::T, s2::T, s3::T
+) where {Op, T <: Number}
+    @assert isa(Op, Symbol)
+    typ = llvmtype(T)
+    ins = llvmins(Op, -1, T)
+    decls = String[]
+    instrs = String[]
+    if ins[1] == '@'
+        push!(decls, "declare $typ $ins($typ, $typ, $typ)")
+        push!(instrs, "%res = call $typ $ins($typ %0, $typ %1, $typ %2)")
+    else
+        push!(instrs, "%res = $ins $typ %0, %1, %2")
+    end
+    push!(instrs, "ret $typ %res")
+    quote
+        $(Expr(:meta, :inline))
+        llvmcall(
+            $((join(decls, "\n"), join(instrs, "\n"))),
+            $T, Tuple{$T,$T,$T}, s1, s2, s3
+        )
+    end
+end
+@generated function llvmwrap(
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, v3::_Vec{_W,T3}, ::Type{R}
 ) where {Op,_W,T1,T2,T3,R}
     W = _W + 1
     @assert isa(Op, Symbol)
@@ -284,13 +307,16 @@ end
     quote
         $(Expr(:meta, :inline))
         llvmcall($((join(decls, "\n"), join(instrs, "\n"))),
-            Vec{$W,R},
+            Vec{$W,$R},
             Tuple{Vec{$W,$T1}, Vec{$W,$T2}, Vec{$W,$T3}},
             v1, v2, v3)
     end
 end
+
+@inline llvmwrap(::Val{Op}, v1::_Vec{_W,R}, v2::_Vec{_W}, v3::_Vec{_W}) where {Op,_W,R} = llvmwrap(Val{Op}(), v1, v2, v3, R)
+@inline llvmwrap_fast(::Val{Op}, v1::_Vec{_W,R}, v2::_Vec{_W}, v3::_Vec{_W}) where {Op,_W,R} = llvmwrap_fast(Val{Op}(), v1, v2, v3, R)
 @generated function llvmwrap_fast(
-    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, v3::_Vec{_W,T3}, ::Type{R} = T1
+    ::Val{Op}, v1::_Vec{_W,T1}, v2::_Vec{_W,T2}, v3::_Vec{_W,T3}, ::Type{R}
 ) where {Op,_W,T1,T2,T3,R}
     W = _W + 1
     @assert isa(Op, Symbol)
