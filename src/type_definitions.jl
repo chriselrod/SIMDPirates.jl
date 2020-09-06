@@ -81,7 +81,7 @@ Base.@propagate_inbounds Base.setindex(v::AbstractStructVec{W,T}, x::Number, i) 
 @inline Base.convert(::Type{SVec{W,T}}, v::Vec{W,T}) where {W,T} = SVec(v)
 @inline Base.convert(::Type{SVec{W,T}}, x::SVec{W,T}) where {W,T} = x
 
-@inline vbroadcast(::Val{W}, v::AbstractSIMDVector{W}) where {W} = v
+@inline VectorizationBase.vbroadcast(::Val{W}, v::AbstractSIMDVector{W}) where {W} = v
 @inline vconvert(::Type{_Vec{_W,T}}, s::T) where {_W, T <: Unsigned} = vbroadcast(_Vec{_W,T}, s)
 @generated function vconvert(::Type{_Vec{_W,T1}}, v::_Vec{_W,T2}) where {_W,T1 <: FloatingTypes, T2 <: Signed}
     W = _W + 1
