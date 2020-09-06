@@ -334,9 +334,9 @@ end
     if ins[1] == '@'
         push!(decls, "declare $vtypr $ins($vtyp1, $vtyp2, $vtyp3)")
         push!(instrs,
-            "%res = call fast $vtypr $ins($vtyp1 %0, $vtyp2 %1, $vtyp3 %2)")
+            "%res = call ninf nsz arcp contract afn reassoc $vtypr $ins($vtyp1 %0, $vtyp2 %1, $vtyp3 %2)")
     else
-        push!(instrs, "%res = $ins fast $vtyp1 %0, %1, %2")
+        push!(instrs, "%res = $ins ninf nsz arcp contract afn reassoc $vtyp1 %0, %1, %2")
     end
     push!(instrs, "ret $vtypr %res")
     quote

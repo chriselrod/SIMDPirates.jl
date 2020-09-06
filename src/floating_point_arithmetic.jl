@@ -269,7 +269,7 @@ end
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(W)f$(bits)"
         decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
-        push!(instrs, "%res = call fast $typ $ins($typ 0.0, $vtyp %0)")
+        push!(instrs, "%res = call $(fastflags(T)) $typ $ins($typ 0.0, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
@@ -287,7 +287,7 @@ end
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(W)f$(bits)"
         decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
-        push!(instrs, "%res = call fast $typ $ins($typ 1.0, $vtyp %0)")
+        push!(instrs, "%res = call $(fastflags(T)) $typ $ins($typ 1.0, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
@@ -305,7 +305,7 @@ end
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fadd.f$(bits).v$(W)f$(bits)"
         decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
-        push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
+        push!(instrs, "%res = call $(fastflags(T)) $typ $ins($typ %1, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
@@ -323,7 +323,7 @@ end
         bits = 8sizeof(T)
         ins = "@llvm.experimental.vector.reduce.v2.fmul.f$(bits).v$(W)f$(bits)"
         decl = "declare $(typ) $(ins)($(typ), $(vtyp))"
-        push!(instrs, "%res = call fast $typ $ins($typ %1, $vtyp %0)")
+        push!(instrs, "%res = call $(fastflags(T)) $typ $ins($typ %1, $vtyp %0)")
         push!(instrs, "ret $typ %res")
         quote
             $(Expr(:meta, :inline))
@@ -426,7 +426,7 @@ end
         W = _W + 1
         typ = llvmtype(T)
         vtyp = "<$W x $typ>"
-        instrs = "%res = fneg fast $vtyp %0\nret $vtyp %res"
+        instrs = "%res = fneg $(fastflags(T)) $vtyp %0\nret $vtyp %res"
         quote
             $(Expr(:meta, :inline))
             llvmcall( $instrs, Vec{$W,$T}, Tuple{Vec{$W,$T}}, v )
@@ -566,7 +566,7 @@ vfnmsub(a::Number, b::Number, c::Number) = -muladd(a, b, c)
     # I don't really want reassoc on the fmul part, so this is what I'm going with.
     instrs = """
     %prod = fmul nnan ninf nsz arcp contract $vtyp %0, %1
-    %res = fadd fast $vtyp %prod, %2
+    %res = fadd $(fastflags(T)) $vtyp %prod, %2
     ret $vtyp %res
     """
     quote
@@ -904,7 +904,7 @@ end
     vtyp = "<$W x $typ>"
     instrs = String[]
     push!(instrs, "%ie = insertelement $vtyp zeroinitializer, $typ %1, i32 0")
-    push!(instrs, "%v = fadd fast $vtyp %0, %ie")
+    push!(instrs, "%v = fadd $(fastflags(T)) $vtyp %0, %ie")
     push!(instrs, "ret $vtyp %v")
     quote
         $(Expr(:meta,:inline))
@@ -935,7 +935,7 @@ end
     vtyp = "<$W x $typ>"
     instrs = String[]
     push!(instrs, "%ie = insertelement $vtyp $(llvmconst(W, T, 1.0)), $typ %1, i32 0")
-    push!(instrs, "%v = fmul fast $vtyp %0, %ie")
+    push!(instrs, "%v = fmul $(fastflags(T)) $vtyp %0, %ie")
     push!(instrs, "ret $vtyp %v")
     quote
         $(Expr(:meta,:inline))

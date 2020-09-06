@@ -86,7 +86,7 @@ end
     instrs = String[]
     push!(instrs, "%cond = trunc $vbtyp %0 to <$W x i1>")
     if T <: FloatingTypes && Base.libllvm_version >= v"9"
-        push!(instrs, "%res = select fast <$W x i1> %cond, $vtyp %1, $vtyp %2")
+        push!(instrs, "%res = select $(fastflags(T)) <$W x i1> %cond, $vtyp %1, $vtyp %2")
     else
         push!(instrs, "%res = select <$W x i1> %cond, $vtyp %1, $vtyp %2")
     end
@@ -143,7 +143,7 @@ end
     end
     # push!(instrs, "%cond = trunc $vbtyp %0 to <$W x i1>")
     if T <: FloatingTypes && Base.libllvm_version >= v"9"
-        push!(instrs, "%res = select fast <$W x i1> %cond, $vtyp %1, $vtyp %2")
+        push!(instrs, "%res = select $(fastflags(T)) <$W x i1> %cond, $vtyp %1, $vtyp %2")
     else
         push!(instrs, "%res = select <$W x i1> %cond, $vtyp %1, $vtyp %2")
     end
