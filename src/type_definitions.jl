@@ -216,6 +216,7 @@ end
 @inline promote_vtype(::Type{Mask{W,U}}, ::Type{T}) where {W, U, T <: Number} = SVec{W,T}
 @inline promote_vtype(::Type{T}, ::Type{Mask{W,U}}) where {W, U, T <: Number} = SVec{W,T}
 @inline promote_vtype(::Type{T1}, ::Type{T2}) where {T1 <: Number, T2 <: Number} = promote_type(T1, T2)
+@inline promote_vtype(::Type{Vec{W,T}}, ::Type{SVec{W,T}}) where {W,T} = SVec{W,T}
 
 @inline Base.unsafe_trunc(::Type{I}, v::SVec{W,T}) where {W, I <: Signed, T <: FloatingTypes} = SVec(vconvert(Vec{W,I}, extract_data(v)))
 

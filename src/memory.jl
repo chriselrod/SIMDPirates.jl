@@ -1360,6 +1360,13 @@ function transposeshuffle1(split, W)
     Expr(:call, Expr(:curly, :Val, tup))
 end
 
+@generated function vhaddstorebad!(ptr::Ptr{T}, v::NTuple{N}, i) where {N,T}
+    quote
+        $(Expr(:meta,:inline))
+        Base.Cartesian.@nexprs $N n -> vstore!(ptr + (n-1)*sizeof(T), vsum(v[n]))
+    end
+end
+
 @generated function vhaddstore!(ptr::AbstractPointer{T}, v::Tuple{V,Vararg{V,Nm1}}, i::Tuple{I,Vararg{I,Dm1}}) where {T,Nm1,W,V<:AbstractSIMDVector{W,T},Dm1,I<:Integer}
     N = Nm1 + 1; D = Dm1 + 1
     q = Expr(:block, Expr(:meta, :inline), Expr(:(=), :bptr, Expr(:call, :gep, :ptr, :i)))
