@@ -1,4 +1,5 @@
-## SIMDPirates.jl
+# SIMDPirates.jl
+# ⚠️ DEPRECATED: This package is now deprecated ⚠️
 
 [![Build Status](https://travis-ci.com/chriselrod/SIMDPirates.jl.svg?branch=master)](https://travis-ci.com/chriselrod/SIMDPirates.jl)
 [![Codecov](https://codecov.io/gh/chriselrod/SIMDPirates.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/chriselrod/SIMDPirates.jl)
