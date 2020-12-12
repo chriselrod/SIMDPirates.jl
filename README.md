@@ -1,6 +1,6 @@
 ## SIMDPirates.jl
 
-[![Build Status](https://travis-ci.com/chriselrod/SIMDPirates.jl.svg?branch=master)](https://travis-ci.com/chriselrod/SIMDPirates.jl)
+[![CI](https://github.com/chriselrod/SIMDPirates.jl/workflows/CI/badge.svg)](https://github.com/chriselrod/SIMDPirates.jl/actions?query=workflow%3ACI)
 [![Codecov](https://codecov.io/gh/chriselrod/SIMDPirates.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/chriselrod/SIMDPirates.jl)
 
 This library serves two primary purposes:
